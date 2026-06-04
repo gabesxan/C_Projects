@@ -87,3 +87,19 @@ typedef struct
 } Triagem;
 
 #endif
+
+extern Paciente pacientes[MAX_PACIENTES];
+extern Medico medicos[MAX_MEDICOS];
+extern Agendamento agendamentos[MAX_AGENDAMENTOS];
+extern Ala alas[MAX_ALAS];
+extern Leito leitos[MAX_LEITOS];
+extern Internacao internacoes[MAX_INTERNACOES];
+extern Triagem triagens[MAX_TRIAGENS];
+
+extern int totalPacientes;
+extern int totalMedicos;
+extern int totalAgendamentos;
+extern int totalAlas;
+extern int totalLeitos;
+extern int totalInternacoes;
+extern int totalTriagens;
