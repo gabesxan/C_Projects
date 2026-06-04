@@ -287,8 +287,32 @@ int main(void)
                 }
 
                 case 4:
-                    printf("\nExcluir paciente sera implementado depois.\n");
+                {
+                    int idBusca;
+                    int encontrado = 0;
+
+                    printf("\nDigite o ID do paciente que deseja excluir: ");
+                    scanf("%d", &idBusca);
+
+                    for (int i = 0; i < totalPacientes; i++)
+                    {
+                        if (pacientes[i].id == idBusca && pacientes[i].ativo == 1)
+                        {
+                            pacientes[i].ativo = 0;
+                            encontrado = 1;
+
+                            printf("\nPaciente removido com sucesso.\n");
+                            break;
+                        }
+                    }
+
+                    if (encontrado == 0)
+                    {
+                        printf("\nPaciente nao encontrado ou ja inativo.\n");
+                    }
+
                     break;
+                }
 
                 case 0:
                     printf("\nVoltando ao menu principal...\n");
