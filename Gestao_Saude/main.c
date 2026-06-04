@@ -1,6 +1,13 @@
 
 #include "hospital.h"
 #include "paciente.h"
+#include "medico.h"
+#include "agendamento.h"
+#include "ala.h"
+#include "leito.h"
+#include "internacao.h"
+#include "triagem.h"
+#include "relatorio.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -46,405 +53,33 @@ int main(void)
         case 1:
             menuPacientes();
             break;
+
         case 2:
-        {
-            int caso2;
-
-            do
-            {
-                printf("\n=============================================\n");
-                printf("MENU GERENCIAMENTO DE MEDICOS\n");
-                printf("=============================================\n");
-                printf("1. Cadastrar Medico\n");
-                printf("2. Listar Medicos\n");
-                printf("3. Editar Medico\n");
-                printf("4. Excluir Medico\n");
-                printf("0. Voltar ao Menu Principal\n");
-                printf("---------------------------------------------\n");
-                printf("Escolha uma opcao: ");
-
-                scanf("%d", &caso2);
-
-                switch (caso2)
-                {
-                case 1:
-                {
-                    if (totalMedicos >= MAX_MEDICOS)
-                    {
-                        printf("\nLimite de medicos atingido.\n");
-                        break;
-                    }
-
-                    medicos[totalMedicos].id = totalMedicos + 1;
-
-                    printf("\nNome do medico, sem Dr/Dr(a): ");
-                    scanf(" %[^\n]", medicos[totalMedicos].nome);
-
-                    printf("Numero do CRM: ");
-                    scanf(" %[^\n]", medicos[totalMedicos].crm);
-
-                    printf("Especialidade: ");
-                    scanf(" %[^\n]", medicos[totalMedicos].especialidade);
-
-                    medicos[totalMedicos].ativo = 1;
-                    totalMedicos++;
-
-                    printf("\nMedico cadastrado com sucesso! ID: %d\n", medicos[totalMedicos - 1].id);
-                    break;
-                }
-
-                case 2:
-                {
-                    if (totalMedicos == 0)
-                    {
-                        printf("\nNenhum medico cadastrado.\n");
-                        break;
-                    }
-
-                    printf("\nLista de Medicos:\n");
-
-                    for (int i = 0; i < totalMedicos; i++)
-                    {
-                        if (medicos[i].ativo == 1)
-                        {
-                            printf("\nID: %d\n", medicos[i].id);
-                            printf("Nome: Dr(a). %s\n", medicos[i].nome);
-                            printf("CRM: CRM%s\n", medicos[i].crm);
-                            printf("Especialidade: %s\n", medicos[i].especialidade);
-                        }
-                    }
-
-                    break;
-                }
-
-                case 3:
-                {
-                    int idBusca;
-                    int encontrado = 0;
-                    int opcaoEditar;
-
-                    printf("\nDigite o ID do medico que deseja editar: ");
-                    scanf("%d", &idBusca);
-
-                    for (int i = 0; i < totalMedicos; i++)
-                    {
-                        if (medicos[i].id == idBusca && medicos[i].ativo == 1)
-                        {
-                            encontrado = 1;
-
-                            printf("\nMedico encontrado:\n");
-                            printf("ID: %d\n", medicos[i].id);
-                            printf("Nome: Dr(a). %s\n", medicos[i].nome);
-                            printf("CRM: CRM%s\n", medicos[i].crm);
-                            printf("Especialidade: %s\n", medicos[i].especialidade);
-
-                            printf("\nO que deseja editar?\n");
-                            printf("1. Nome\n");
-                            printf("2. CRM\n");
-                            printf("3. Especialidade\n");
-                            printf("0. Cancelar\n");
-                            printf("Escolha uma opcao: ");
-                            scanf("%d", &opcaoEditar);
-
-                            switch (opcaoEditar)
-                            {
-                            case 1:
-                                printf("Novo nome do medico, sem Dr/Dr(a): ");
-                                scanf(" %[^\n]", medicos[i].nome);
-                                break;
-
-                            case 2:
-                                printf("Novo numero do CRM: ");
-                                scanf(" %[^\n]", medicos[i].crm);
-                                break;
-
-                            case 3:
-                                printf("Nova especialidade: ");
-                                scanf(" %[^\n]", medicos[i].especialidade);
-                                break;
-
-                            case 0:
-                                printf("\nEdicao cancelada.\n");
-                                break;
-
-                            default:
-                                printf("\nOpcao invalida.\n");
-                                break;
-                            }
-
-                            printf("\nMedico atualizado com sucesso.\n");
-                            break;
-                        }
-                    }
-
-                    if (encontrado == 0)
-                    {
-                        printf("\nMedico nao encontrado ou inativo.\n");
-                    }
-
-                    break;
-                }
-
-                case 4:
-                {
-                    int idBusca;
-                    int encontrado = 0;
-
-                    printf("\nDigite o ID do medico que deseja excluir: ");
-                    scanf("%d", &idBusca);
-
-                    for (int i = 0; i < totalMedicos; i++)
-                    {
-                        if (medicos[i].id == idBusca && medicos[i].ativo == 1)
-                        {
-                            medicos[i].ativo = 0;
-                            encontrado = 1;
-                            printf("\nMedico removido com sucesso.\n");
-                            break;
-                        }
-                    }
-
-                    if (encontrado == 0)
-                    {
-                        printf("\nMedico nao encontrado ou ja inativo.\n");
-                    }
-
-                    break;
-                }
-
-                case 0:
-                    printf("\nVoltando ao menu principal...\n");
-                    break;
-
-                default:
-                    printf("\nOpcao invalida. Tente novamente.\n");
-                    break;
-                }
-
-            } while (caso2 != 0);
-
+            menuMedicos();
             break;
-        }
 
         case 3:
-        {
-            int caso3;
-
-            do
-            {
-                printf("\n=============================================\n");
-                printf("MENU GERENCIAMENTO DE AGENDAMENTOS\n");
-                printf("=============================================\n");
-                printf("1. Criar Agendamento\n");
-                printf("2. Listar Agendamentos\n");
-                printf("3. Cancelar Agendamento\n");
-                printf("4. Concluir Agendamento\n");
-                printf("0. Voltar ao Menu Principal\n");
-                printf("---------------------------------------------\n");
-                printf("Escolha uma opcao: ");
-
-                scanf("%d", &caso3);
-
-                switch (caso3)
-                {
-                case 1:
-                {
-                    int pacienteId;
-                    int medicoId;
-                    int pacienteEncontrado = 0;
-                    int medicoEncontrado = 0;
-                    int conflito = 0;
-                    char data[11];
-                    char horario[6];
-
-                    if (totalAgendamentos >= MAX_AGENDAMENTOS)
-                    {
-                        printf("\nLimite de agendamentos atingido.\n");
-                        break;
-                    }
-
-                    printf("\nID do paciente: ");
-                    scanf("%d", &pacienteId);
-
-                    for (int i = 0; i < totalPacientes; i++)
-                    {
-                        if (pacientes[i].id == pacienteId && pacientes[i].ativo == 1)
-                        {
-                            pacienteEncontrado = 1;
-                            break;
-                        }
-                    }
-
-                    if (pacienteEncontrado == 0)
-                    {
-                        printf("\nPaciente nao encontrado ou inativo.\n");
-                        break;
-                    }
-
-                    printf("ID do medico: ");
-                    scanf("%d", &medicoId);
-
-                    for (int i = 0; i < totalMedicos; i++)
-                    {
-                        if (medicos[i].id == medicoId && medicos[i].ativo == 1)
-                        {
-                            medicoEncontrado = 1;
-                            break;
-                        }
-                    }
-
-                    if (medicoEncontrado == 0)
-                    {
-                        printf("\nMedico nao encontrado ou inativo.\n");
-                        break;
-                    }
-
-                    printf("Data (DD/MM/AAAA): ");
-                    scanf(" %[^\n]", data);
-
-                    printf("Horario (HH:MM): ");
-                    scanf(" %[^\n]", horario);
-
-                    for (int i = 0; i < totalAgendamentos; i++)
-                    {
-                        if (agendamentos[i].medicoId == medicoId &&
-                            strcmp(agendamentos[i].data, data) == 0 &&
-                            strcmp(agendamentos[i].horario, horario) == 0 &&
-                            strcmp(agendamentos[i].status, "CANCELADO") != 0)
-                        {
-                            conflito = 1;
-                            break;
-                        }
-                    }
-
-                    if (conflito == 1)
-                    {
-                        printf("\nEste medico ja possui agendamento nesse dia e horario.\n");
-                        break;
-                    }
-
-                    agendamentos[totalAgendamentos].id = totalAgendamentos + 1;
-                    agendamentos[totalAgendamentos].pacienteId = pacienteId;
-                    agendamentos[totalAgendamentos].medicoId = medicoId;
-                    strcpy(agendamentos[totalAgendamentos].data, data);
-                    strcpy(agendamentos[totalAgendamentos].horario, horario);
-                    strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
-
-                    totalAgendamentos++;
-
-                    printf("\nAgendamento criado com sucesso! ID: %d\n", agendamentos[totalAgendamentos - 1].id);
-                    break;
-                }
-
-                case 2:
-                {
-                    if (totalAgendamentos == 0)
-                    {
-                        printf("\nNenhum agendamento cadastrado.\n");
-                        break;
-                    }
-
-                    printf("\nLista de Agendamentos:\n");
-
-                    for (int i = 0; i < totalAgendamentos; i++)
-                    {
-                        printf("\nID: %d\n", agendamentos[i].id);
-                        printf("Paciente ID: %d\n", agendamentos[i].pacienteId);
-                        printf("Medico ID: %d\n", agendamentos[i].medicoId);
-                        printf("Data: %s\n", agendamentos[i].data);
-                        printf("Horario: %s\n", agendamentos[i].horario);
-                        printf("Status: %s\n", agendamentos[i].status);
-                    }
-
-                    break;
-                }
-
-                case 3:
-                {
-                    int idBusca;
-                    int encontrado = 0;
-
-                    printf("\nDigite o ID do agendamento que deseja cancelar: ");
-                    scanf("%d", &idBusca);
-
-                    for (int i = 0; i < totalAgendamentos; i++)
-                    {
-                        if (agendamentos[i].id == idBusca)
-                        {
-                            strcpy(agendamentos[i].status, "CANCELADO");
-                            encontrado = 1;
-                            printf("\nAgendamento cancelado com sucesso.\n");
-                            break;
-                        }
-                    }
-
-                    if (encontrado == 0)
-                    {
-                        printf("\nAgendamento nao encontrado.\n");
-                    }
-
-                    break;
-                }
-
-                case 4:
-                {
-                    int idBusca;
-                    int encontrado = 0;
-
-                    printf("\nDigite o ID do agendamento que deseja concluir: ");
-                    scanf("%d", &idBusca);
-
-                    for (int i = 0; i < totalAgendamentos; i++)
-                    {
-                        if (agendamentos[i].id == idBusca)
-                        {
-                            strcpy(agendamentos[i].status, "CONCLUIDO");
-                            encontrado = 1;
-                            printf("\nAgendamento concluido com sucesso.\n");
-                            break;
-                        }
-                    }
-
-                    if (encontrado == 0)
-                    {
-                        printf("\nAgendamento nao encontrado.\n");
-                    }
-
-                    break;
-                }
-
-                case 0:
-                    printf("\nVoltando ao menu principal...\n");
-                    break;
-
-                default:
-                    printf("\nOpcao invalida. Tente novamente.\n");
-                    break;
-                }
-
-            } while (caso3 != 0);
-
+            menuAgendamentos();
             break;
-        }
 
         case 4:
-            printf("\nModulo de alas mantido como proxima etapa neste arquivo.\n");
+            menuAlas();
             break;
 
         case 5:
-            printf("\nModulo de leitos mantido como proxima etapa neste arquivo.\n");
+            menuLeitos();
             break;
 
         case 6:
-            printf("\nModulo de internacoes mantido como proxima etapa neste arquivo.\n");
+            menuInternacoes();
             break;
 
         case 7:
-            printf("\nModulo de triagem mantido como proxima etapa neste arquivo.\n");
+            menuTriagem();
             break;
 
         case 8:
-            printf("\nRelatorios mantidos como proxima etapa neste arquivo.\n");
+            menuRelatorios();
             break;
 
         case 0:
