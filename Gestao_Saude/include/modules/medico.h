@@ -1,7 +1,7 @@
 #ifndef MEDICO_H
 #define MEDICO_H
 
-#include "hospital.h"
+#include "core/hospital.h"
 
 void menuMedicos(void);
 

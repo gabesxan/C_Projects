@@ -1,7 +1,7 @@
 #ifndef PACIENTE_H
 #define PACIENTE_H
 
-#include "hospital.h"
+#include "core/hospital.h"
 
 void menuPacientes(void);
 

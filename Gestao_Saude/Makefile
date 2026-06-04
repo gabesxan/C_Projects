@@ -1,20 +1,16 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -Iinclude
-TARGET = sigeh
-SOURCES = src/main.c src/paciente.c src/medico.c src/agendamento.c src/ala.c src/leito.c src/internacao.c src/triagem.c src/relatorio.c
+SRC = src/app/main.c src/modules/paciente.c src/modules/medico.c src/modules/agendamento.c src/modules/ala.c src/modules/leito.c src/modules/internacao.c src/modules/triagem.c src/modules/relatorio.c
+OUT = sigeh
 
-.PHONY: all run clean test
-
-all: $(TARGET)
-
-$(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET)
+all:
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
 
 run: all
-	./$(TARGET)
+	./$(OUT)
 
 clean:
-	rm -f $(TARGET) main *.o src/*.o
+	rm -f $(OUT)
 
 test:
-	@echo "Testes serao implementados depois."
+	@echo "Testes automatizados serao implementados depois."

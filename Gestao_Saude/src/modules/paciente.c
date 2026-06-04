@@ -1,4 +1,4 @@
-#include "paciente.h"
+#include "modules/paciente.h"
 
 void menuPacientes(void)
 {

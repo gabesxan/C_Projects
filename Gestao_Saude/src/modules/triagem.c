@@ -1,4 +1,4 @@
-#include "triagem.h"
+#include "modules/triagem.h"
 
 void menuTriagem(void)
 {

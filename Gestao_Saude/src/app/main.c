@@ -1,13 +1,13 @@
 
-#include "hospital.h"
-#include "paciente.h"
-#include "medico.h"
-#include "agendamento.h"
-#include "ala.h"
-#include "leito.h"
-#include "internacao.h"
-#include "triagem.h"
-#include "relatorio.h"
+#include "core/hospital.h"
+#include "modules/paciente.h"
+#include "modules/medico.h"
+#include "modules/agendamento.h"
+#include "modules/ala.h"
+#include "modules/leito.h"
+#include "modules/internacao.h"
+#include "modules/triagem.h"
+#include "modules/relatorio.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];

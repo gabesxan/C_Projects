@@ -1,7 +1,7 @@
 #ifndef AGENDAMENTO_H
 #define AGENDAMENTO_H
 
-#include "hospital.h"
+#include "core/hospital.h"
 
 void menuAgendamentos(void);
 

@@ -163,39 +163,51 @@ Mostra uma visão geral dos totais cadastrados e da ocupação por ala. Esse mó
 
 ## 9. Arquitetura e Organização
 
-O projeto foi modularizado para separar responsabilidades. A pasta `src/` guarda as implementações em arquivos `.c`, enquanto a pasta `include/` guarda os cabeçalhos `.h`.
+O projeto foi modularizado para separar responsabilidades e organizado em camadas de diretórios. A pasta `src/` guarda as implementações em arquivos `.c`, separando o ponto de entrada da aplicação dos módulos do sistema. A pasta `include/` guarda os cabeçalhos `.h`, separando definições centrais dos cabeçalhos específicos de cada módulo.
 
-O arquivo `hospital.h` centraliza as `structs`, constantes com `#define` e declarações `extern` dos vetores e contadores globais. Cada módulo possui seu próprio par `.c` e `.h`, como `paciente.c`/`paciente.h` e `agendamento.c`/`agendamento.h`.
+O arquivo `include/core/hospital.h` centraliza as `structs`, constantes com `#define` e declarações `extern` dos vetores e contadores globais. Cada módulo possui seu próprio par `.c` e `.h`, como `src/modules/paciente.c` com `include/modules/paciente.h` e `src/modules/agendamento.c` com `include/modules/agendamento.h`.
 
-O arquivo `main.c` controla apenas o menu principal, define os vetores globais e chama os menus dos módulos. Os dados ainda ficam em memória por meio de vetores globais. Persistência em arquivos e banco de dados são etapas futuras.
+O arquivo `src/app/main.c` controla apenas o menu principal, define os vetores globais e chama os menus dos módulos. Os dados ainda ficam em memória por meio de vetores globais. Persistência em arquivos e banco de dados são etapas futuras.
 
 ## 10. Estrutura de Pastas
 
 ```text
 Gestao_Saude/
   src/
-    main.c
-    paciente.c
-    medico.c
-    agendamento.c
-    ala.c
-    leito.c
-    internacao.c
-    triagem.c
-    relatorio.c
+    app/
+      main.c
+
+    modules/
+      paciente.c
+      medico.c
+      agendamento.c
+      ala.c
+      leito.c
+      internacao.c
+      triagem.c
+      relatorio.c
 
   include/
-    hospital.h
-    paciente.h
-    medico.h
-    agendamento.h
-    ala.h
-    leito.h
-    internacao.h
-    triagem.h
-    relatorio.h
+    core/
+      hospital.h
+
+    modules/
+      paciente.h
+      medico.h
+      agendamento.h
+      ala.h
+      leito.h
+      internacao.h
+      triagem.h
+      relatorio.h
 
   tests/
+    agendamento/
+    paciente/
+    medico/
+    triagem/
+    leito/
+
   data/
   docs/
 
@@ -204,9 +216,11 @@ Gestao_Saude/
   Makefile
 ```
 
-- `src/`: contém os arquivos `.c`, responsáveis pelas implementações.
-- `include/`: contém os arquivos `.h`, responsáveis pelas declarações compartilhadas.
-- `tests/`: será usada futuramente para testes automatizados.
+- `src/app/`: contém o arquivo `main.c`, responsável pelo menu principal e pela definição dos vetores e contadores globais.
+- `src/modules/`: contém os arquivos `.c` dos módulos funcionais do sistema.
+- `include/core/`: contém o header central `hospital.h`, com structs, constantes e declarações `extern`.
+- `include/modules/`: contém os headers específicos de cada módulo.
+- `tests/`: contém subpastas organizadas por área de teste planejada, como `agendamento/`, `paciente/`, `medico/`, `triagem/` e `leito/`.
 - `data/`: será usada futuramente para arquivos `.txt` de persistência.
 - `docs/`: será usada para documentação complementar.
 - `Makefile`: centraliza os comandos de compilação, execução, limpeza e teste.
@@ -242,7 +256,7 @@ Atualmente, `make test` apenas informa que os testes serão implementados depois
 Comando manual equivalente de compilação:
 
 ```bash
-gcc -Wall -Wextra -pedantic -Iinclude src/main.c src/paciente.c src/medico.c src/agendamento.c src/ala.c src/leito.c src/internacao.c src/triagem.c src/relatorio.c -o sigeh
+gcc -Wall -Wextra -pedantic -Iinclude src/app/main.c src/modules/paciente.c src/modules/medico.c src/modules/agendamento.c src/modules/ala.c src/modules/leito.c src/modules/internacao.c src/modules/triagem.c src/modules/relatorio.c -o sigeh
 ```
 
 Após compilar, também é possível executar diretamente:

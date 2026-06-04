@@ -1,7 +1,7 @@
 #ifndef RELATORIO_H
 #define RELATORIO_H
 
-#include "hospital.h"
+#include "core/hospital.h"
 
 void menuRelatorios(void);
 
