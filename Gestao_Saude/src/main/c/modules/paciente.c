@@ -1,5 +1,39 @@
 #include "paciente.h"
 
+int cadastrarPaciente(const char nome[], const char cpf[], int idade, const char telefone[], char sexo, int regiaoAdministrativa)
+{
+    if (totalPacientes >= MAX_PACIENTES)
+    {
+        return 0;
+    }
+
+    pacientes[totalPacientes].id = totalPacientes + 1;
+    strcpy(pacientes[totalPacientes].nome, nome);
+    strcpy(pacientes[totalPacientes].cpf, cpf);
+    pacientes[totalPacientes].idade = idade;
+    strcpy(pacientes[totalPacientes].telefone, telefone);
+    pacientes[totalPacientes].sexo = sexo;
+    pacientes[totalPacientes].regiaoAdministrativa = regiaoAdministrativa;
+    pacientes[totalPacientes].ativo = 1;
+
+    totalPacientes++;
+
+    return 1;
+}
+
+int excluirPaciente(int id)
+{
+    for (int i = 0; i < totalPacientes; i++)
+    {
+        if (pacientes[i].id == id && pacientes[i].ativo == 1)
+        {
+            pacientes[i].ativo = 0;
+            return 1;
+        }
+    }
+
+    return 0;
+}
 void menuPacientes(void)
 {
     int caso1;
@@ -260,15 +294,13 @@ void menuPacientes(void)
             printf("\nDigite o ID do paciente que deseja excluir: ");
             scanf("%d", &idBusca);
 
-            for (int i = 0; i < totalPacientes; i++)
+            if (excluirPaciente(idBusca) == 1)
             {
-                if (pacientes[i].id == idBusca && pacientes[i].ativo == 1)
-                {
-                    pacientes[i].ativo = 0;
-                    encontrado = 1;
-                    printf("\nPaciente removido com sucesso.\n");
-                    break;
-                }
+                printf("\nPaciente removido com sucesso.\n");
+            }
+            else
+            {
+                printf("\nPaciente nao encontrado ou ja inativo.\n");
             }
 
             if (encontrado == 0)

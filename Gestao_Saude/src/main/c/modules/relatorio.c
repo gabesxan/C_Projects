@@ -1,5 +1,63 @@
 #include "relatorio.h"
 
+int contarLeitosOcupados(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalLeitos; i++)
+    {
+        if (leitos[i].ocupado == 1)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+int contarLeitosLivres(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalLeitos; i++)
+    {
+        if (leitos[i].ocupado == 0)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+float calcularTaxaOcupacaoAla(int alaId)
+{
+    for (int i = 0; i < totalAlas; i++)
+    {
+        if (alas[i].id == alaId && alas[i].ativo == 1 && alas[i].totalLeitos > 0)
+        {
+            return (alas[i].leitosOcupados * 100.0f) / alas[i].totalLeitos;
+        }
+    }
+
+    return 0.0f;
+}
+
+int contarTriagensPorClassificacao(const char classificacao[])
+{
+    int total = 0;
+
+    for (int i = 0; i < totalTriagens; i++)
+    {
+        if (strcmp(triagens[i].classificacao, classificacao) == 0)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
 void menuRelatorios(void)
 {
     printf("\n=============================================\n");

@@ -4,5 +4,6 @@
 #include "hospital.h"
 
 void menuLeitos(void);
+int cadastrarLeito(int alaId, int numero);
 
 #endif

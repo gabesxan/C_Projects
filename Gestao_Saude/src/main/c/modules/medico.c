@@ -1,5 +1,37 @@
 #include "medico.h"
 
+int cadastrarMedico(const char nome[], const char crm[], const char especialidade[])
+{
+    if (totalMedicos >= MAX_MEDICOS)
+    {
+        return 0;
+    }
+
+    medicos[totalMedicos].id = totalMedicos + 1;
+    strcpy(medicos[totalMedicos].nome, nome);
+    strcpy(medicos[totalMedicos].crm, crm);
+    strcpy(medicos[totalMedicos].especialidade, especialidade);
+    medicos[totalMedicos].ativo = 1;
+
+    totalMedicos++;
+
+    return 1;
+}
+
+int excluirMedico(int id)
+{
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].id == id && medicos[i].ativo == 1)
+        {
+            medicos[i].ativo = 0;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 void menuMedicos(void)
 {
     int caso2;
@@ -147,15 +179,13 @@ void menuMedicos(void)
             printf("\nDigite o ID do medico que deseja excluir: ");
             scanf("%d", &idBusca);
 
-            for (int i = 0; i < totalMedicos; i++)
+            if (excluirMedico(idBusca) == 1)
             {
-                if (medicos[i].id == idBusca && medicos[i].ativo == 1)
-                {
-                    medicos[i].ativo = 0;
-                    encontrado = 1;
-                    printf("\nMedico removido com sucesso.\n");
-                    break;
-                }
+                printf("\nMedico removido com sucesso.\n");
+            }
+            else
+            {
+                printf("\nMedico nao encontrado ou ja inativo.\n");
             }
 
             if (encontrado == 0)

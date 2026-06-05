@@ -11,3 +11,13 @@ sigeh
 
 # macOS
 .DS_Store
+
+sigeh
+test_agendamento
+test_leito
+test_triagem
+test_paciente
+test_medico
+test_ala
+test_internacao
+test_relatorio

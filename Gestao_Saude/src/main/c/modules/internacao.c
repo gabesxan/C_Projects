@@ -1,5 +1,108 @@
 #include "internacao.h"
 
+int internarPaciente(int pacienteId, int leitoId, const char dataEntrada[])
+{
+    int pacienteEncontrado = 0;
+    int indiceLeito = -1;
+    int indiceAla = -1;
+
+    if (totalInternacoes >= MAX_INTERNACOES)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalPacientes; i++)
+    {
+        if (pacientes[i].id == pacienteId && pacientes[i].ativo == 1)
+        {
+            pacienteEncontrado = 1;
+            break;
+        }
+    }
+
+    if (pacienteEncontrado == 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalLeitos; i++)
+    {
+        if (leitos[i].id == leitoId)
+        {
+            indiceLeito = i;
+            break;
+        }
+    }
+
+    if (indiceLeito == -1 || leitos[indiceLeito].ocupado == 1)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalAlas; i++)
+    {
+        if (alas[i].id == leitos[indiceLeito].alaId && alas[i].ativo == 1)
+        {
+            indiceAla = i;
+            break;
+        }
+    }
+
+    internacoes[totalInternacoes].id = totalInternacoes + 1;
+    internacoes[totalInternacoes].pacienteId = pacienteId;
+    internacoes[totalInternacoes].alaId = leitos[indiceLeito].alaId;
+    internacoes[totalInternacoes].leitoId = leitoId;
+    strcpy(internacoes[totalInternacoes].dataEntrada, dataEntrada);
+    strcpy(internacoes[totalInternacoes].dataAlta, "00/00/0000");
+    strcpy(internacoes[totalInternacoes].status, "INTERNADO");
+
+    leitos[indiceLeito].ocupado = 1;
+    leitos[indiceLeito].pacienteId = pacienteId;
+
+    if (indiceAla != -1)
+    {
+        alas[indiceAla].leitosOcupados++;
+    }
+
+    totalInternacoes++;
+
+    return 1;
+}
+
+int darAltaInternacao(int internacaoId, const char dataAlta[])
+{
+    for (int i = 0; i < totalInternacoes; i++)
+    {
+        if (internacoes[i].id == internacaoId && strcmp(internacoes[i].status, "INTERNADO") == 0)
+        {
+            strcpy(internacoes[i].dataAlta, dataAlta);
+            strcpy(internacoes[i].status, "ALTA");
+
+            for (int j = 0; j < totalLeitos; j++)
+            {
+                if (leitos[j].id == internacoes[i].leitoId)
+                {
+                    leitos[j].ocupado = 0;
+                    leitos[j].pacienteId = 0;
+                    break;
+                }
+            }
+
+            for (int j = 0; j < totalAlas; j++)
+            {
+                if (alas[j].id == internacoes[i].alaId && alas[j].leitosOcupados > 0)
+                {
+                    alas[j].leitosOcupados--;
+                    break;
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    return 0;
+}
 void menuInternacoes(void)
 {
     int caso6;

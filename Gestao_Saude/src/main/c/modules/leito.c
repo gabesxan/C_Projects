@@ -1,5 +1,39 @@
 #include "leito.h"
 
+int cadastrarLeito(int alaId, int numero)
+{
+    int alaEncontrada = 0;
+
+    if (totalLeitos >= MAX_LEITOS)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalAlas; i++)
+    {
+        if (alas[i].id == alaId && alas[i].ativo == 1)
+        {
+            alaEncontrada = 1;
+            break;
+        }
+    }
+
+    if (alaEncontrada == 0)
+    {
+        return 0;
+    }
+
+    leitos[totalLeitos].id = totalLeitos + 1;
+    leitos[totalLeitos].alaId = alaId;
+    leitos[totalLeitos].numero = numero;
+    leitos[totalLeitos].ocupado = 0;
+    leitos[totalLeitos].pacienteId = 0;
+
+    totalLeitos++;
+
+    return 1;
+}
+
 void menuLeitos(void)
 {
     int caso5;
@@ -21,41 +55,19 @@ void menuLeitos(void)
         case 1:
         {
             int alaId;
-            int alaEncontrada = 0;
-
-            if (totalLeitos >= MAX_LEITOS)
-            {
-                printf("\nLimite de leitos atingido.\n");
-                break;
-            }
+            int numero;
 
             printf("\nID da ala: ");
             scanf("%d", &alaId);
 
-            for (int i = 0; i < totalAlas; i++)
-            {
-                if (alas[i].id == alaId && alas[i].ativo == 1)
-                {
-                    alaEncontrada = 1;
-                    break;
-                }
-            }
+            printf("Numero do leito: ");
+            scanf("%d", &numero);
 
-            if (alaEncontrada == 0)
+            if (cadastrarLeito(alaId, numero) == 0)
             {
-                printf("\nAla nao encontrada ou inativa.\n");
+                printf("\nNao foi possivel cadastrar o leito. Verifique se a ala existe, esta ativa ou se o limite foi atingido.\n");
                 break;
             }
-
-            leitos[totalLeitos].id = totalLeitos + 1;
-            leitos[totalLeitos].alaId = alaId;
-
-            printf("Numero do leito: ");
-            scanf("%d", &leitos[totalLeitos].numero);
-
-            leitos[totalLeitos].ocupado = 0;
-            leitos[totalLeitos].pacienteId = 0;
-            totalLeitos++;
 
             printf("\nLeito cadastrado com sucesso! ID: %d\n", leitos[totalLeitos - 1].id);
             break;

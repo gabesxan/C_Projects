@@ -1,5 +1,38 @@
 #include "ala.h"
 
+int cadastrarAla(const char nome[], const char tipo[], int totalLeitosAla)
+{
+    if (totalAlas >= MAX_ALAS)
+    {
+        return 0;
+    }
+
+    alas[totalAlas].id = totalAlas + 1;
+    strcpy(alas[totalAlas].nome, nome);
+    strcpy(alas[totalAlas].tipo, tipo);
+    alas[totalAlas].totalLeitos = totalLeitosAla;
+    alas[totalAlas].leitosOcupados = 0;
+    alas[totalAlas].ativo = 1;
+
+    totalAlas++;
+
+    return 1;
+}
+
+int excluirAla(int id)
+{
+    for (int i = 0; i < totalAlas; i++)
+    {
+        if (alas[i].id == id && alas[i].ativo == 1)
+        {
+            alas[i].ativo = 0;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 void menuAlas(void)
 {
     int caso4;

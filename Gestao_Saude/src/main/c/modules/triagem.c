@@ -1,5 +1,36 @@
 #include "triagem.h"
 
+int calcularPontuacaoTriagem(int febre, int faltaAr, int dorIntensa, int pressaoAlta, int idadePaciente)
+{
+    int pontuacao = 0;
+
+    if (faltaAr == 1)
+        pontuacao += 5;
+    if (dorIntensa == 1)
+        pontuacao += 4;
+    if (febre == 1)
+        pontuacao += 2;
+    if (pressaoAlta == 1)
+        pontuacao += 2;
+    if (idadePaciente >= 60 || idadePaciente <= 5)
+        pontuacao += 2;
+
+    return pontuacao;
+}
+
+void classificarTriagem(int pontuacao, char classificacao[])
+{
+    if (pontuacao >= 8)
+        strcpy(classificacao, "Emergencia");
+    else if (pontuacao >= 5)
+        strcpy(classificacao, "Muito prioritario");
+    else if (pontuacao >= 3)
+        strcpy(classificacao, "Prioritario");
+    else if (pontuacao >= 1)
+        strcpy(classificacao, "Comum");
+    else
+        strcpy(classificacao, "Orientacao basica");
+}
 void menuTriagem(void)
 {
     int caso7;
@@ -64,30 +95,17 @@ void menuTriagem(void)
             printf("Pressao alta? (1-Sim / 0-Nao): ");
             scanf("%d", &triagens[totalTriagens].pressaoAlta);
 
-            triagens[totalTriagens].pontuacao = 0;
+            triagens[totalTriagens].pontuacao = calcularPontuacaoTriagem(
+                triagens[totalTriagens].febre,
+                triagens[totalTriagens].faltaAr,
+                triagens[totalTriagens].dorIntensa,
+                triagens[totalTriagens].pressaoAlta,
+                idadePaciente);
 
-            if (triagens[totalTriagens].faltaAr == 1)
-                triagens[totalTriagens].pontuacao += 5;
-            if (triagens[totalTriagens].dorIntensa == 1)
-                triagens[totalTriagens].pontuacao += 4;
-            if (triagens[totalTriagens].febre == 1)
-                triagens[totalTriagens].pontuacao += 2;
-            if (triagens[totalTriagens].pressaoAlta == 1)
-                triagens[totalTriagens].pontuacao += 2;
-            if (idadePaciente >= 60 || idadePaciente <= 5)
-                triagens[totalTriagens].pontuacao += 2;
-
-            if (triagens[totalTriagens].pontuacao >= 8)
-                strcpy(triagens[totalTriagens].classificacao, "Emergencia");
-            else if (triagens[totalTriagens].pontuacao >= 5)
-                strcpy(triagens[totalTriagens].classificacao, "Muito prioritario");
-            else if (triagens[totalTriagens].pontuacao >= 3)
-                strcpy(triagens[totalTriagens].classificacao, "Prioritario");
-            else if (triagens[totalTriagens].pontuacao >= 1)
-                strcpy(triagens[totalTriagens].classificacao, "Comum");
-            else
-                strcpy(triagens[totalTriagens].classificacao, "Orientacao basica");
-
+            classificarTriagem(
+                triagens[totalTriagens].pontuacao,
+                triagens[totalTriagens].classificacao);
+                
             printf("\nTriagem registrada com sucesso.\n");
             printf("Pontuacao: %d\n", triagens[totalTriagens].pontuacao);
             printf("Classificacao: %s\n", triagens[totalTriagens].classificacao);
