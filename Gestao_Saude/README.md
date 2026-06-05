@@ -19,6 +19,12 @@ O sistema possui modulos para:
 - triagem;
 - relatorios gerais.
 
+## Organizacao Do Codigo
+
+O `main.c` fica em `src/main/c/app` e controla apenas o menu principal da aplicacao. A exibicao do menu e a execucao das opcoes foram separadas em funcoes auxiliares para manter o ponto de entrada mais simples.
+
+As regras de cada area ficam nos respectivos modulos em `src/main/c/modules`, com declaracoes em `src/main/c/headers`.
+
 ## Estrutura Do Projeto
 
 A arquitetura oficial do projeto esta organizada assim:
@@ -109,7 +115,7 @@ O comando abaixo compila e executa todos os testes:
 make test
 ```
 
-Modulos com testes automatizados:
+Modulos base com testes automatizados:
 
 - agendamento;
 - leito;

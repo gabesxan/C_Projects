@@ -1,4 +1,3 @@
-
 #include "hospital.h"
 #include "paciente.h"
 #include "medico.h"
@@ -25,71 +24,80 @@ int totalLeitos = 0;
 int totalInternacoes = 0;
 int totalTriagens = 0;
 
+static void exibirMenuPrincipal(void)
+{
+    printf("\n=============================================\n");
+    printf("SIGEH-DF - Sistema de Gestao Hospitalar do DF\n");
+    printf("=============================================\n");
+    printf("1. Gerenciar Pacientes\n");
+    printf("2. Gerenciar Medicos\n");
+    printf("3. Gerenciar Agendamentos\n");
+    printf("4. Gerenciar Alas\n");
+    printf("5. Gerenciar Leitos\n");
+    printf("6. Gerenciar Internacoes\n");
+    printf("7. Gerenciar Triagem\n");
+    printf("8. Gerar Relatorios\n");
+    printf("0. Sair\n");
+    printf("---------------------------------------------\n");
+    printf("Escolha uma opcao: ");
+}
+
+static void executarOpcaoMenuPrincipal(int opcao)
+{
+    switch (opcao)
+    {
+    case 1:
+        menuPacientes();
+        break;
+
+    case 2:
+        menuMedicos();
+        break;
+
+    case 3:
+        menuAgendamentos();
+        break;
+
+    case 4:
+        menuAlas();
+        break;
+
+    case 5:
+        menuLeitos();
+        break;
+
+    case 6:
+        menuInternacoes();
+        break;
+
+    case 7:
+        menuTriagem();
+        break;
+
+    case 8:
+        menuRelatorios();
+        break;
+
+    case 0:
+        printf("\nEncerrando o SIGEH-DF...\n");
+        break;
+
+    default:
+        printf("\nOpcao invalida. Tente novamente.\n");
+        break;
+    }
+}
+
 int main(void)
 {
     int opcao;
 
     do
     {
-        printf("\n=============================================\n");
-        printf("SIGEH-DF - Sistema de Gestao Hospitalar do DF\n");
-        printf("=============================================\n");
-        printf("1. Gerenciar Pacientes\n");
-        printf("2. Gerenciar Medicos\n");
-        printf("3. Gerenciar Agendamentos\n");
-        printf("4. Gerenciar Alas\n");
-        printf("5. Gerenciar Leitos\n");
-        printf("6. Gerenciar Internacoes\n");
-        printf("7. Gerenciar Triagem\n");
-        printf("8. Gerar Relatorios\n");
-        printf("0. Sair\n");
-        printf("---------------------------------------------\n");
-        printf("Escolha uma opcao: ");
-
+        exibirMenuPrincipal();
         scanf("%d", &opcao);
 
-        switch (opcao)
-        {
-        case 1:
-            menuPacientes();
-            break;
-
-        case 2:
-            menuMedicos();
-            break;
-
-        case 3:
-            menuAgendamentos();
-            break;
-
-        case 4:
-            menuAlas();
-            break;
-
-        case 5:
-            menuLeitos();
-            break;
-
-        case 6:
-            menuInternacoes();
-            break;
-
-        case 7:
-            menuTriagem();
-            break;
-
-        case 8:
-            menuRelatorios();
-            break;
-
-        case 0:
-            printf("\nEncerrando o SIGEH-DF...\n");
-            break;
-
-        default:
-            printf("\nOpcao invalida. Tente novamente.\n");
-            break;
-        }
+        executarOpcaoMenuPrincipal(opcao);
 
     } while (opcao != 0);
 
