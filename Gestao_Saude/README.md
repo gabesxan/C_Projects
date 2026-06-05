@@ -33,14 +33,47 @@ O sistema permite gerenciar:
 ## Estrutura Geral
 
 ```text
-src/main/c/app/main.c
-src/main/c/model/hospital.h
-src/main/c/headers/*.h
-src/main/c/modules/*.c
-src/test/c/modules/*.c
-Makefile
-README.md
+SIGEH-DF/
+├── Makefile
+├── README.md
+└── src
+    ├── main
+    │   └── c
+    │       ├── app
+    │       │   └── main.c
+    │       ├── headers
+    │       │   ├── agendamento.h
+    │       │   ├── ala.h
+    │       │   ├── internacao.h
+    │       │   ├── leito.h
+    │       │   ├── medico.h
+    │       │   ├── paciente.h
+    │       │   ├── relatorio.h
+    │       │   └── triagem.h
+    │       ├── model
+    │       │   └── hospital.h
+    │       └── modules
+    │           ├── agendamento.c
+    │           ├── ala.c
+    │           ├── internacao.c
+    │           ├── leito.c
+    │           ├── medico.c
+    │           ├── paciente.c
+    │           ├── relatorio.c
+    │           └── triagem.c
+    └── test
+        └── c
+            └── modules
+                ├── test_agendamento.c
+                ├── test_ala.c
+                ├── test_internacao.c
+                ├── test_leito.c
+                ├── test_medico.c
+                ├── test_paciente.c
+                ├── test_relatorio.c
+                └── test_triagem.c
 ```
+
 
 ## Arquitetura Adotada
 
@@ -55,6 +88,7 @@ Contem a modelagem principal do sistema:
 - `structs`
 - vetores globais
 - contadores globais
+- tipos e regras compartilhadas
 
 ### `src/main/c/headers`
 
@@ -97,9 +131,19 @@ Este e o arquivo mais importante da modelagem do sistema.
 Responsabilidades:
 - incluir bibliotecas padrao
 - definir constantes como `MAX_PACIENTES`, `MAX_MEDICOS`, `MAX_LEITOS`
+- definir os tipos de triagem
 - definir todas as `structs`
 - declarar os vetores globais com `extern`
 - declarar os contadores globais com `extern`
+
+Constantes importantes:
+- limites dos vetores
+- tipos de triagem:
+  - `TRIAGEM_GERAL`
+  - `TRIAGEM_ORTOPEDIA`
+  - `TRIAGEM_CARDIOLOGIA`
+  - `TRIAGEM_PNEUMOLOGIA`
+  - `TRIAGEM_PEDIATRIA`
 
 Structs presentes:
 - `Paciente`
@@ -124,10 +168,7 @@ Declara as funcoes do modulo de pacientes.
 
 Responsabilidades:
 - expor o menu de pacientes
-- expor funcoes auxiliares do modulo, como cadastro e exclusao logica, se existentes
-
-Importancia:
-- separa a interface do modulo da implementacao real em `paciente.c`
+- expor funcoes auxiliares do modulo, como cadastro e exclusao logica
 
 ## `src/main/c/modules/paciente.c`
 
@@ -162,7 +203,7 @@ Declara as funcoes do modulo de medicos.
 
 Responsabilidades:
 - expor o menu de medicos
-- expor funcoes auxiliares de cadastro e exclusao, se existentes
+- expor funcoes auxiliares de cadastro e exclusao
 
 ## `src/main/c/modules/medico.c`
 
@@ -178,16 +219,18 @@ Dados tratados:
 - nome
 - CRM
 - especialidade
+- regiao administrativa
 - status `ativo`
 
 Regras importantes:
 - medico novo entra como ativo
 - exclusao e logica
 - listagem ignora medicos inativos
+- a regiao administrativa ja influencia relatorios e agendamentos
 
 Importancia:
 - influencia diretamente o modulo de agendamento
-- e a base para futuras melhorias como regionalizacao e especialidade
+- serve de base para regionalizacao e especialidade
 
 ## `src/main/c/headers/agendamento.h`
 
@@ -195,8 +238,9 @@ Declara as funcoes do modulo de agendamento.
 
 Responsabilidades:
 - expor o menu de agendamentos
-- expor verificacao de conflito medico
-- expor operacoes como cancelamento e conclusao, se existentes
+- expor verificacao de ocupacao/conflito
+- expor operacoes como cancelamento e conclusao
+- expor funcoes auxiliares ligadas a triagem, especialidade, regiao e remanejamento
 
 ## `src/main/c/modules/agendamento.c`
 
@@ -207,7 +251,11 @@ Responsabilidades:
 - listar agendamentos
 - cancelar agendamento
 - concluir agendamento
-- verificar conflito de horario do medico
+- localizar especialidade a partir da triagem
+- localizar medico por especialidade e regiao
+- realizar agendamento orientado por triagem
+- comparar prioridade entre pacientes em conflito
+- remanejar agendamento menos urgente quando permitido
 
 Dados tratados:
 - `pacienteId`
@@ -220,16 +268,22 @@ Status usados:
 - `AGENDADO`
 - `CANCELADO`
 - `CONCLUIDO`
+- `REMANEJADO`
 
 Regras importantes:
 - nao agenda paciente inativo
 - nao agenda medico inativo
-- nao permite conflito de horario para medico em agendamento ativo
-- cancelamento preserva historico
+- usa a triagem ativa mais recente do paciente
+- converte o tipo de triagem em especialidade
+- tenta medico da mesma regiao primeiro
+- se nao houver, tenta outra regiao
+- casos urgentes podem substituir casos menos urgentes
+- quem perde o horario e o paciente menos urgente, nao o medico
+- agendamentos `REMANEJADO` nao devem bloquear horario como agendamento ativo
 
 Importancia:
-- e um dos modulos com mais regra de negocio
-- ja possui teste automatizado especifico
+- e um dos modulos mais ricos em regra de negocio
+- integra paciente, medico, triagem e regionalizacao
 
 ## `src/main/c/headers/ala.h`
 
@@ -237,7 +291,7 @@ Declara as funcoes do modulo de alas.
 
 Responsabilidades:
 - expor o menu de alas
-- expor funcoes auxiliares de cadastro e exclusao logica, se existentes
+- expor funcoes auxiliares de cadastro e exclusao logica
 
 ## `src/main/c/modules/ala.c`
 
@@ -330,7 +384,7 @@ Status usados:
 
 Regras importantes:
 - paciente precisa existir e estar ativo
-- leito precisa existir e estar livre
+- leito precisa existir, estar ativo e livre
 - ao internar:
   - leito fica ocupado
   - `pacienteId` do leito e preenchido
@@ -354,25 +408,36 @@ Responsabilidades:
 - expor o menu de triagem
 - expor funcoes de classificacao
 - expor exclusao logica
-- suportar a evolucao futura para tipos de triagem e submenus especializados
+- expor selecao de tipo de triagem
+- expor submenus especializados
+- expor funcoes de prioridade
 
 ## `src/main/c/modules/triagem.c`
 
 Implementa o gerenciamento de triagem.
 
 Responsabilidades:
-- registrar triagem
-- calcular pontuacao conforme regras do tipo de triagem
-- classificar a gravidade
+- selecionar o tipo de triagem
+- executar submenus especificos
+- calcular pontuacao
+- classificar o risco
 - listar triagens ativas
 - excluir triagem logicamente
+- fornecer informacoes de prioridade para o agendamento
 
 Dados tratados:
 - `pacienteId`
-- tipo da triagem
-- pontuacao
-- classificacao
-- status `ativo`
+- `tipoTriagem`
+- `pontuacao`
+- `classificacao`
+- `ativo`
+
+Tipos de triagem:
+- Geral
+- Ortopedia
+- Cardiologia
+- Pneumologia
+- Pediatria
 
 Classificacoes usadas:
 - `Emergencia`
@@ -383,12 +448,18 @@ Classificacoes usadas:
 
 Regras importantes:
 - triagem depende de paciente ativo
-- pontuacao define a classificacao
+- cada tipo de triagem tem seu proprio conjunto de perguntas
+- a struct salva apenas o resultado final
 - exclusao e logica
 - listagem ignora triagens inativas
+- existem funcoes de apoio para prioridade, como:
+  - nivel de prioridade
+  - verificacao de urgencia
+  - busca da triagem ativa mais recente do paciente
 
 Importancia:
-- e a base para futuras regras de prioridade e encaminhamento
+- e a base para encaminhamento clinico
+- alimenta o agendamento por especialidade e urgencia
 
 ## `src/main/c/headers/relatorio.h`
 
@@ -396,7 +467,8 @@ Declara as funcoes do modulo de relatorios.
 
 Responsabilidades:
 - expor o menu de relatorios
-- expor funcoes auxiliares de contagem, taxa de ocupacao e indicadores, se existentes
+- expor funcoes auxiliares de contagem e indicadores
+- preparar a base do painel situacional
 
 ## `src/main/c/modules/relatorio.c`
 
@@ -405,20 +477,31 @@ Implementa os relatorios do sistema.
 Responsabilidades:
 - mostrar totais gerais
 - exibir ocupacao por ala
-- calcular indicadores simples com os vetores atuais
+- contar leitos livres e ocupados
+- contar triagens por classificacao
+- contar medicos por regiao
+- contar pacientes por regiao
+- descobrir especialidade mais demandada
 
-Indicadores atuais podem incluir:
-- total de pacientes
-- total de medicos
-- total de agendamentos
-- total de alas
-- total de leitos
-- total de internacoes
-- total de triagens
+Indicadores atuais:
+- total de pacientes cadastrados
+- total de medicos cadastrados
+- total de agendamentos cadastrados
+- total de alas cadastradas
+- total de leitos cadastrados
+- total de internacoes cadastradas
+- total de triagens cadastradas
+- triagens por classificacao
+- leitos ocupados
+- leitos livres
 - taxa de ocupacao por ala
+- medicos ativos por regiao
+- pacientes ativos por regiao
+- especialidade mais demandada
 
 Importancia:
-- transforma os dados cadastrados em informacao gerencial
+- transforma dados operacionais em visao gerencial
+- e a base do Painel Situacional do DF
 
 ## Testes Automatizados
 
@@ -455,15 +538,22 @@ Valida:
 - cadastro de medico
 - preenchimento correto dos campos
 - exclusao logica
+- regiao administrativa
 - comportamento de medico ativo e inativo
 
 ### `test_agendamento.c`
 
 Valida:
-- conflito de horario do medico
+- conflito/ocupacao de horario
 - cancelamento
 - conclusao
-- efeito do status sobre a disponibilidade do horario
+- mapeamento de triagem para especialidade
+- busca por regiao
+- fallback para outra regiao
+- remanejamento de caso menos urgente
+- bloqueio de remanejamento em caso igual ou mais urgente
+- falha sem triagem ativa
+- falha sem medico compativel
 
 ### `test_ala.c`
 
@@ -496,16 +586,22 @@ Valida:
 
 Valida:
 - classificacao da triagem
-- pontuacao final conforme o modelo atual
+- prioridade
+- urgencia
+- busca da triagem ativa por paciente
 - exclusao logica
 - status ativo/inativo
 
 ### `test_relatorio.c`
 
 Valida:
-- contagens
-- ocupacao
-- indicadores principais do modulo de relatorio
+- contagem de leitos ocupados
+- contagem de leitos livres
+- taxa de ocupacao
+- triagens por classificacao
+- medicos por regiao
+- pacientes por regiao
+- especialidade mais demandada
 
 ## Makefile
 
@@ -557,7 +653,7 @@ Ou, se ja estiver compilado:
 ./sigeh
 ```
 
-## Como Rodar Os Testes
+## Como Rodar os Testes
 
 ```bash
 make test
@@ -590,6 +686,7 @@ Usada em:
 - triagem
 
 Exemplo:
+
 ```c
 objeto.ativo = 0;
 ```
@@ -601,22 +698,36 @@ Usado em:
 - internacao
 
 Exemplos:
-- agendamento: `AGENDADO`, `CANCELADO`, `CONCLUIDO`
+- agendamento: `AGENDADO`, `CANCELADO`, `CONCLUIDO`, `REMANEJADO`
 - internacao: `INTERNADO`, `ALTA`
 
 Esse modelo preserva historico e evita apagar registros relevantes.
+
+## Fluxo Geral do Sistema
+
+Um fluxo tipico do sistema hoje pode ser:
+
+1. cadastrar paciente
+2. cadastrar medico
+3. realizar triagem do paciente
+4. classificar a gravidade
+5. identificar o tipo de triagem
+6. criar agendamento com base na especialidade necessaria
+7. priorizar a mesma regiao quando possivel
+8. remanejar caso menos urgente, se aplicavel
+9. internar paciente, se necessario
+10. acompanhar ocupacao de leitos e alas
+11. consultar relatorios
 
 ## Proximas Evolucoes Planejadas
 
 As proximas evolucoes previstas para o projeto incluem:
 
-- regionalizacao do atendimento
-- medicos por regiao
-- controle mais forte de especialidade
-- painel situacional do DF
+- regiao com mais casos graves
+- consolidacao do Painel Situacional do DF
+- melhoria das categorias e tipos de ala
 - prontuario integrado
 - exames integrados
-- fila de prioridade por triagem
 - persistencia em arquivos `.txt`
 - SQLite futuramente
 
@@ -626,9 +737,10 @@ Alguns limites importantes da versao atual:
 
 - os dados sao mantidos apenas em memoria
 - o sistema ainda depende de `scanf`
-- nao ha validacao robusta de entrada
+- nao ha validacao robusta para todos os campos
 - nao ha autenticacao ou perfil de acesso
 - nao ha banco de dados
-- nao ha agenda inteligente completa
+- nao ha interface grafica
+- nao ha remarcacao automatica completa para casos remanejados
 
-Mesmo assim, o projeto ja cumpre bem o objetivo academico de praticar organizacao, modelagem e regras de negocio em C.
+Mesmo assim, o projeto ja atende bem ao objetivo academico de praticar organizacao, modelagem, testes e regras de negocio em C.

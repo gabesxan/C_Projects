@@ -24,7 +24,7 @@ int totalLeitos = 0;
 int totalInternacoes = 0;
 int totalTriagens = 0;
 
-static void exibirMenuPrincipal(void)
+static void exibirMenu(void)
 {
     printf("\n=============================================\n");
     printf("SIGEH-DF - Sistema de Gestao Hospitalar do DF\n");
@@ -42,7 +42,7 @@ static void exibirMenuPrincipal(void)
     printf("Escolha uma opcao: ");
 }
 
-static void executarOpcaoMenuPrincipal(int opcao)
+static void executarOpcao(int opcao)
 {
     switch (opcao)
     {
@@ -94,10 +94,10 @@ int main(void)
 
     do
     {
-        exibirMenuPrincipal();
+        exibirMenu();
         scanf("%d", &opcao);
 
-        executarOpcaoMenuPrincipal(opcao);
+        executarOpcao(opcao);
 
     } while (opcao != 0);
 

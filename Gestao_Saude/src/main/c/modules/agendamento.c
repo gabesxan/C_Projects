@@ -1,6 +1,23 @@
 #include "agendamento.h"
+#include "triagem.h"
 
-int conflitoMedico(int medicoId, char data[], char horario[])
+int buscarAgenda(int medicoId, char data[], char horario[])
+{
+    for (int i = 0; i < totalAgendamentos; i++)
+    {
+        if (agendamentos[i].medicoId == medicoId &&
+            strcmp(agendamentos[i].data, data) == 0 &&
+            strcmp(agendamentos[i].horario, horario) == 0 &&
+            strcmp(agendamentos[i].status, "AGENDADO") == 0)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int medicoOcupado(int medicoId, char data[], char horario[])
 {
     for (int i = 0; i < totalAgendamentos; i++)
     {
@@ -14,6 +31,28 @@ int conflitoMedico(int medicoId, char data[], char horario[])
     }
 
     return 0;
+}
+
+static int nivelRegiao(int regiaoPaciente, int regiaoMedico)
+{
+    if (regiaoPaciente == regiaoMedico)
+        return 0;
+
+    if ((regiaoPaciente == 1 && regiaoMedico == 7) ||
+        (regiaoPaciente == 7 && regiaoMedico == 1) ||
+        (regiaoPaciente == 2 && regiaoMedico == 3) ||
+        (regiaoPaciente == 3 && regiaoMedico == 2) ||
+        (regiaoPaciente == 3 && regiaoMedico == 8) ||
+        (regiaoPaciente == 8 && regiaoMedico == 3) ||
+        (regiaoPaciente == 4 && regiaoMedico == 2) ||
+        (regiaoPaciente == 2 && regiaoMedico == 4) ||
+        (regiaoPaciente == 5 && regiaoMedico == 4) ||
+        (regiaoPaciente == 4 && regiaoMedico == 5) ||
+        (regiaoPaciente == 6 && regiaoMedico == 1) ||
+        (regiaoPaciente == 1 && regiaoMedico == 6))
+        return 1;
+
+    return 2;
 }
 
 int cancelarAgendamento(int id)
@@ -46,7 +85,26 @@ int concluirAgendamento(int id)
     return 0;
 }
 
-const char *especialidadeTriagem(int tipoTriagem)
+static int criarAgendamento(int pacienteId, int medicoId, char data[], char horario[])
+{
+    if (totalAgendamentos >= MAX_AGENDAMENTOS)
+    {
+        return 0;
+    }
+
+    agendamentos[totalAgendamentos].id = totalAgendamentos + 1;
+    agendamentos[totalAgendamentos].pacienteId = pacienteId;
+    agendamentos[totalAgendamentos].medicoId = medicoId;
+    strcpy(agendamentos[totalAgendamentos].data, data);
+    strcpy(agendamentos[totalAgendamentos].horario, horario);
+    strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
+
+    totalAgendamentos++;
+
+    return medicoId;
+}
+
+const char *obterEspecialidade(int tipoTriagem)
 {
     switch (tipoTriagem)
     {
@@ -72,7 +130,7 @@ int buscarMedicoRegiao(const char especialidade[], int regiaoAdministrativa, cha
         if (medicos[i].ativo == 1 &&
             strcmp(medicos[i].especialidade, especialidade) == 0 &&
             medicos[i].regiaoAdministrativa == regiaoAdministrativa &&
-            conflitoMedico(medicos[i].id, data, horario) == 0)
+            medicoOcupado(medicos[i].id, data, horario) == 0)
         {
             return medicos[i].id;
         }
@@ -87,9 +145,125 @@ int buscarMedico(const char especialidade[], char data[], char horario[])
     {
         if (medicos[i].ativo == 1 &&
             strcmp(medicos[i].especialidade, especialidade) == 0 &&
-            conflitoMedico(medicos[i].id, data, horario) == 0)
+            medicoOcupado(medicos[i].id, data, horario) == 0)
         {
             return medicos[i].id;
+        }
+    }
+
+    return 0;
+}
+
+int trocaHorario(int pacienteNovo, int pacienteAtual)
+{
+    int indiceNova = triagemAtual(pacienteNovo);
+    int indiceAtual = triagemAtual(pacienteAtual);
+    int prioridadeNova;
+    int prioridadeAtual;
+
+    if (indiceNova == -1 || indiceAtual == -1)
+    {
+        return 0;
+    }
+
+    if (ehUrgente(triagens[indiceNova].classificacao) == 0)
+    {
+        return 0;
+    }
+
+    prioridadeNova = nivelPrioridade(triagens[indiceNova].classificacao);
+    prioridadeAtual = nivelPrioridade(triagens[indiceAtual].classificacao);
+
+    return prioridadeNova > prioridadeAtual;
+}
+
+int agendarMedico(int medicoId, int pacienteId, char data[], char horario[])
+{
+    int agendamentoAtual = buscarAgenda(medicoId, data, horario);
+    int pacienteAtualId;
+
+    if (agendamentoAtual == -1)
+    {
+        return criarAgendamento(pacienteId, medicoId, data, horario);
+    }
+
+    pacienteAtualId = agendamentos[agendamentoAtual].pacienteId;
+
+    if (trocaHorario(pacienteId, pacienteAtualId) == 0)
+    {
+        return 0;
+    }
+
+    strcpy(agendamentos[agendamentoAtual].status, "REMANEJADO");
+
+    return criarAgendamento(pacienteId, medicoId, data, horario);
+}
+
+static int remanejarRegiao(const char especialidade[], int regiaoAdministrativa, int pacienteId, char data[], char horario[])
+{
+    int medicoSelecionado;
+
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 &&
+            strcmp(medicos[i].especialidade, especialidade) == 0 &&
+            medicos[i].regiaoAdministrativa == regiaoAdministrativa &&
+            medicoOcupado(medicos[i].id, data, horario) == 1)
+        {
+            medicoSelecionado = agendarMedico(medicos[i].id, pacienteId, data, horario);
+
+            if (medicoSelecionado != 0)
+            {
+                return medicoSelecionado;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int buscarProxima(const char especialidade[], int regiaoAdministrativa, char data[], char horario[])
+{
+    int melhorMedico = 0;
+    int melhorPrioridade = 99;
+
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 &&
+            strcmp(medicos[i].especialidade, especialidade) == 0 &&
+            medicos[i].regiaoAdministrativa != regiaoAdministrativa &&
+            medicoOcupado(medicos[i].id, data, horario) == 0)
+        {
+            int prioridade = nivelRegiao(regiaoAdministrativa, medicos[i].regiaoAdministrativa);
+
+            if (prioridade < melhorPrioridade)
+            {
+                melhorPrioridade = prioridade;
+                melhorMedico = medicos[i].id;
+            }
+        }
+    }
+
+    return melhorMedico;
+}
+
+static int remanejarExterno(const char especialidade[], int regiaoAdministrativa, int pacienteId, char data[], char horario[])
+{
+    int medicoSelecionado;
+
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 &&
+            strcmp(medicos[i].especialidade, especialidade) == 0 &&
+            medicos[i].regiaoAdministrativa != regiaoAdministrativa &&
+            medicoOcupado(medicos[i].id, data, horario) == 1)
+        {
+            medicoSelecionado = agendarMedico(medicos[i].id, pacienteId, data, horario);
+
+            if (medicoSelecionado != 0)
+            {
+                return medicoSelecionado;
+            }
         }
     }
 
@@ -99,7 +273,7 @@ int buscarMedico(const char especialidade[], char data[], char horario[])
 int agendarTriagem(int pacienteId, char data[], char horario[])
 {
     int regiaoPaciente = 0;
-    int tipoTriagem = 0;
+    int triagemId;
     int medicoId = 0;
     const char *especialidade;
 
@@ -122,21 +296,14 @@ int agendarTriagem(int pacienteId, char data[], char horario[])
         return 0;
     }
 
-    for (int i = totalTriagens - 1; i >= 0; i--)
-    {
-        if (triagens[i].pacienteId == pacienteId && triagens[i].ativo == 1)
-        {
-            tipoTriagem = triagens[i].tipoTriagem;
-            break;
-        }
-    }
+    triagemId = triagemAtual(pacienteId);
 
-    if (tipoTriagem == 0)
+    if (triagemId == -1)
     {
         return 0;
     }
 
-    especialidade = especialidadeTriagem(tipoTriagem);
+    especialidade = obterEspecialidade(triagens[triagemId].tipoTriagem);
 
     if (strlen(especialidade) == 0)
     {
@@ -145,26 +312,26 @@ int agendarTriagem(int pacienteId, char data[], char horario[])
 
     medicoId = buscarMedicoRegiao(especialidade, regiaoPaciente, data, horario);
 
-    if (medicoId == 0)
+    if (medicoId != 0)
     {
-        medicoId = buscarMedico(especialidade, data, horario);
+        return agendarMedico(medicoId, pacienteId, data, horario);
     }
 
-    if (medicoId == 0)
+    medicoId = remanejarRegiao(especialidade, regiaoPaciente, pacienteId, data, horario);
+
+    if (medicoId != 0)
     {
-        return 0;
+        return medicoId;
     }
 
-    agendamentos[totalAgendamentos].id = totalAgendamentos + 1;
-    agendamentos[totalAgendamentos].pacienteId = pacienteId;
-    agendamentos[totalAgendamentos].medicoId = medicoId;
-    strcpy(agendamentos[totalAgendamentos].data, data);
-    strcpy(agendamentos[totalAgendamentos].horario, horario);
-    strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
+    medicoId = buscarProxima(especialidade, regiaoPaciente, data, horario);
 
-    totalAgendamentos++;
+    if (medicoId != 0)
+    {
+        return agendarMedico(medicoId, pacienteId, data, horario);
+    }
 
-    return medicoId;
+    return remanejarExterno(especialidade, regiaoPaciente, pacienteId, data, horario);
 }
 
 void menuAgendamentos(void)
@@ -239,7 +406,7 @@ void menuAgendamentos(void)
             printf("Medico selecionado automaticamente. ID: %d\n", medicoSelecionado);
             break;
         }
-        
+
         case 2:
         {
             if (totalAgendamentos == 0)

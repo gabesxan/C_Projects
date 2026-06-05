@@ -20,7 +20,8 @@ OUT = sigeh
 
 TEST_AGENDAMENTO = \
         src/test/c/modules/test_agendamento.c \
-        src/main/c/modules/agendamento.c
+        src/main/c/modules/agendamento.c \
+        src/main/c/modules/triagem.c
 
 TEST_LEITO = \
 		src/test/c/modules/test_leito.c \

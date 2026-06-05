@@ -10,5 +10,9 @@ float taxaAla(int alaId);
 int contarTriagens(const char classificacao[]);
 int contarMedRegiao(int regiaoAdministrativa);
 void relMedRegiao(void);
+int contarPacRegiao(int regiaoAdministrativa);
+void relPacRegiao(void);
+int contarEsp(const char especialidade[]);
+void espDemandada(char resultado[]);
 
 #endif

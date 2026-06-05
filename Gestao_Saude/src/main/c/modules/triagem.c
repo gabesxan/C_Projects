@@ -14,6 +14,41 @@ void classificarTriagem(int pontuacao, char classificacao[])
         strcpy(classificacao, "Orientacao basica");
 }
 
+int nivelPrioridade(const char classificacao[])
+{
+    if (strcmp(classificacao, "Emergencia") == 0)
+        return 5;
+    if (strcmp(classificacao, "Muito prioritario") == 0)
+        return 4;
+    if (strcmp(classificacao, "Prioritario") == 0)
+        return 3;
+    if (strcmp(classificacao, "Comum") == 0)
+        return 2;
+    if (strcmp(classificacao, "Orientacao basica") == 0)
+        return 1;
+
+    return 0;
+}
+
+int ehUrgente(const char classificacao[])
+{
+    return strcmp(classificacao, "Emergencia") == 0 ||
+           strcmp(classificacao, "Muito prioritario") == 0;
+}
+
+int triagemAtual(int pacienteId)
+{
+    for (int i = totalTriagens - 1; i >= 0; i--)
+    {
+        if (triagens[i].pacienteId == pacienteId && triagens[i].ativo == 1)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 int excluirTriagem(int id)
 {
     for (int i = 0; i < totalTriagens; i++)
@@ -28,7 +63,7 @@ int excluirTriagem(int id)
     return 0;
 }
 
-void exibirNomeTipoTriagem(int tipoTriagem)
+void exibirTipo(int tipoTriagem)
 {
     switch (tipoTriagem)
     {
@@ -53,7 +88,7 @@ void exibirNomeTipoTriagem(int tipoTriagem)
     }
 }
 
-int selecionarTipoTriagem(void)
+int escolherTriagem(void)
 {
     int tipoTriagem;
 
@@ -79,7 +114,7 @@ int selecionarTipoTriagem(void)
     return tipoTriagem;
 }
 
-int submenuTriagemGeral(int idadePaciente)
+int triagemGeral(int idadePaciente)
 {
     int febre;
     int faltaAr;
@@ -115,7 +150,7 @@ int submenuTriagemGeral(int idadePaciente)
     return pontuacao;
 }
 
-int submenuTriagemOrtopedia(int idadePaciente)
+int triagemOrtopedia(int idadePaciente)
 {
     int suspeitaFratura;
     int deformidadeVisivel;
@@ -169,7 +204,7 @@ int submenuTriagemOrtopedia(int idadePaciente)
     return pontuacao;
 }
 
-int submenuTriagemCardiologia(int idadePaciente)
+int triagemCardiologia(int idadePaciente)
 {
     int dorPeito;
     int faltaAr;
@@ -211,7 +246,7 @@ int submenuTriagemCardiologia(int idadePaciente)
     return pontuacao;
 }
 
-int submenuTriagemPneumologia(int idadePaciente)
+int triagemPneumologia(int idadePaciente)
 {
     int faltaAr;
     int chiadoPeito;
@@ -259,7 +294,7 @@ int submenuTriagemPneumologia(int idadePaciente)
     return pontuacao;
 }
 
-int submenuTriagemPediatria(int idadePaciente)
+int triagemPediatria(int idadePaciente)
 {
     int febreAlta;
     int vomitosPersistentes;
@@ -353,7 +388,7 @@ void menuTriagem(void)
                 break;
             }
 
-            tipoTriagem = selecionarTipoTriagem();
+            tipoTriagem = escolherTriagem();
 
             if (tipoTriagem == 0)
             {
@@ -369,19 +404,19 @@ void menuTriagem(void)
             switch (tipoTriagem)
             {
             case TRIAGEM_GERAL:
-                pontuacao = submenuTriagemGeral(idadePaciente);
+                pontuacao = triagemGeral(idadePaciente);
                 break;
             case TRIAGEM_ORTOPEDIA:
-                pontuacao = submenuTriagemOrtopedia(idadePaciente);
+                pontuacao = triagemOrtopedia(idadePaciente);
                 break;
             case TRIAGEM_CARDIOLOGIA:
-                pontuacao = submenuTriagemCardiologia(idadePaciente);
+                pontuacao = triagemCardiologia(idadePaciente);
                 break;
             case TRIAGEM_PNEUMOLOGIA:
-                pontuacao = submenuTriagemPneumologia(idadePaciente);
+                pontuacao = triagemPneumologia(idadePaciente);
                 break;
             case TRIAGEM_PEDIATRIA:
-                pontuacao = submenuTriagemPediatria(idadePaciente);
+                pontuacao = triagemPediatria(idadePaciente);
                 break;
             default:
                 printf("\nTipo de triagem invalido.\n");
@@ -400,7 +435,7 @@ void menuTriagem(void)
 
             printf("\nTriagem registrada com sucesso.\n");
             printf("Tipo de triagem: ");
-            exibirNomeTipoTriagem(triagens[totalTriagens].tipoTriagem);
+            exibirTipo(triagens[totalTriagens].tipoTriagem);
             printf("\nPontuacao: %d\n", triagens[totalTriagens].pontuacao);
             printf("Classificacao: %s\n", triagens[totalTriagens].classificacao);
 
@@ -428,7 +463,7 @@ void menuTriagem(void)
                     printf("\nID: %d\n", triagens[i].id);
                     printf("Paciente ID: %d\n", triagens[i].pacienteId);
                     printf("Tipo de triagem: ");
-                    exibirNomeTipoTriagem(triagens[i].tipoTriagem);
+                    exibirTipo(triagens[i].tipoTriagem);
                     printf("\nPontuacao: %d\n", triagens[i].pontuacao);
                     printf("Classificacao: %s\n", triagens[i].classificacao);
                 }

@@ -5,14 +5,17 @@
 
 void menuTriagem(void);
 void classificarTriagem(int pontuacao, char classificacao[]);
+int nivelPrioridade(const char classificacao[]);
+int ehUrgente(const char classificacao[]);
+int triagemAtual(int pacienteId);
 int excluirTriagem(int id);
 
-int selecionarTipoTriagem(void);
-int submenuTriagemGeral(int idadePaciente);
-int submenuTriagemOrtopedia(int idadePaciente);
-int submenuTriagemCardiologia(int idadePaciente);
-int submenuTriagemPneumologia(int idadePaciente);
-int submenuTriagemPediatria(int idadePaciente);
-void exibirNomeTipoTriagem(int tipoTriagem);
+int escolherTriagem(void);
+int triagemGeral(int idadePaciente);
+int triagemOrtopedia(int idadePaciente);
+int triagemCardiologia(int idadePaciente);
+int triagemPneumologia(int idadePaciente);
+int triagemPediatria(int idadePaciente);
+void exibirTipo(int tipoTriagem);
 
 #endif
