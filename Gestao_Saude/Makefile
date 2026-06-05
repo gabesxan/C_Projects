@@ -1,16 +1,20 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -Isrc/main/c/model -Isrc/main/c/persistence
+
+CFLAGS = -Wall -Wextra -pedantic \
+	-Isrc/main/c/model \
+	-Isrc/main/c/headers \
+	-Isrc/main/c/modules
 
 SRC = \
 	src/main/c/app/main.c \
-	src/main/c/persistence/paciente.c \
-	src/main/c/persistence/medico.c \
-	src/main/c/persistence/agendamento.c \
-	src/main/c/persistence/ala.c \
-	src/main/c/persistence/leito.c \
-	src/main/c/persistence/internacao.c \
-	src/main/c/persistence/triagem.c \
-	src/main/c/persistence/relatorio.c
+	src/main/c/modules/paciente.c \
+	src/main/c/modules/medico.c \
+	src/main/c/modules/agendamento.c \
+	src/main/c/modules/ala.c \
+	src/main/c/modules/leito.c \
+	src/main/c/modules/internacao.c \
+	src/main/c/modules/triagem.c \
+	src/main/c/modules/relatorio.c
 
 OUT = sigeh
 
@@ -24,4 +28,7 @@ clean:
 	rm -f $(OUT)
 
 test:
-	@echo "Testes automatizados serao implementados depois."
+	@echo "Testes automatizados serão implementados depois."
+
+tree:
+	find . -maxdepth 5 | sort

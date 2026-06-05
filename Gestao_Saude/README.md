@@ -1,99 +1,117 @@
-# SIGEH-DF — Sistema Integrado de Gestao Hospitalar do Distrito Federal
+# SIGEH-DF — Sistema Integrado de Gestão Hospitalar em C
 
-Projeto educacional de um sistema hospitalar feito em C puro, executado pelo terminal e organizado em uma estrutura inspirada em projetos Java/Maven.
+Projeto educacional de um sistema de gestão hospitalar desenvolvido em linguagem C, executado pelo terminal e organizado em múltiplos arquivos.
 
-A aplicacao foi criada para praticar Algoritmos e Logica de Programacao, modularizacao, structs, vetores, strings com `char[]`, regras de negocio, controle de menus, exclusao logica, triagem, agendamentos, controle de leitos e relatorios.
+A aplicação foi criada para praticar Algoritmos e Lógica de Programação em C, com foco em modularização, separação entre arquivos `.c` e `.h`, uso de `structs`, funções, menus no terminal, organização de código-fonte e compilação com `Makefile`.
 
-O projeto nao usa interface grafica, banco de dados ou API web nesta etapa. Toda a interacao acontece pelo terminal.
+O projeto não usa interface gráfica, API web, framework externo ou banco de dados externo. Toda a interação acontece pelo terminal, e os dados ainda ficam apenas em memória durante a execução.
 
 ---
 
-## Indice
+## Índice
 
-- [Visao geral](#visao-geral)
+- [Visão geral](#visão-geral)
 - [Estado atual](#estado-atual)
-- [Funcionalidades](#funcionalidades)
+- [Módulos](#módulos)
 - [Tecnologias](#tecnologias)
 - [Como executar](#como-executar)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Mapa dos arquivos](#mapa-dos-arquivos)
 - [Guia arquivo por arquivo](#guia-arquivo-por-arquivo)
-- [Organizacao da aplicacao](#organizacao-da-aplicacao)
-- [Fluxo principal da aplicacao](#fluxo-principal-da-aplicacao)
-- [Regras de dominio](#regras-de-dominio)
-- [Persistencia atual](#persistencia-atual)
-- [Plano de persistencia](#plano-de-persistencia)
-- [Testes automatizados](#testes-automatizados)
+- [Organização da aplicação](#organização-da-aplicação)
+- [Fluxo principal da aplicação](#fluxo-principal-da-aplicação)
+- [Organização dos módulos](#organização-dos-módulos)
+- [Arquivos de cabeçalho](#arquivos-de-cabeçalho)
+- [Arquivos de implementação](#arquivos-de-implementação)
+- [Testes](#testes)
 - [Conceitos praticados](#conceitos-praticados)
-- [Linha do tempo planejada](#linha-do-tempo-planejada)
+- [Linha do tempo dos commits](#linha-do-tempo-dos-commits)
 
 ---
 
-## Visao geral
+## Visão geral
 
-O SIGEH-DF representa um sistema hospitalar simples para terminal. Ele permite organizar pacientes, medicos, agendamentos, alas, leitos, internacoes, triagens e relatorios gerais.
+O SIGEH-DF representa um sistema hospitalar simples feito em linguagem C.
 
-A ideia principal do projeto e separar bem cada responsabilidade:
+O projeto é dividido em módulos relacionados a:
 
-- a camada `app` cuida da execucao no terminal;
-- a camada `model` concentra estruturas centrais do dominio;
-- a camada `persistence` contem os modulos atuais do sistema e seus headers;
-- os testes em `src/test/c` serao usados futuramente para verificar regras e operacoes.
+- pacientes;
+- médicos;
+- agendamentos;
+- alas;
+- leitos;
+- internações;
+- triagem;
+- relatórios.
 
-Essa separacao ajuda a manter o codigo organizado. O menu principal nao deve concentrar todas as regras do sistema, e cada modulo deve cuidar de uma area especifica do fluxo hospitalar.
+A ideia principal do projeto é separar bem os arquivos por responsabilidade:
+
+- a pasta `app` guarda o ponto de entrada da aplicação;
+- a pasta `model` guarda a estrutura principal compartilhada do sistema;
+- a pasta `headers` guarda os arquivos `.h` dos módulos;
+- a pasta `modules` guarda os arquivos `.c` com as implementações dos módulos;
+- a pasta `src/test/c` guarda os arquivos de teste.
+
+Essa separação ajuda a manter o código organizado. O `main.c` não precisa concentrar todos os módulos, e cada parte do sistema possui seus próprios arquivos de declaração e implementação.
 
 ---
 
 ## Estado atual
 
-A aplicacao funciona em memoria, usando vetores globais de structs. Os dados sao perdidos quando o programa encerra.
+A aplicação está organizada em C com separação entre ponto de entrada, modelo principal, headers, implementações e testes.
 
 Pontos principais do estado atual:
 
-- `main.c` exibe o menu principal e chama os menus dos modulos.
-- `hospital.h` centraliza structs, constantes e declaracoes `extern`.
-- Os modulos de pacientes, medicos, agendamentos, alas, leitos, internacoes, triagem e relatorios estao separados.
-- Os arquivos `.c` e `.h` dos modulos ficam em `src/main/c/persistence`.
-- Ainda nao ha persistencia em arquivos ou SQLite.
-- Os arquivos de teste existem como preparacao, mas ainda nao possuem testes implementados.
-- O comando `make test` apenas exibe uma mensagem informando que os testes serao implementados depois.
+- `main.c` fica em `src/main/c/app`.
+- `hospital.h` fica em `src/main/c/model`.
+- Os arquivos `.h` dos módulos ficam em `src/main/c/headers`.
+- Os arquivos `.c` dos módulos ficam em `src/main/c/modules`.
+- Os testes ficam em `src/test/c/modules`.
+- A compilação é feita com `Makefile`.
+- O projeto possui módulos separados para pacientes, médicos, agendamentos, alas, leitos, internações, triagem e relatórios.
+- Atualmente não há camada de persistência implementada; se for necessário no futuro, uma pasta `persistence` deve ser criada apenas para persistência em `.txt` ou SQLite.
 
 ---
 
-## Funcionalidades
+## Módulos
 
-- Cadastrar, listar, editar e remover logicamente pacientes.
-- Registrar regiao administrativa do paciente.
-- Cadastrar, listar, editar e remover logicamente medicos.
-- Criar, listar, cancelar e concluir agendamentos.
-- Validar conflito de agenda por medico, data e horario.
-- Cadastrar, listar e remover logicamente alas.
-- Cadastrar e listar leitos.
-- Internar paciente em leito disponivel.
-- Registrar alta e liberar leito.
-- Realizar triagem por pontuacao.
-- Listar triagens realizadas.
-- Exibir relatorios gerais e taxa de ocupacao por ala.
+O projeto possui os seguintes módulos principais:
+
+- Paciente.
+- Médico.
+- Agendamento.
+- Ala.
+- Leito.
+- Internação.
+- Triagem.
+- Relatório.
+
+Cada módulo possui:
+
+- um arquivo `.h` na pasta `headers`;
+- um arquivo `.c` na pasta `modules`.
+
+Exemplo:
+
+```text
+src/main/c/headers/paciente.h
+src/main/c/modules/paciente.c
+```
 
 ---
 
 ## Tecnologias
 
 - Linguagem C.
-- GCC.
+- GCC ou Clang.
 - Makefile.
 - Terminal.
-- `assert.h` planejado para testes futuros.
 
-Ferramentas principais configuradas:
+Bibliotecas padrão de C usadas conforme necessidade do projeto:
 
-| Item | Uso |
-|---|---|
-| `gcc` | Compila o sistema em C |
-| `Makefile` | Centraliza comandos de build, execucao, limpeza e teste |
-| `-Wall -Wextra -pedantic` | Ativa avisos importantes de compilacao |
-| `-Isrc/main/c/model` | Permite incluir `hospital.h` com include simples |
-| `-Isrc/main/c/persistence` | Permite incluir headers dos modulos com include simples |
+- `stdio.h`
+- `stdlib.h`
+- `string.h`
 
 ---
 
@@ -102,52 +120,26 @@ Ferramentas principais configuradas:
 Na raiz do projeto, compile com:
 
 ```bash
+make clean
 make
 ```
 
-Para compilar e executar:
+Depois execute com:
 
 ```bash
 make run
 ```
 
-Ao iniciar, a aplicacao:
+Também é possível executar diretamente o binário gerado:
 
-1. cria os vetores globais em memoria;
-2. exibe o menu principal;
-3. direciona o usuario para o modulo escolhido;
-4. executa as operacoes ate o usuario escolher sair.
-
-Menu principal:
-
-```text
-1. Gerenciar Pacientes
-2. Gerenciar Medicos
-3. Gerenciar Agendamentos
-4. Gerenciar Alas
-5. Gerenciar Leitos
-6. Gerenciar Internacoes
-7. Gerenciar Triagem
-8. Gerar Relatorios
-0. Sair
+```bash
+./sigeh
 ```
 
-Para limpar o binario:
+Para limpar o executável gerado:
 
 ```bash
 make clean
-```
-
-Para a etapa futura de testes:
-
-```bash
-make test
-```
-
-Comando manual equivalente:
-
-```bash
-gcc -Wall -Wextra -pedantic -Isrc/main/c/model -Isrc/main/c/persistence src/main/c/app/main.c src/main/c/persistence/paciente.c src/main/c/persistence/medico.c src/main/c/persistence/agendamento.c src/main/c/persistence/ala.c src/main/c/persistence/leito.c src/main/c/persistence/internacao.c src/main/c/persistence/triagem.c src/main/c/persistence/relatorio.c -o sigeh
 ```
 
 ---
@@ -156,48 +148,47 @@ gcc -Wall -Wextra -pedantic -Isrc/main/c/model -Isrc/main/c/persistence src/main
 
 ```text
 .
+├── .gitignore
 ├── Makefile
 ├── README.md
-├── .gitignore
-├── src
-│   ├── main
-│   │   └── c
-│   │       ├── app
-│   │       │   └── main.c
-│   │       ├── model
-│   │       │   └── hospital.h
-│   │       └── persistence
-│   │           ├── agendamento.c
-│   │           ├── agendamento.h
-│   │           ├── ala.c
-│   │           ├── ala.h
-│   │           ├── internacao.c
-│   │           ├── internacao.h
-│   │           ├── leito.c
-│   │           ├── leito.h
-│   │           ├── medico.c
-│   │           ├── medico.h
-│   │           ├── paciente.c
-│   │           ├── paciente.h
-│   │           ├── relatorio.c
-│   │           ├── relatorio.h
-│   │           ├── triagem.c
-│   │           └── triagem.h
-│   └── test
-│       └── c
-│           ├── model
-│           └── persistence
-│               ├── test_agendamento.c
-│               ├── test_leito.c
-│               ├── test_medico.c
-│               ├── test_paciente.c
-│               └── test_triagem.c
-└── data
+├── data
+└── src
+    ├── main
+    │   └── c
+    │       ├── app
+    │       │   └── main.c
+    │       ├── model
+    │       │   └── hospital.h
+    │       ├── headers
+    │       │   ├── agendamento.h
+    │       │   ├── ala.h
+    │       │   ├── internacao.h
+    │       │   ├── leito.h
+    │       │   ├── medico.h
+    │       │   ├── paciente.h
+    │       │   ├── relatorio.h
+    │       │   └── triagem.h
+    │       └── modules
+    │           ├── agendamento.c
+    │           ├── ala.c
+    │           ├── internacao.c
+    │           ├── leito.c
+    │           ├── medico.c
+    │           ├── paciente.c
+    │           ├── relatorio.c
+    │           └── triagem.c
+    └── test
+        └── c
+            ├── model
+            └── modules
+                ├── test_agendamento.c
+                ├── test_leito.c
+                ├── test_medico.c
+                ├── test_paciente.c
+                └── test_triagem.c
 ```
 
-A pasta `data/` sera usada em tempo de execucao quando a persistencia em arquivos for implementada.
-
-Arquivos gerados, como binarios e dados locais, nao devem ser versionados no Git.
+A pasta `data/` é reservada para arquivos de dados caso o projeto venha a usar persistência em `.txt` ou SQLite. No estado atual, os dados permanecem em memória.
 
 ---
 
@@ -209,329 +200,985 @@ Esta parte mostra onde cada arquivo entra no projeto.
 Makefile
 ```
 
-Arquivo de compilacao. Define compilador, flags, arquivos-fonte, nome do binario e comandos `make`, `make run`, `make clean` e `make test`.
+Arquivo usado para automatizar a compilação do projeto.
+
+Ele define:
+
+- o compilador;
+- as flags de compilação;
+- os caminhos dos headers;
+- os arquivos `.c` usados na compilação;
+- o nome do executável;
+- comandos auxiliares como `make`, `make run` e `make clean`.
 
 ```text
 .gitignore
 ```
 
-Arquivo que impede o Git de versionar arquivos gerados pela IDE, pelo sistema operacional ou pela compilacao.
+Arquivo usado para evitar que arquivos gerados localmente sejam versionados no Git.
+
+Pode ser usado para ignorar:
+
+- executáveis;
+- arquivos temporários;
+- arquivos gerados pelo sistema operacional;
+- arquivos locais do editor.
 
 ```text
 README.md
 ```
 
-Arquivo central de documentacao. Reune visao geral, estrutura de pastas, explicacao dos modulos, regras, conceitos estudados e plano de evolucao.
+Arquivo central de documentação do projeto.
+
+Reúne:
+
+- visão geral;
+- estrutura de pastas;
+- explicação dos módulos;
+- comandos de compilação;
+- organização da aplicação;
+- conceitos de C praticados.
+
+```text
+data
+```
+
+Pasta reservada para arquivos de dados do projeto.
 
 ```text
 src/main/c/app
 ```
 
-Pasta da aplicacao de terminal. Aqui fica o ponto de entrada do sistema: `main.c`.
+Pasta do ponto de entrada da aplicação.
+
+Contém o arquivo `main.c`.
 
 ```text
 src/main/c/model
 ```
 
-Pasta do modelo central. Aqui fica `hospital.h`, com as structs, constantes e declaracoes globais externas.
+Pasta da estrutura principal compartilhada do sistema.
+
+Contém o arquivo `hospital.h`.
 
 ```text
-src/main/c/persistence
+src/main/c/headers
 ```
 
-Pasta dos modulos atuais. Aqui ficam os arquivos `.c` e `.h` dos menus e regras de pacientes, medicos, agendamentos, alas, leitos, internacoes, triagem e relatorios.
+Pasta dos arquivos de cabeçalho dos módulos.
+
+Os arquivos `.h` declaram funções, tipos e estruturas usados pelos arquivos `.c`.
+
+```text
+src/main/c/modules
+```
+
+Pasta dos arquivos de implementação dos módulos.
+
+Os arquivos `.c` implementam as funções declaradas nos headers.
 
 ```text
 src/test/c/model
 ```
 
-Pasta reservada para testes futuros das estruturas centrais.
+Pasta reservada para testes relacionados ao modelo principal do sistema.
 
 ```text
-src/test/c/persistence
+src/test/c/modules
 ```
 
-Pasta reservada para testes futuros dos modulos do sistema.
+Pasta com arquivos de teste relacionados aos módulos do projeto.
 
 ---
 
 ## Guia arquivo por arquivo
 
-O objetivo desta parte e explicar a funcao de cada arquivo no projeto.
+O objetivo desta parte é explicar a função de cada arquivo dentro do projeto.
 
 ---
 
 ### `Makefile`
 
-| Parte | Explicacao |
+O `Makefile` automatiza o processo de compilação.
+
+Ele evita que seja necessário digitar manualmente todos os arquivos `.c` no terminal.
+
+Estrutura principal:
+
+```makefile
+CC = gcc
+```
+
+Define o compilador usado no projeto.
+
+```makefile
+CFLAGS = -Wall -Wextra -pedantic \
+	-Isrc/main/c/model \
+	-Isrc/main/c/headers \
+	-Isrc/main/c/modules
+```
+
+Define as flags de compilação e os caminhos de busca para arquivos `.h`.
+
+As flags usadas são:
+
+| Flag | Função |
 |---|---|
-| `CC = gcc` | Define o compilador usado. |
-| `CFLAGS` | Define avisos de compilacao e caminhos de include. |
-| `SRC` | Lista todos os arquivos `.c` usados na compilacao. |
-| `OUT = sigeh` | Define o nome do binario final. |
-| `all` | Compila o sistema. |
-| `run` | Compila e executa. |
-| `clean` | Remove o binario. |
-| `test` | Indica que testes automatizados ainda serao implementados. |
+| `-Wall` | Ativa avisos importantes do compilador |
+| `-Wextra` | Ativa avisos adicionais |
+| `-pedantic` | Torna a compilação mais rigorosa em relação ao padrão da linguagem C |
+| `-I...` | Informa ao compilador onde procurar arquivos `.h` |
+
+```makefile
+SRC = \
+	src/main/c/app/main.c \
+	src/main/c/modules/paciente.c \
+	src/main/c/modules/medico.c \
+	src/main/c/modules/agendamento.c \
+	src/main/c/modules/ala.c \
+	src/main/c/modules/leito.c \
+	src/main/c/modules/internacao.c \
+	src/main/c/modules/triagem.c \
+	src/main/c/modules/relatorio.c
+```
+
+Lista os arquivos `.c` que fazem parte da compilação do sistema.
+
+```makefile
+OUT = sigeh
+```
+
+Define o nome do executável gerado.
+
+```makefile
+all:
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
+```
+
+Compila o projeto.
+
+```makefile
+run: all
+	./$(OUT)
+```
+
+Compila e executa o programa.
+
+```makefile
+clean:
+	rm -f $(OUT)
+```
+
+Remove o executável gerado.
+
+O que foi estudado aqui:
+
+- compilação de múltiplos arquivos `.c`;
+- uso de flags de compilação;
+- inclusão de diretórios com `-I`;
+- automação de comandos com `Makefile`.
+
+---
+
+### `.gitignore`
+
+Arquivo usado para evitar que arquivos locais ou gerados automaticamente entrem no repositório.
+
+O que foi estudado aqui:
+
+- diferença entre código-fonte e arquivo gerado;
+- organização de repositório;
+- prevenção contra versionamento de arquivos desnecessários.
+
+---
+
+### `README.md`
+
+Este arquivo funciona como documentação principal do projeto.
+
+Ele explica:
+
+- o objetivo do sistema;
+- a estrutura de pastas;
+- os módulos existentes;
+- como compilar;
+- como executar;
+- como os arquivos estão organizados;
+- quais conceitos de C foram praticados.
+
+O que foi estudado aqui:
+
+- documentação técnica;
+- Markdown;
+- organização de projeto;
+- clareza na apresentação de código.
 
 ---
 
 ### `src/main/c/app/main.c`
 
-Arquivo principal da aplicacao. Define os vetores e contadores globais, exibe o menu principal e chama os menus dos modulos.
+Arquivo principal do sistema.
 
-Responsabilidades:
+É o ponto de entrada da aplicação em C.
 
-- iniciar o loop principal;
-- ler a opcao do usuario;
-- chamar `menuPacientes`, `menuMedicos`, `menuAgendamentos`, `menuAlas`, `menuLeitos`, `menuInternacoes`, `menuTriagem` e `menuRelatorios`;
-- encerrar o sistema quando o usuario escolhe sair.
+Esse arquivo deve conter a função:
+
+```c
+int main(void)
+```
+
+ou uma variação equivalente da função `main`.
+
+Responsabilidades do arquivo:
+
+- iniciar o programa;
+- chamar os menus ou funções principais;
+- controlar o fluxo inicial da aplicação;
+- integrar os módulos do sistema.
+
+O que foi estudado aqui:
+
+- ponto de entrada em C;
+- função `main`;
+- organização do fluxo principal;
+- separação entre inicialização do programa e implementação dos módulos.
 
 ---
 
 ### `src/main/c/model/hospital.h`
 
-Header central do projeto.
+Arquivo principal de modelo do sistema.
+
+Esse arquivo concentra definições compartilhadas entre os módulos.
+
+Pode conter:
+
+- constantes globais;
+- `structs` principais;
+- definições comuns;
+- tipos compartilhados;
+- declarações gerais usadas por mais de um módulo.
+
+Responsabilidade principal:
+
+- centralizar a estrutura comum do sistema hospitalar.
+
+O que foi estudado aqui:
+
+- arquivo de cabeçalho compartilhado;
+- uso de `struct`;
+- constantes;
+- reutilização de definições em múltiplos arquivos.
+
+---
+
+### `src/main/c/headers/paciente.h`
+
+Header do módulo de pacientes.
 
 Responsabilidades:
 
-- incluir bibliotecas padrao usadas pelo sistema;
-- definir constantes com `#define`;
-- declarar as structs principais;
-- declarar vetores e contadores globais com `extern`.
+- declarar as funções relacionadas ao módulo de pacientes;
+- expor para outros arquivos quais operações do módulo podem ser chamadas;
+- incluir as dependências necessárias para o módulo.
 
-Structs definidas:
+Arquivo de implementação correspondente:
 
-- `Paciente`;
-- `Medico`;
-- `Agendamento`;
-- `Ala`;
-- `Leito`;
-- `Internacao`;
-- `Triagem`.
+```text
+src/main/c/modules/paciente.c
+```
+
+O que foi estudado aqui:
+
+- separação entre declaração e implementação;
+- modularização;
+- uso de header próprio por módulo.
 
 ---
 
-### `src/main/c/persistence/paciente.c` e `paciente.h`
+### `src/main/c/modules/paciente.c`
 
-Modulo de pacientes.
+Implementação do módulo de pacientes.
 
 Responsabilidades:
 
-- cadastrar paciente;
-- listar pacientes ativos;
-- editar dados do paciente;
-- remover paciente por exclusao logica;
-- registrar regiao administrativa.
+- implementar as funções declaradas em `paciente.h`;
+- concentrar a lógica relacionada ao módulo de pacientes.
+
+Header correspondente:
+
+```text
+src/main/c/headers/paciente.h
+```
+
+O que foi estudado aqui:
+
+- implementação de funções em arquivo `.c`;
+- separação entre código principal e módulo;
+- organização por responsabilidade.
 
 ---
 
-### `src/main/c/persistence/medico.c` e `medico.h`
+### `src/main/c/headers/medico.h`
 
-Modulo de medicos.
+Header do módulo de médicos.
 
 Responsabilidades:
 
-- cadastrar medico;
-- listar medicos ativos;
-- editar nome, CRM e especialidade;
-- remover medico por exclusao logica.
+- declarar as funções relacionadas ao módulo de médicos;
+- permitir que outros arquivos chamem as operações do módulo.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/medico.c
+```
+
+O que foi estudado aqui:
+
+- arquivo `.h` por módulo;
+- declaração de funções;
+- organização modular.
 
 ---
 
-### `src/main/c/persistence/agendamento.c` e `agendamento.h`
+### `src/main/c/modules/medico.c`
 
-Modulo de agendamentos.
+Implementação do módulo de médicos.
 
 Responsabilidades:
 
-- criar agendamento;
-- listar agendamentos;
-- cancelar agendamento;
-- concluir agendamento;
-- validar conflito por medico, data e horario.
+- implementar as funções declaradas em `medico.h`;
+- concentrar a lógica relacionada ao módulo de médicos.
+
+Header correspondente:
+
+```text
+src/main/c/headers/medico.h
+```
+
+O que foi estudado aqui:
+
+- arquivo `.c` por módulo;
+- implementação de funções;
+- separação de responsabilidades.
 
 ---
 
-### `src/main/c/persistence/ala.c` e `ala.h`
+### `src/main/c/headers/agendamento.h`
 
-Modulo de alas.
+Header do módulo de agendamentos.
 
 Responsabilidades:
 
-- cadastrar ala;
-- listar alas ativas;
-- remover ala por exclusao logica;
-- manter total de leitos e leitos ocupados.
+- declarar as funções relacionadas ao módulo de agendamentos;
+- permitir que o restante do sistema acesse as operações desse módulo.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/agendamento.c
+```
+
+O que foi estudado aqui:
+
+- modularização;
+- uso de headers;
+- organização de funções por domínio do sistema.
 
 ---
 
-### `src/main/c/persistence/leito.c` e `leito.h`
+### `src/main/c/modules/agendamento.c`
 
-Modulo de leitos.
+Implementação do módulo de agendamentos.
 
 Responsabilidades:
 
-- cadastrar leito;
-- listar leitos;
-- associar leito a uma ala;
-- indicar se o leito esta ocupado.
+- implementar as funções declaradas em `agendamento.h`;
+- concentrar a lógica relacionada aos agendamentos.
+
+Header correspondente:
+
+```text
+src/main/c/headers/agendamento.h
+```
+
+O que foi estudado aqui:
+
+- implementação modular;
+- separação entre declaração e implementação;
+- organização de código por assunto.
 
 ---
 
-### `src/main/c/persistence/internacao.c` e `internacao.h`
+### `src/main/c/headers/ala.h`
 
-Modulo de internacoes.
+Header do módulo de alas.
 
 Responsabilidades:
 
-- internar paciente;
-- validar paciente ativo;
-- validar leito livre;
-- marcar leito como ocupado;
-- registrar alta;
-- liberar leito apos alta;
-- listar internacoes.
+- declarar as funções relacionadas ao módulo de alas;
+- expor as operações desse módulo para o restante do sistema.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/ala.c
+```
+
+O que foi estudado aqui:
+
+- uso de arquivo `.h` para declaração;
+- separação por módulo;
+- estruturação do projeto.
 
 ---
 
-### `src/main/c/persistence/triagem.c` e `triagem.h`
+### `src/main/c/modules/ala.c`
 
-Modulo de triagem.
+Implementação do módulo de alas.
 
 Responsabilidades:
 
-- registrar sintomas;
-- calcular pontuacao;
-- classificar prioridade;
-- listar triagens.
+- implementar as funções declaradas em `ala.h`;
+- concentrar a lógica relacionada às alas.
+
+Header correspondente:
+
+```text
+src/main/c/headers/ala.h
+```
+
+O que foi estudado aqui:
+
+- arquivo `.c` de implementação;
+- organização por módulo;
+- modularização em C.
 
 ---
 
-### `src/main/c/persistence/relatorio.c` e `relatorio.h`
+### `src/main/c/headers/leito.h`
 
-Modulo de relatorios.
+Header do módulo de leitos.
 
 Responsabilidades:
 
-- exibir totais gerais;
-- mostrar ocupacao por ala;
-- servir como base para o futuro Painel Situacional do DF.
+- declarar as funções relacionadas ao módulo de leitos;
+- permitir integração com outros módulos do sistema.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/leito.c
+```
+
+O que foi estudado aqui:
+
+- declaração de funções;
+- uso de header por módulo;
+- separação entre interface e implementação.
 
 ---
 
-## Organizacao da aplicacao
+### `src/main/c/modules/leito.c`
 
-A aplicacao esta dividida em tres areas principais:
+Implementação do módulo de leitos.
 
-- `app`: entrada do sistema e menu principal;
-- `model`: estruturas centrais do dominio;
-- `persistence`: modulos atuais do sistema e ponto futuro para persistencia.
+Responsabilidades:
 
-Embora o nome `persistence` seja inspirado no projeto Java de referencia, nesta etapa ele ainda nao implementa gravacao em arquivos ou banco. Os dados continuam armazenados em memoria.
+- implementar as funções declaradas em `leito.h`;
+- concentrar a lógica relacionada aos leitos.
 
----
+Header correspondente:
 
-## Fluxo principal da aplicacao
+```text
+src/main/c/headers/leito.h
+```
 
-1. O usuario executa `make run` ou `./sigeh`.
-2. `main.c` exibe o menu principal.
-3. O usuario escolhe uma opcao.
-4. O sistema chama o menu do modulo correspondente.
-5. O modulo executa cadastros, listagens, edicoes ou validacoes.
-6. O usuario retorna ao menu principal.
-7. Ao escolher `0`, o sistema encerra.
+O que foi estudado aqui:
 
----
-
-## Regras de dominio
-
-- Um paciente inativo nao deve ser usado como paciente valido em novas operacoes.
-- Um medico inativo nao deve ser usado para novos agendamentos.
-- O mesmo medico nao pode ter dois agendamentos ativos no mesmo dia e horario.
-- Agendamentos cancelados nao geram conflito.
-- Medicos diferentes podem atender no mesmo dia e horario.
-- Um leito ocupado nao pode receber outro paciente.
-- Registrar alta libera o leito.
-- A triagem soma pontos por sintomas e idade.
-- A exclusao logica usa `ativo = 0`.
+- implementação em C;
+- organização modular;
+- separação entre `.h` e `.c`.
 
 ---
 
-## Persistencia atual
+### `src/main/c/headers/internacao.h`
 
-Ainda nao ha persistencia real implementada.
+Header do módulo de internações.
 
-Atualmente:
+Responsabilidades:
 
-- os dados ficam em memoria;
-- os vetores globais sao definidos em `main.c`;
-- os contadores globais controlam quantos registros existem;
-- ao encerrar o programa, os dados cadastrados sao perdidos.
+- declarar as funções relacionadas ao módulo de internações;
+- expor operações de internação para o restante do sistema.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/internacao.c
+```
+
+O que foi estudado aqui:
+
+- arquivo de cabeçalho;
+- declaração de funções;
+- modularização do sistema.
 
 ---
 
-## Plano de persistencia
+### `src/main/c/modules/internacao.c`
 
-Evolucoes planejadas:
+Implementação do módulo de internações.
 
-1. Salvar dados em arquivos `.txt` dentro de `data/`.
-2. Criar funcoes de leitura e escrita por modulo.
-3. Separar melhor codigo de dominio e codigo de persistencia.
-4. Evoluir para SQLite no futuro.
+Responsabilidades:
+
+- implementar as funções declaradas em `internacao.h`;
+- concentrar a lógica relacionada às internações.
+
+Header correspondente:
+
+```text
+src/main/c/headers/internacao.h
+```
+
+O que foi estudado aqui:
+
+- implementação em arquivo `.c`;
+- organização por módulo;
+- divisão do projeto em partes menores.
 
 ---
 
-## Testes automatizados
+### `src/main/c/headers/triagem.h`
 
-Os arquivos de teste foram criados como preparacao:
+Header do módulo de triagem.
 
-- `test_agendamento.c`;
-- `test_paciente.c`;
-- `test_medico.c`;
-- `test_leito.c`;
-- `test_triagem.c`.
+Responsabilidades:
 
-No momento, eles ainda nao implementam testes. A ideia futura e usar `assert.h` para validar regras como:
+- declarar as funções relacionadas ao módulo de triagem;
+- permitir que outros arquivos chamem operações de triagem.
 
-- conflito de agendamento;
-- exclusao logica;
-- paciente ativo/inativo;
-- medico ativo/inativo;
-- leito ocupado/livre;
-- classificacao de triagem.
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/triagem.c
+```
+
+O que foi estudado aqui:
+
+- header de módulo;
+- organização de funções;
+- separação entre declaração e implementação.
+
+---
+
+### `src/main/c/modules/triagem.c`
+
+Implementação do módulo de triagem.
+
+Responsabilidades:
+
+- implementar as funções declaradas em `triagem.h`;
+- concentrar a lógica relacionada à triagem.
+
+Header correspondente:
+
+```text
+src/main/c/headers/triagem.h
+```
+
+O que foi estudado aqui:
+
+- implementação modular;
+- separação de código;
+- organização por responsabilidade.
+
+---
+
+### `src/main/c/headers/relatorio.h`
+
+Header do módulo de relatórios.
+
+Responsabilidades:
+
+- declarar as funções relacionadas ao módulo de relatórios;
+- permitir que o sistema acesse as operações de relatório.
+
+Arquivo de implementação correspondente:
+
+```text
+src/main/c/modules/relatorio.c
+```
+
+O que foi estudado aqui:
+
+- header de módulo;
+- declaração de funções;
+- divisão do sistema em arquivos.
+
+---
+
+### `src/main/c/modules/relatorio.c`
+
+Implementação do módulo de relatórios.
+
+Responsabilidades:
+
+- implementar as funções declaradas em `relatorio.h`;
+- concentrar a lógica relacionada aos relatórios.
+
+Header correspondente:
+
+```text
+src/main/c/headers/relatorio.h
+```
+
+O que foi estudado aqui:
+
+- implementação em `.c`;
+- modularização;
+- integração entre módulos.
+
+---
+
+### `src/test/c/modules/test_agendamento.c`
+
+Arquivo de teste relacionado ao módulo de agendamentos.
+
+O que foi estudado aqui:
+
+- separação entre código principal e código de teste;
+- testes por módulo.
+
+---
+
+### `src/test/c/modules/test_leito.c`
+
+Arquivo de teste relacionado ao módulo de leitos.
+
+O que foi estudado aqui:
+
+- organização de testes;
+- validação isolada por módulo.
+
+---
+
+### `src/test/c/modules/test_medico.c`
+
+Arquivo de teste relacionado ao módulo de médicos.
+
+O que foi estudado aqui:
+
+- teste separado do código principal;
+- organização por assunto.
+
+---
+
+### `src/test/c/modules/test_paciente.c`
+
+Arquivo de teste relacionado ao módulo de pacientes.
+
+O que foi estudado aqui:
+
+- teste por módulo;
+- estrutura de teste separada da aplicação principal.
+
+---
+
+### `src/test/c/modules/test_triagem.c`
+
+Arquivo de teste relacionado ao módulo de triagem.
+
+O que foi estudado aqui:
+
+- organização dos testes;
+- separação entre implementação e validação.
+
+---
+
+## Organização da aplicação
+
+A aplicação está organizada em quatro blocos principais dentro de `src/main/c`.
+
+---
+
+### `app`
+
+Contém o ponto de entrada da aplicação.
+
+Arquivo:
+
+```text
+src/main/c/app/main.c
+```
+
+Responsabilidade:
+
+- iniciar o programa;
+- chamar os módulos necessários;
+- controlar o fluxo principal.
+
+---
+
+### `model`
+
+Contém a estrutura principal compartilhada.
+
+Arquivo:
+
+```text
+src/main/c/model/hospital.h
+```
+
+Responsabilidade:
+
+- definir estruturas compartilhadas;
+- concentrar definições comuns;
+- servir como base para os módulos.
+
+---
+
+### `headers`
+
+Contém as declarações dos módulos.
+
+Arquivos:
+
+```text
+src/main/c/headers/agendamento.h
+src/main/c/headers/ala.h
+src/main/c/headers/internacao.h
+src/main/c/headers/leito.h
+src/main/c/headers/medico.h
+src/main/c/headers/paciente.h
+src/main/c/headers/relatorio.h
+src/main/c/headers/triagem.h
+```
+
+Responsabilidade:
+
+- declarar funções;
+- expor a interface de cada módulo;
+- permitir que os arquivos `.c` se comuniquem.
+
+---
+
+### `modules`
+
+Contém as implementações dos módulos.
+
+Arquivos:
+
+```text
+src/main/c/modules/agendamento.c
+src/main/c/modules/ala.c
+src/main/c/modules/internacao.c
+src/main/c/modules/leito.c
+src/main/c/modules/medico.c
+src/main/c/modules/paciente.c
+src/main/c/modules/relatorio.c
+src/main/c/modules/triagem.c
+```
+
+Responsabilidade:
+
+- implementar as funções declaradas nos headers;
+- concentrar a lógica dos módulos;
+- manter o código dividido por área do sistema.
+
+---
+
+### `test`
+
+Contém os arquivos de teste.
+
+Arquivos atuais:
+
+```text
+src/test/c/modules/test_agendamento.c
+src/test/c/modules/test_leito.c
+src/test/c/modules/test_medico.c
+src/test/c/modules/test_paciente.c
+src/test/c/modules/test_triagem.c
+```
+
+Responsabilidade:
+
+- separar os testes do código principal;
+- permitir validações por módulo.
+
+---
+
+## Fluxo principal da aplicação
+
+O fluxo principal começa em:
+
+```text
+src/main/c/app/main.c
+```
+
+A partir desse arquivo, o sistema utiliza os módulos definidos nos headers e implementados na pasta `modules`.
+
+O fluxo geral pode ser representado assim:
+
+```text
+main.c
+  ↓
+headers dos módulos
+  ↓
+implementações em modules
+  ↓
+retorno ao fluxo principal
+```
+
+O `main.c` deve concentrar o início da execução e a chamada das funções principais, enquanto os arquivos `.c` dos módulos concentram suas próprias implementações.
+
+---
+
+## Organização dos módulos
+
+Cada módulo segue o mesmo padrão:
+
+```text
+headers/nome_do_modulo.h
+modules/nome_do_modulo.c
+```
+
+Exemplo:
+
+```text
+headers/paciente.h
+modules/paciente.c
+```
+
+Isso significa que:
+
+- o arquivo `.h` declara o que o módulo oferece;
+- o arquivo `.c` implementa como o módulo funciona.
+
+Esse padrão se repete em:
+
+| Módulo | Header | Implementação |
+|---|---|---|
+| Paciente | `headers/paciente.h` | `modules/paciente.c` |
+| Médico | `headers/medico.h` | `modules/medico.c` |
+| Agendamento | `headers/agendamento.h` | `modules/agendamento.c` |
+| Ala | `headers/ala.h` | `modules/ala.c` |
+| Leito | `headers/leito.h` | `modules/leito.c` |
+| Internação | `headers/internacao.h` | `modules/internacao.c` |
+| Triagem | `headers/triagem.h` | `modules/triagem.c` |
+| Relatório | `headers/relatorio.h` | `modules/relatorio.c` |
+
+---
+
+## Arquivos de cabeçalho
+
+Os arquivos `.h` ficam em:
+
+```text
+src/main/c/headers
+```
+
+Eles servem para declarar funções, tipos e estruturas que serão usadas por outros arquivos.
+
+Exemplo de uso:
+
+```c
+#include "paciente.h"
+```
+
+Como o `Makefile` inclui a pasta `headers` com `-I`, os arquivos podem ser incluídos diretamente pelo nome.
+
+Exemplo:
+
+```makefile
+-Isrc/main/c/headers
+```
+
+Isso permite usar:
+
+```c
+#include "paciente.h"
+#include "medico.h"
+#include "agendamento.h"
+```
+
+sem precisar escrever o caminho completo.
+
+---
+
+## Arquivos de implementação
+
+Os arquivos `.c` ficam em:
+
+```text
+src/main/c/modules
+```
+
+Eles implementam as funções declaradas nos headers.
+
+Exemplo:
+
+```text
+src/main/c/headers/paciente.h
+src/main/c/modules/paciente.c
+```
+
+O arquivo `.h` informa quais funções existem.
+
+O arquivo `.c` contém o código dessas funções.
+
+---
+
+## Testes
+
+A pasta de testes atual é:
+
+```text
+src/test/c
+```
+
+Dentro dela, existem arquivos de teste em:
+
+```text
+src/test/c/modules
+```
+
+Arquivos existentes:
+
+```text
+test_agendamento.c
+test_leito.c
+test_medico.c
+test_paciente.c
+test_triagem.c
+```
+
+A execução automatizada dos testes depende da configuração do `Makefile`.
 
 ---
 
 ## Conceitos praticados
 
+O projeto permite praticar os seguintes conceitos de C e de Algoritmos e Lógica de Programação:
+
+- função `main`;
+- modularização;
+- múltiplos arquivos `.c`;
+- múltiplos arquivos `.h`;
+- separação entre declaração e implementação;
+- diretiva `#include`;
+- include guards;
+- compilação com múltiplos arquivos;
+- flags de compilação;
+- uso de `Makefile`;
+- organização de pastas;
+- funções;
 - `structs`;
-- vetores;
-- strings com `char[]`;
-- constantes com `#define`;
-- funcoes;
-- headers `.h`;
-- modularizacao;
-- `do while`;
-- `switch case`;
-- `for`;
-- `if/else`;
-- `strcmp`;
-- `strcpy`;
-- busca linear;
-- exclusao logica;
-- validacao de regras de negocio.
+- constantes;
+- menus no terminal;
+- condicionais;
+- laços de repetição;
+- separação entre código principal e testes.
 
 ---
-
-## Linha do tempo planejada
-
-1. Consolidar structs, vetores e menus.
-2. Separar o projeto em modulos.
-3. Organizar a estrutura em formato inspirado no Maven.
-4. Implementar testes com `assert.h`.
-5. Implementar persistencia em arquivos `.txt`.
-6. Criar indicadores para o Painel Situacional do DF.
-7. Planejar prontuario integrado.
-8. Planejar exames integrados.
-9. Evoluir para SQLite.

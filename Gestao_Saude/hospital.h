@@ -86,6 +86,8 @@ typedef struct
     char classificacao[30];
 } Triagem;
 
+#endif
+
 extern Paciente pacientes[MAX_PACIENTES];
 extern Medico medicos[MAX_MEDICOS];
 extern Agendamento agendamentos[MAX_AGENDAMENTOS];
@@ -101,5 +103,3 @@ extern int totalAlas;
 extern int totalLeitos;
 extern int totalInternacoes;
 extern int totalTriagens;
-
-#endif
