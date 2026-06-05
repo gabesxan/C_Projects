@@ -1,19 +1,170 @@
 #include "agendamento.h"
 
-int verificarConflitoMedico(int medicoId, char data[], char horario[])
+int conflitoMedico(int medicoId, char data[], char horario[])
 {
     for (int i = 0; i < totalAgendamentos; i++)
     {
         if (agendamentos[i].medicoId == medicoId &&
             strcmp(agendamentos[i].data, data) == 0 &&
             strcmp(agendamentos[i].horario, horario) == 0 &&
-            strcmp(agendamentos[i].status, "CANCELADO") != 0)
+            strcmp(agendamentos[i].status, "AGENDADO") == 0)
         {
             return 1;
         }
     }
 
     return 0;
+}
+
+int cancelarAgendamento(int id)
+{
+    for (int i = 0; i < totalAgendamentos; i++)
+    {
+        if (agendamentos[i].id == id &&
+            strcmp(agendamentos[i].status, "AGENDADO") == 0)
+        {
+            strcpy(agendamentos[i].status, "CANCELADO");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int concluirAgendamento(int id)
+{
+    for (int i = 0; i < totalAgendamentos; i++)
+    {
+        if (agendamentos[i].id == id &&
+            strcmp(agendamentos[i].status, "AGENDADO") == 0)
+        {
+            strcpy(agendamentos[i].status, "CONCLUIDO");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+const char *especialidadeTriagem(int tipoTriagem)
+{
+    switch (tipoTriagem)
+    {
+    case TRIAGEM_ORTOPEDIA:
+        return "Ortopedia";
+    case TRIAGEM_CARDIOLOGIA:
+        return "Cardiologia";
+    case TRIAGEM_PNEUMOLOGIA:
+        return "Pneumologia";
+    case TRIAGEM_PEDIATRIA:
+        return "Pediatria";
+    case TRIAGEM_GERAL:
+        return "Clinico Geral";
+    default:
+        return "";
+    }
+}
+
+int buscarMedicoRegiao(const char especialidade[], int regiaoAdministrativa, char data[], char horario[])
+{
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 &&
+            strcmp(medicos[i].especialidade, especialidade) == 0 &&
+            medicos[i].regiaoAdministrativa == regiaoAdministrativa &&
+            conflitoMedico(medicos[i].id, data, horario) == 0)
+        {
+            return medicos[i].id;
+        }
+    }
+
+    return 0;
+}
+
+int buscarMedico(const char especialidade[], char data[], char horario[])
+{
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 &&
+            strcmp(medicos[i].especialidade, especialidade) == 0 &&
+            conflitoMedico(medicos[i].id, data, horario) == 0)
+        {
+            return medicos[i].id;
+        }
+    }
+
+    return 0;
+}
+
+int agendarTriagem(int pacienteId, char data[], char horario[])
+{
+    int regiaoPaciente = 0;
+    int tipoTriagem = 0;
+    int medicoId = 0;
+    const char *especialidade;
+
+    if (totalAgendamentos >= MAX_AGENDAMENTOS)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalPacientes; i++)
+    {
+        if (pacientes[i].id == pacienteId && pacientes[i].ativo == 1)
+        {
+            regiaoPaciente = pacientes[i].regiaoAdministrativa;
+            break;
+        }
+    }
+
+    if (regiaoPaciente == 0)
+    {
+        return 0;
+    }
+
+    for (int i = totalTriagens - 1; i >= 0; i--)
+    {
+        if (triagens[i].pacienteId == pacienteId && triagens[i].ativo == 1)
+        {
+            tipoTriagem = triagens[i].tipoTriagem;
+            break;
+        }
+    }
+
+    if (tipoTriagem == 0)
+    {
+        return 0;
+    }
+
+    especialidade = especialidadeTriagem(tipoTriagem);
+
+    if (strlen(especialidade) == 0)
+    {
+        return 0;
+    }
+
+    medicoId = buscarMedicoRegiao(especialidade, regiaoPaciente, data, horario);
+
+    if (medicoId == 0)
+    {
+        medicoId = buscarMedico(especialidade, data, horario);
+    }
+
+    if (medicoId == 0)
+    {
+        return 0;
+    }
+
+    agendamentos[totalAgendamentos].id = totalAgendamentos + 1;
+    agendamentos[totalAgendamentos].pacienteId = pacienteId;
+    agendamentos[totalAgendamentos].medicoId = medicoId;
+    strcpy(agendamentos[totalAgendamentos].data, data);
+    strcpy(agendamentos[totalAgendamentos].horario, horario);
+    strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
+
+    totalAgendamentos++;
+
+    return medicoId;
 }
 
 void menuAgendamentos(void)
@@ -40,10 +191,8 @@ void menuAgendamentos(void)
         case 1:
         {
             int pacienteId;
-            int medicoId;
             int pacienteEncontrado = 0;
-            int medicoEncontrado = 0;
-            int conflito = 0;
+            int medicoSelecionado;
             char data[11];
             char horario[6];
 
@@ -71,51 +220,26 @@ void menuAgendamentos(void)
                 break;
             }
 
-            printf("ID do medico: ");
-            scanf("%d", &medicoId);
-
-            for (int i = 0; i < totalMedicos; i++)
-            {
-                if (medicos[i].id == medicoId && medicos[i].ativo == 1)
-                {
-                    medicoEncontrado = 1;
-                    break;
-                }
-            }
-
-            if (medicoEncontrado == 0)
-            {
-                printf("\nMedico nao encontrado ou inativo.\n");
-                break;
-            }
-
             printf("Data (DD/MM/AAAA): ");
             scanf(" %[^\n]", data);
 
             printf("Horario (HH:MM): ");
             scanf(" %[^\n]", horario);
 
-            conflito = verificarConflitoMedico(medicoId, data, horario);
+            medicoSelecionado = agendarTriagem(pacienteId, data, horario);
 
-            if (conflito == 1)
+            if (medicoSelecionado == 0)
             {
-                printf("\nEste medico ja possui agendamento nesse dia e horario.\n");
+                printf("\nNao foi possivel criar o agendamento.\n");
+                printf("Verifique se o paciente possui triagem ativa e se ha medico disponivel.\n");
                 break;
             }
 
-            agendamentos[totalAgendamentos].id = totalAgendamentos + 1;
-            agendamentos[totalAgendamentos].pacienteId = pacienteId;
-            agendamentos[totalAgendamentos].medicoId = medicoId;
-            strcpy(agendamentos[totalAgendamentos].data, data);
-            strcpy(agendamentos[totalAgendamentos].horario, horario);
-            strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
-
-            totalAgendamentos++;
-
             printf("\nAgendamento criado com sucesso! ID: %d\n", agendamentos[totalAgendamentos - 1].id);
+            printf("Medico selecionado automaticamente. ID: %d\n", medicoSelecionado);
             break;
         }
-
+        
         case 2:
         {
             if (totalAgendamentos == 0)

@@ -1,97 +1,134 @@
 #include <assert.h>
 #include <string.h>
-#include <time.h>
 #include "agendamento.h"
 
-Agendamento agendamentos[MAX_AGENDAMENTOS];
-int totalAgendamentos = 0;
-
 Paciente pacientes[MAX_PACIENTES];
-int totalPacientes = 0;
-
 Medico medicos[MAX_MEDICOS];
-int totalMedicos = 0;
+Agendamento agendamentos[MAX_AGENDAMENTOS];
+Triagem triagens[MAX_TRIAGENS];
 
 Ala alas[MAX_ALAS];
-int totalAlas = 0;
-
 Leito leitos[MAX_LEITOS];
-int totalLeitos = 0;
-
 Internacao internacoes[MAX_INTERNACOES];
-int totalInternacoes = 0;
 
-Triagem triagens[MAX_TRIAGENS];
+int totalPacientes = 0;
+int totalMedicos = 0;
+int totalAgendamentos = 0;
 int totalTriagens = 0;
 
-static void obterDataAtual(char data[], int tamanho)
-{
-    time_t agora = time(NULL);
-    struct tm *dataAtual = localtime(&agora);
+int totalAlas = 0;
+int totalLeitos = 0;
+int totalInternacoes = 0;
 
-    strftime(data, tamanho, "%d/%m/%Y", dataAtual);
+static void prepararPaciente(int id, int regiao)
+{
+    pacientes[totalPacientes].id = id;
+    strcpy(pacientes[totalPacientes].nome, "Paciente Teste");
+    strcpy(pacientes[totalPacientes].cpf, "000.000.000-00");
+    pacientes[totalPacientes].idade = 30;
+    strcpy(pacientes[totalPacientes].telefone, "(61) 99999-0000");
+    pacientes[totalPacientes].sexo = 'F';
+    pacientes[totalPacientes].regiaoAdministrativa = regiao;
+    pacientes[totalPacientes].ativo = 1;
+    totalPacientes++;
 }
 
-static void prepararPaciente(void)
+static void prepararMedico(int id, const char especialidade[], int regiao, int ativo)
 {
-    totalPacientes = 1;
-
-    pacientes[0].id = 1;
-    strcpy(pacientes[0].nome, "Maria Aparecida Santos");
-    strcpy(pacientes[0].cpf, "123.456.789-00");
-    pacientes[0].idade = 62;
-    strcpy(pacientes[0].telefone, "(61) 99999-0000");
-    pacientes[0].regiaoAdministrativa = 1;
-    pacientes[0].ativo = 1;
+    medicos[totalMedicos].id = id;
+    strcpy(medicos[totalMedicos].nome, "Medico Teste");
+    strcpy(medicos[totalMedicos].crm, "12345");
+    strcpy(medicos[totalMedicos].especialidade, especialidade);
+    medicos[totalMedicos].regiaoAdministrativa = regiao;
+    medicos[totalMedicos].ativo = ativo;
+    totalMedicos++;
 }
 
-static void prepararMedicos(void)
+static void prepararTriagem(int id, int pacienteId, int tipoTriagem, int ativo)
 {
-    totalMedicos = 2;
-
-    medicos[0].id = 1;
-    strcpy(medicos[0].nome, "Dr. Carlos Henrique Almeida");
-    strcpy(medicos[0].crm, "CRM-DF 12345");
-    strcpy(medicos[0].especialidade, "Cardiologia");
-    medicos[0].ativo = 1;
-
-    medicos[1].id = 2;
-    strcpy(medicos[1].nome, "Dra. Fernanda Lima Rocha");
-    strcpy(medicos[1].crm, "CRM-DF 67890");
-    strcpy(medicos[1].especialidade, "Cardiologia");
-    medicos[1].ativo = 1;
+    triagens[totalTriagens].id = id;
+    triagens[totalTriagens].pacienteId = pacienteId;
+    triagens[totalTriagens].tipoTriagem = tipoTriagem;
+    triagens[totalTriagens].pontuacao = 8;
+    strcpy(triagens[totalTriagens].classificacao, "Emergencia");
+    triagens[totalTriagens].ativo = ativo;
+    totalTriagens++;
 }
-static void prepararAgendamento(int indice, int pacienteId, int medicoId, const char data[], const char horario[], const char status[])
+
+static void prepararAgendamento(int id, int pacienteId, int medicoId, const char data[], const char horario[], const char status[])
 {
-    agendamentos[indice].id = indice + 1;
-    agendamentos[indice].pacienteId = pacienteId;
-    agendamentos[indice].medicoId = medicoId;
-    strcpy(agendamentos[indice].data, data);
-    strcpy(agendamentos[indice].horario, horario);
-    strcpy(agendamentos[indice].status, status);
+    agendamentos[totalAgendamentos].id = id;
+    agendamentos[totalAgendamentos].pacienteId = pacienteId;
+    agendamentos[totalAgendamentos].medicoId = medicoId;
+    strcpy(agendamentos[totalAgendamentos].data, data);
+    strcpy(agendamentos[totalAgendamentos].horario, horario);
+    strcpy(agendamentos[totalAgendamentos].status, status);
+    totalAgendamentos++;
 }
 
 int main(void)
 {
-    char dataConsulta[11];
+    totalPacientes = 0;
+    totalMedicos = 0;
+    totalAgendamentos = 0;
+    totalTriagens = 0;
 
-    obterDataAtual(dataConsulta, sizeof(dataConsulta));
+    assert(strcmp(especialidadeTriagem(TRIAGEM_ORTOPEDIA), "Ortopedia") == 0);
+    assert(strcmp(especialidadeTriagem(TRIAGEM_CARDIOLOGIA), "Cardiologia") == 0);
+    assert(strcmp(especialidadeTriagem(TRIAGEM_PNEUMOLOGIA), "Pneumologia") == 0);
+    assert(strcmp(especialidadeTriagem(TRIAGEM_PEDIATRIA), "Pediatria") == 0);
+    assert(strcmp(especialidadeTriagem(TRIAGEM_GERAL), "Clinico Geral") == 0);
+
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Ortopedia", 2, 1);
+    prepararMedico(2, "Ortopedia", 3, 1);
+    prepararMedico(3, "Cardiologia", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, 1);
+
+    assert(buscarMedicoRegiao("Ortopedia", 2, "10/06/2026", "08:00") == 1);
+    assert(buscarMedico("Ortopedia", "10/06/2026", "08:00") == 1);
+
+    prepararAgendamento(1, 99, 1, "10/06/2026", "08:00", "AGENDADO");
+
+    assert(conflitoMedico(1, "10/06/2026", "08:00") == 1);
+    assert(buscarMedicoRegiao("Ortopedia", 2, "10/06/2026", "08:00") == 0);
+    assert(buscarMedico("Ortopedia", "10/06/2026", "08:00") == 2);
+
+    assert(cancelarAgendamento(1) == 1);
+    assert(strcmp(agendamentos[0].status, "CANCELADO") == 0);
+    assert(conflitoMedico(1, "10/06/2026", "08:00") == 0);
 
     totalAgendamentos = 0;
-    prepararPaciente();
-    prepararMedicos();
+    assert(agendarTriagem(1, "11/06/2026", "09:00") == 1);
+    assert(totalAgendamentos == 1);
+    assert(agendamentos[0].pacienteId == 1);
+    assert(agendamentos[0].medicoId == 1);
+    assert(strcmp(agendamentos[0].status, "AGENDADO") == 0);
 
-    assert(verificarConflitoMedico(1, dataConsulta, "08:30") == 0);
+    totalAgendamentos = 0;
+    prepararAgendamento(1, 77, 1, "12/06/2026", "10:00", "AGENDADO");
+    assert(agendarTriagem(1, "12/06/2026", "10:00") == 2);
 
-    totalAgendamentos = 1;
-    prepararAgendamento(0, 1, 1, dataConsulta, "08:30", "AGENDADO");
+    totalPacientes = 0;
+    totalMedicos = 0;
+    totalAgendamentos = 0;
+    totalTriagens = 0;
 
-    assert(verificarConflitoMedico(1, dataConsulta, "08:30") == 1);
-    assert(verificarConflitoMedico(1, dataConsulta, "09:30") == 0);
-    assert(verificarConflitoMedico(2, dataConsulta, "08:30") == 0);
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Cardiologia", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, 1);
 
-    strcpy(agendamentos[0].status, "CANCELADO");
-    assert(verificarConflitoMedico(1, dataConsulta, "08:30") == 0);
+    assert(agendarTriagem(1, "13/06/2026", "11:00") == 0);
+
+    totalPacientes = 0;
+    totalMedicos = 0;
+    totalAgendamentos = 0;
+    totalTriagens = 0;
+
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Ortopedia", 2, 1);
+
+    assert(agendarTriagem(1, "14/06/2026", "12:00") == 0);
 
     return 0;
 }
