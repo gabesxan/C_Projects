@@ -7,16 +7,24 @@ int totalMedicos = 0;
 
 int main(void)
 {
-    assert(cadastrarMedico("Carlos Henrique Almeida", "12345", "Cardiologia") == 1);
+    assert(cadastrarMedico("Carlos Henrique Almeida", "12345", "Cardiologia", 3) == 1);
     assert(totalMedicos == 1);
     assert(medicos[0].id == 1);
     assert(strcmp(medicos[0].nome, "Carlos Henrique Almeida") == 0);
     assert(strcmp(medicos[0].crm, "12345") == 0);
     assert(strcmp(medicos[0].especialidade, "Cardiologia") == 0);
+    assert(medicos[0].regiaoAdministrativa == 3);
     assert(medicos[0].ativo == 1);
+
+    assert(cadastrarMedico("Ana Paula Souza", "98765", "Clinica Geral", 1) == 1);
+    assert(totalMedicos == 2);
+    assert(medicos[1].id == 2);
+    assert(medicos[1].regiaoAdministrativa == 1);
+    assert(medicos[1].ativo == 1);
 
     assert(excluirMedico(1) == 1);
     assert(medicos[0].ativo == 0);
+    assert(medicos[1].ativo == 1);
     assert(excluirMedico(1) == 0);
     assert(excluirMedico(99) == 0);
 

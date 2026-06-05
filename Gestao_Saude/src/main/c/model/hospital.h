@@ -36,6 +36,7 @@ typedef struct
     char nome[100];
     char crm[20];
     char especialidade[50];
+    int regiaoAdministrativa;
     int ativo;
 } Medico;
 

@@ -1,5 +1,39 @@
 #include "relatorio.h"
 
+static void nomeRegiao(int regiaoAdministrativa)
+{
+    switch (regiaoAdministrativa)
+    {
+    case 1:
+        printf("Plano Piloto");
+        break;
+    case 2:
+        printf("Ceilandia");
+        break;
+    case 3:
+        printf("Taguatinga");
+        break;
+    case 4:
+        printf("Samambaia");
+        break;
+    case 5:
+        printf("Gama");
+        break;
+    case 6:
+        printf("Sobradinho");
+        break;
+    case 7:
+        printf("Guara");
+        break;
+    case 8:
+        printf("Aguas Claras");
+        break;
+    default:
+        printf("Nao informada");
+        break;
+    }
+}
+
 int contarLeitosOcupados(void)
 {
     int total = 0;
@@ -15,7 +49,7 @@ int contarLeitosOcupados(void)
     return total;
 }
 
-int contarLeitosLivres(void)
+int contarLivres(void)
 {
     int total = 0;
 
@@ -30,7 +64,7 @@ int contarLeitosLivres(void)
     return total;
 }
 
-float calcularTaxaOcupacaoAla(int alaId)
+float taxaAla(int alaId)
 {
     for (int i = 0; i < totalAlas; i++)
     {
@@ -43,7 +77,7 @@ float calcularTaxaOcupacaoAla(int alaId)
     return 0.0f;
 }
 
-int contarTriagensPorClassificacao(const char classificacao[])
+int contarTriagens(const char classificacao[])
 {
     int total = 0;
 
@@ -56,6 +90,32 @@ int contarTriagensPorClassificacao(const char classificacao[])
     }
 
     return total;
+}
+
+int contarMedRegiao(int regiaoAdministrativa)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1 && medicos[i].regiaoAdministrativa == regiaoAdministrativa)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+void relMedRegiao(void)
+{
+    printf("\nMedicos ativos por regiao:\n");
+
+    for (int regiao = 1; regiao <= 8; regiao++)
+    {
+        nomeRegiao(regiao);
+        printf(": %d\n", contarMedRegiao(regiao));
+    }
 }
 
 void menuRelatorios(void)
@@ -89,4 +149,6 @@ void menuRelatorios(void)
             printf("Taxa de ocupacao: %.2f%%\n", taxa);
         }
     }
+
+    relMedRegiao();
 }
