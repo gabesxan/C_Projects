@@ -5,5 +5,6 @@
 
 void menuLeitos(void);
 int cadastrarLeito(int alaId, int numero);
+int excluirLeito(int id);
 
 #endif

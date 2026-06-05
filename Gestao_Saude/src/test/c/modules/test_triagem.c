@@ -12,25 +12,35 @@ int main(void)
 {
     char classificacao[30];
 
-    assert(calcularPontuacaoTriagem(0, 0, 0, 0, 30) == 0);
     classificarTriagem(0, classificacao);
     assert(strcmp(classificacao, "Orientacao basica") == 0);
 
-    assert(calcularPontuacaoTriagem(1, 0, 0, 0, 30) == 2);
     classificarTriagem(2, classificacao);
     assert(strcmp(classificacao, "Comum") == 0);
 
-    assert(calcularPontuacaoTriagem(1, 0, 1, 0, 30) == 6);
+    classificarTriagem(4, classificacao);
+    assert(strcmp(classificacao, "Prioritario") == 0);
+
     classificarTriagem(6, classificacao);
     assert(strcmp(classificacao, "Muito prioritario") == 0);
 
-    assert(calcularPontuacaoTriagem(1, 1, 1, 1, 65) == 15);
-    classificarTriagem(15, classificacao);
+    classificarTriagem(10, classificacao);
     assert(strcmp(classificacao, "Emergencia") == 0);
 
-    assert(calcularPontuacaoTriagem(0, 0, 0, 0, 4) == 2);
-    classificarTriagem(3, classificacao);
-    assert(strcmp(classificacao, "Prioritario") == 0);
+    totalTriagens = 1;
+    triagens[0].id = 1;
+    triagens[0].pacienteId = 1;
+    triagens[0].tipoTriagem = TRIAGEM_ORTOPEDIA;
+    triagens[0].pontuacao = 9;
+    strcpy(triagens[0].classificacao, "Emergencia");
+    triagens[0].ativo = 1;
+
+    assert(triagens[0].ativo == 1);
+    assert(triagens[0].tipoTriagem == TRIAGEM_ORTOPEDIA);
+    assert(excluirTriagem(1) == 1);
+    assert(triagens[0].ativo == 0);
+    assert(excluirTriagem(1) == 0);
+    assert(excluirTriagem(99) == 0);
 
     return 0;
 }

@@ -28,10 +28,30 @@ int cadastrarLeito(int alaId, int numero)
     leitos[totalLeitos].numero = numero;
     leitos[totalLeitos].ocupado = 0;
     leitos[totalLeitos].pacienteId = 0;
+    leitos[totalLeitos].ativo = 1;
 
     totalLeitos++;
 
     return 1;
+}
+
+int excluirLeito(int id)
+{
+    for (int i = 0; i < totalLeitos; i++)
+    {
+        if (leitos[i].id == id && leitos[i].ativo == 1)
+        {
+            if (leitos[i].ocupado == 1)
+            {
+                return 0;
+            }
+
+            leitos[i].ativo = 0;
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 void menuLeitos(void)
@@ -45,6 +65,7 @@ void menuLeitos(void)
         printf("=============================================\n");
         printf("1. Cadastrar Leito\n");
         printf("2. Listar Leitos\n");
+        printf("3. Excluir Leito\n");
         printf("0. Voltar ao Menu Principal\n");
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
@@ -75,6 +96,8 @@ void menuLeitos(void)
 
         case 2:
         {
+            int encontrouAtivo = 0;
+
             if (totalLeitos == 0)
             {
                 printf("\nNenhum leito cadastrado.\n");
@@ -85,11 +108,40 @@ void menuLeitos(void)
 
             for (int i = 0; i < totalLeitos; i++)
             {
-                printf("\nID: %d\n", leitos[i].id);
-                printf("Ala ID: %d\n", leitos[i].alaId);
-                printf("Numero: %d\n", leitos[i].numero);
-                printf("Ocupado: %s\n", leitos[i].ocupado == 1 ? "Sim" : "Nao");
-                printf("Paciente ID: %d\n", leitos[i].pacienteId);
+                if (leitos[i].ativo == 1)
+                {
+                    encontrouAtivo = 1;
+
+                    printf("\nID: %d\n", leitos[i].id);
+                    printf("Ala ID: %d\n", leitos[i].alaId);
+                    printf("Numero: %d\n", leitos[i].numero);
+                    printf("Ocupado: %s\n", leitos[i].ocupado == 1 ? "Sim" : "Nao");
+                    printf("Paciente ID: %d\n", leitos[i].pacienteId);
+                }
+            }
+
+            if (encontrouAtivo == 0)
+            {
+                printf("\nNenhum leito ativo cadastrado.\n");
+            }
+
+            break;
+        }
+
+        case 3:
+        {
+            int idBusca;
+
+            printf("\nDigite o ID do leito que deseja excluir: ");
+            scanf("%d", &idBusca);
+
+            if (excluirLeito(idBusca) == 1)
+            {
+                printf("\nLeito removido com sucesso.\n");
+            }
+            else
+            {
+                printf("\nLeito nao encontrado, ja inativo ou ocupado.\n");
             }
 
             break;

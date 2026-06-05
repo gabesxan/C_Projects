@@ -31,6 +31,7 @@ int main(void)
     assert(leitos[0].numero == 101);
     assert(leitos[0].ocupado == 0);
     assert(leitos[0].pacienteId == 0);
+    assert(leitos[0].ativo == 1);
 
     assert(cadastrarLeito(99, 102) == 0);
     assert(totalLeitos == 1);
@@ -38,6 +39,20 @@ int main(void)
     alas[0].ativo = 0;
     assert(cadastrarLeito(1, 103) == 0);
     assert(totalLeitos == 1);
+
+    alas[0].ativo = 1;
+    assert(excluirLeito(1) == 1);
+    assert(leitos[0].ativo == 0);
+    assert(excluirLeito(1) == 0);
+    assert(excluirLeito(99) == 0);
+
+    assert(cadastrarLeito(1, 104) == 1);
+    assert(totalLeitos == 2);
+    leitos[1].ocupado = 1;
+    leitos[1].pacienteId = 1;
+
+    assert(excluirLeito(2) == 0);
+    assert(leitos[1].ativo == 1);
 
     return 0;
 }

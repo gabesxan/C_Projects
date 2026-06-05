@@ -1,5 +1,10 @@
 #ifndef HOSPITAL_H
 #define HOSPITAL_H
+#define TRIAGEM_GERAL 1
+#define TRIAGEM_ORTOPEDIA 2
+#define TRIAGEM_CARDIOLOGIA 3
+#define TRIAGEM_PNEUMOLOGIA 4
+#define TRIAGEM_PEDIATRIA 5
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +66,7 @@ typedef struct
     int numero;
     int ocupado;
     int pacienteId;
+    int ativo;
 } Leito;
 
 typedef struct
@@ -78,12 +84,10 @@ typedef struct
 {
     int id;
     int pacienteId;
-    int febre;
-    int faltaAr;
-    int dorIntensa;
-    int pressaoAlta;
+    int tipoTriagem;
     int pontuacao;
     char classificacao[30];
+    int ativo;
 } Triagem;
 
 extern Paciente pacientes[MAX_PACIENTES];
