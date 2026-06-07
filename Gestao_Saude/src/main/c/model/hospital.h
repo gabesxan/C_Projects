@@ -17,6 +17,7 @@
 #define MAX_LEITOS 300
 #define MAX_INTERNACOES 200
 #define MAX_TRIAGENS 300
+#define MAX_PRONTUARIOS 300
 
 #define ALA_INTERNACAO 1
 #define ALA_UTI 2
@@ -96,6 +97,19 @@ typedef struct
     int ativo;
 } Triagem;
 
+typedef struct
+{
+    int id;
+    int pacienteId;
+    int medicoId;
+    char data[11];
+    char observacoes[300];
+    char diagnostico[200];
+    char conduta[200];
+    int alertaImportante;
+    int ativo;
+} Prontuario;
+
 extern Paciente pacientes[MAX_PACIENTES];
 extern Medico medicos[MAX_MEDICOS];
 extern Agendamento agendamentos[MAX_AGENDAMENTOS];
@@ -103,6 +117,7 @@ extern Ala alas[MAX_ALAS];
 extern Leito leitos[MAX_LEITOS];
 extern Internacao internacoes[MAX_INTERNACOES];
 extern Triagem triagens[MAX_TRIAGENS];
+extern Prontuario prontuarios[MAX_PRONTUARIOS];
 
 extern int totalPacientes;
 extern int totalMedicos;
@@ -111,5 +126,6 @@ extern int totalAlas;
 extern int totalLeitos;
 extern int totalInternacoes;
 extern int totalTriagens;
+extern int totalProntuarios;
 
 #endif

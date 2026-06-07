@@ -7,6 +7,7 @@
 #include "internacao.h"
 #include "triagem.h"
 #include "relatorio.h"
+#include "prontuario.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -15,6 +16,7 @@ Ala alas[MAX_ALAS];
 Leito leitos[MAX_LEITOS];
 Internacao internacoes[MAX_INTERNACOES];
 Triagem triagens[MAX_TRIAGENS];
+Prontuario prontuarios[MAX_PRONTUARIOS];
 
 int totalPacientes = 0;
 int totalMedicos = 0;
@@ -23,6 +25,7 @@ int totalAlas = 0;
 int totalLeitos = 0;
 int totalInternacoes = 0;
 int totalTriagens = 0;
+int totalProntuarios = 0;
 
 static void exibirMenu(void)
 {
@@ -36,7 +39,8 @@ static void exibirMenu(void)
     printf("5. Gerenciar Leitos\n");
     printf("6. Gerenciar Internacoes\n");
     printf("7. Gerenciar Triagem\n");
-    printf("8. Gerar Relatorios\n");
+    printf("8. Prontuarios\n");
+    printf("9. Gerar Relatorios\n");
     printf("0. Sair\n");
     printf("---------------------------------------------\n");
     printf("Escolha uma opcao: ");
@@ -75,6 +79,10 @@ static void executarOpcao(int opcao)
         break;
 
     case 8:
+        menuProntuarios();
+        break;
+
+    case 9:
         menuRelatorios();
         break;
 

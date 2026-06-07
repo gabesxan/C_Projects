@@ -14,7 +14,8 @@ SRC = \
 	src/main/c/modules/leito.c \
 	src/main/c/modules/internacao.c \
 	src/main/c/modules/triagem.c \
-	src/main/c/modules/relatorio.c
+	src/main/c/modules/relatorio.c \
+	src/main/c/modules/prontuario.c 
 
 OUT = sigeh
 
@@ -51,6 +52,10 @@ TEST_RELATORIO = \
 		src/test/c/modules/test_relatorio.c \
 		src/main/c/modules/relatorio.c
 
+TEST_PRONTUARIO = \
+        src/test/c/modules/test_prontuario.c \
+        src/main/c/modules/prontuario.c
+
 all:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
 
@@ -58,7 +63,7 @@ run: all
 	./$(OUT)
 
 clean:
-	rm -f $(OUT) test_agendamento test_leito test_triagem test_paciente test_medico test_ala test_internacao test_relatorio
+	rm -f $(OUT) test_agendamento test_leito test_triagem test_paciente test_medico test_ala test_internacao test_relatorio test_prontuario
 
 test:
 	$(CC) $(CFLAGS) $(TEST_AGENDAMENTO) -o test_agendamento
@@ -77,6 +82,7 @@ test:
 	./test_internacao
 	$(CC) $(CFLAGS) $(TEST_RELATORIO) -o test_relatorio
 	./test_relatorio
-	
+	$(CC) $(CFLAGS) $(TEST_PRONTUARIO) -o test_prontuario
+	./test_prontuario
 tree:
 	find . -maxdepth 5 | sort
