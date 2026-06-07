@@ -44,14 +44,6 @@ static void prepararMedico(int id, const char especialidade[], int regiao, int a
     totalMedicos++;
 }
 
-static void resetarDados(void)
-{
-    totalPacientes = 0;
-    totalMedicos = 0;
-    totalAgendamentos = 0;
-    totalTriagens = 0;
-}
-
 static void prepararTriagem(int id, int pacienteId, int tipoTriagem, const char classificacao[], int ativo)
 {
     triagens[totalTriagens].id = id;
@@ -63,7 +55,8 @@ static void prepararTriagem(int id, int pacienteId, int tipoTriagem, const char 
     totalTriagens++;
 }
 
-static void prepararAgendamento(int id, int pacienteId, int medicoId, const char data[], const char horario[], const char status[])
+static void prepararAgendamento(int id, int pacienteId, int medicoId, const char data[],
+                                const char horario[], const char status[])
 {
     agendamentos[totalAgendamentos].id = id;
     agendamentos[totalAgendamentos].pacienteId = pacienteId;
@@ -72,6 +65,17 @@ static void prepararAgendamento(int id, int pacienteId, int medicoId, const char
     strcpy(agendamentos[totalAgendamentos].horario, horario);
     strcpy(agendamentos[totalAgendamentos].status, status);
     totalAgendamentos++;
+}
+
+static void resetarDados(void)
+{
+    totalPacientes = 0;
+    totalMedicos = 0;
+    totalAgendamentos = 0;
+    totalTriagens = 0;
+    totalAlas = 0;
+    totalLeitos = 0;
+    totalInternacoes = 0;
 }
 
 int main(void)
@@ -147,13 +151,41 @@ int main(void)
     resetarDados();
     prepararPaciente(1, 2);
     prepararPaciente(2, 2);
+    prepararMedico(1, "Clinico Geral", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_GERAL, "Emergencia", 1);
+    prepararTriagem(2, 2, TRIAGEM_GERAL, "Muito prioritario", 1);
+    prepararAgendamento(1, 2, 1, "14/06/2026", "11:00", "AGENDADO");
+
+    assert(trocaHorario(1, 2) == 1);
+    assert(agendarMedico(1, 1, "14/06/2026", "11:00") == 1);
+    assert(totalAgendamentos == 2);
+    assert(strcmp(agendamentos[0].status, "REMANEJADO") == 0);
+    assert(agendamentos[1].pacienteId == 1);
+    assert(strcmp(agendamentos[1].status, "AGENDADO") == 0);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararPaciente(2, 2);
+    prepararMedico(1, "Clinico Geral", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_GERAL, "Muito prioritario", 1);
+    prepararTriagem(2, 2, TRIAGEM_GERAL, "Muito prioritario", 1);
+    prepararAgendamento(1, 2, 1, "15/06/2026", "11:00", "AGENDADO");
+
+    assert(trocaHorario(1, 2) == 0);
+    assert(agendarMedico(1, 1, "15/06/2026", "11:00") == 0);
+    assert(totalAgendamentos == 1);
+    assert(strcmp(agendamentos[0].status, "AGENDADO") == 0);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararPaciente(2, 2);
     prepararMedico(1, "Ortopedia", 2, 1);
     prepararMedico(2, "Ortopedia", 3, 1);
     prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
     prepararTriagem(2, 2, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
-    prepararAgendamento(1, 2, 1, "14/06/2026", "11:00", "AGENDADO");
+    prepararAgendamento(1, 2, 1, "16/06/2026", "11:00", "AGENDADO");
 
-    assert(agendarTriagem(1, "14/06/2026", "11:00") == 2);
+    assert(agendarTriagem(1, "16/06/2026", "11:00") == 2);
     assert(totalAgendamentos == 2);
     assert(strcmp(agendamentos[0].status, "AGENDADO") == 0);
     assert(agendamentos[1].medicoId == 2);
@@ -163,7 +195,7 @@ int main(void)
     prepararMedico(2, "Ortopedia", 3, 1);
     prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Muito prioritario", 1);
 
-    assert(agendarTriagem(1, "15/06/2026", "12:00") == 2);
+    assert(agendarTriagem(1, "17/06/2026", "12:00") == 2);
     assert(totalAgendamentos == 1);
     assert(agendamentos[0].medicoId == 2);
 
@@ -173,9 +205,9 @@ int main(void)
     prepararMedico(2, "Ortopedia", 3, 1);
     prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Muito prioritario", 1);
     prepararTriagem(2, 2, TRIAGEM_ORTOPEDIA, "Orientacao basica", 1);
-    prepararAgendamento(1, 2, 2, "16/06/2026", "13:00", "AGENDADO");
+    prepararAgendamento(1, 2, 2, "18/06/2026", "13:00", "AGENDADO");
 
-    assert(agendarTriagem(1, "16/06/2026", "13:00") == 2);
+    assert(agendarTriagem(1, "18/06/2026", "13:00") == 2);
     assert(totalAgendamentos == 2);
     assert(strcmp(agendamentos[0].status, "REMANEJADO") == 0);
     assert(agendamentos[1].pacienteId == 1);
@@ -185,13 +217,13 @@ int main(void)
     prepararMedico(1, "Cardiologia", 2, 1);
     prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
 
-    assert(agendarTriagem(1, "17/06/2026", "14:00") == 0);
+    assert(agendarTriagem(1, "19/06/2026", "14:00") == 0);
 
     resetarDados();
     prepararPaciente(1, 2);
     prepararMedico(1, "Ortopedia", 2, 1);
 
-    assert(agendarTriagem(1, "18/06/2026", "15:00") == 0);
+    assert(agendarTriagem(1, "20/06/2026", "15:00") == 0);
 
     return 0;
 }
