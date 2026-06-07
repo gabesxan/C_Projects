@@ -41,7 +41,7 @@ int main(void)
     totalAlas = 1;
     alas[0].id = 1;
     strcpy(alas[0].nome, "Clinica Medica");
-    strcpy(alas[0].tipo, "Internacao");
+    alas[0].tipo = ALA_INTERNACAO;
     alas[0].totalLeitos = 4;
     alas[0].leitosOcupados = 2;
     alas[0].ativo = 1;

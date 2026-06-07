@@ -18,6 +18,11 @@
 #define MAX_INTERNACOES 200
 #define MAX_TRIAGENS 300
 
+#define ALA_INTERNACAO 1
+#define ALA_UTI 2
+#define ALA_OBSERVACAO 3
+#define ALA_PEDIATRIA 4
+#define ALA_CIRURGICA 5
 typedef struct
 {
     int id;
@@ -54,7 +59,7 @@ typedef struct
 {
     int id;
     char nome[100];
-    char tipo[50];
+    int tipo;
     int totalLeitos;
     int leitosOcupados;
     int ativo;

@@ -23,7 +23,7 @@ static void prepararDados(void)
     totalAlas = 1;
     alas[0].id = 1;
     strcpy(alas[0].nome, "Clinica Medica");
-    strcpy(alas[0].tipo, "Internacao");
+    alas[0].tipo = ALA_INTERNACAO;
     alas[0].totalLeitos = 10;
     alas[0].leitosOcupados = 0;
     alas[0].ativo = 1;
