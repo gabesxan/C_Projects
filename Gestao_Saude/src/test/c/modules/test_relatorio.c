@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "relatorio.h"
+#include "exame.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -10,6 +11,7 @@ Leito leitos[MAX_LEITOS];
 Internacao internacoes[MAX_INTERNACOES];
 Triagem triagens[MAX_TRIAGENS];
 Prontuario prontuarios[MAX_PRONTUARIOS];
+Exame exames[MAX_EXAMES];
 
 int totalPacientes = 0;
 int totalMedicos = 0;
@@ -19,6 +21,7 @@ int totalAlas = 0;
 int totalLeitos = 0;
 int totalTriagens = 0;
 int totalProntuarios = 0;
+int totalExames = 0;
 
 int main(void)
 {
@@ -119,9 +122,31 @@ int main(void)
     prontuarios[1].ativo = 1;
     prontuarios[2].ativo = 0;
 
+    totalExames = 4;
+    exames[0].ativo = 1;
+    strcpy(exames[0].status, "Solicitado");
+    exames[0].urgente = 1;
+
+    exames[1].ativo = 1;
+    strcpy(exames[1].status, "Realizado");
+    exames[1].urgente = 0;
+
+    exames[2].ativo = 1;
+    strcpy(exames[2].status, "Cancelado");
+    exames[2].urgente = 1;
+
+    exames[3].ativo = 0;
+    strcpy(exames[3].status, "Solicitado");
+    exames[3].urgente = 1;
+
     assert(contarPacientesAtivos() == 3);
     assert(contarMedicosAtivos() == 3);
     assert(contarProntuariosAtivos() == 2);
+    assert(contarExamesAtivos() == 3);
+    assert(contarExamesPorStatus("Solicitado") == 1);
+    assert(contarExamesPorStatus("Realizado") == 1);
+    assert(contarExamesPorStatus("Cancelado") == 1);
+    assert(contarExamesUrgentes() == 2);
 
     assert(contarLeitosOcupados() == 2);
     assert(contarLivres() == 2);

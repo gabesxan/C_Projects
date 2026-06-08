@@ -1,4 +1,5 @@
 #include "relatorio.h"
+#include "exame.h"
 
 static const char *nomeRegiao(int regiaoAdministrativa)
 {
@@ -93,6 +94,21 @@ int contarProntuariosAtivos(void)
     for (int i = 0; i < totalProntuarios; i++)
     {
         if (prontuarios[i].ativo == 1)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+int contarExamesAtivos(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalExames; i++)
+    {
+        if (exames[i].ativo == 1)
         {
             total++;
         }
@@ -296,6 +312,11 @@ static void exibirTotaisGerais(void)
     printf("Total de internacoes cadastradas: %d\n", totalInternacoes);
     printf("Total de triagens cadastradas: %d\n", totalTriagens);
     printf("Prontuarios ativos: %d\n", contarProntuariosAtivos());
+    printf("Exames ativos: %d\n", contarExamesAtivos());
+    printf("Exames solicitados: %d\n", contarExamesPorStatus("Solicitado"));
+    printf("Exames realizados: %d\n", contarExamesPorStatus("Realizado"));
+    printf("Exames cancelados: %d\n", contarExamesPorStatus("Cancelado"));
+    printf("Exames urgentes: %d\n", contarExamesUrgentes());
 }
 
 static void exibirTriagensClassificacao(void)

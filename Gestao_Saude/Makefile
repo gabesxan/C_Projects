@@ -52,7 +52,9 @@ TEST_INTERNACAO = \
 
 TEST_RELATORIO = \
 		src/test/c/modules/test_relatorio.c \
-		src/main/c/modules/relatorio.c
+		src/main/c/modules/relatorio.c \
+		src/main/c/modules/exame.c \
+		src/main/c/modules/triagem.c
 
 TEST_PRONTUARIO = \
         src/test/c/modules/test_prontuario.c \

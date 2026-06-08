@@ -49,6 +49,7 @@ A aplicacao permite trabalhar com:
 - internacoes
 - triagens
 - prontuarios
+- exames
 - relatorios gerenciais
 
 A ideia central do projeto nao e reproduzir um hospital real com toda a sua complexidade, mas sim construir uma base didatica capaz de demonstrar:
@@ -57,7 +58,7 @@ A ideia central do projeto nao e reproduzir um hospital real com toda a sua comp
 - vetores globais
 - funcoes com responsabilidades separadas
 - menus em terminal com `switch`
-- estados logicos como `ativo`, `AGENDADO`, `INTERNADO` e `REMANEJADO`
+- estados logicos como `ativo`, `AGENDADO`, `INTERNADO`, `REMANEJADO`, `Solicitado` e `Realizado`
 - relacionamento entre modulos
 - validacoes de regras de negocio
 - testes automatizados simples
@@ -92,8 +93,11 @@ Atualmente, o sistema oferece:
 - internacao e alta hospitalar
 - triagem geral e especializada
 - painel de relatorios com indicadores do sistema
-- prontuario integrado vinculado a paciente e medico
+- prontuario automatico, de urgencia e complementar
 - listagem de prontuarios por paciente, medico e especialidade
+- criacao automatica de prontuario ao concluir agendamento
+- solicitacao, resultado, cancelamento, exclusao logica e listagens de exames
+- urgencia de exame herdada da triagem atual do paciente
 
 ---
 
@@ -144,6 +148,7 @@ Gestao_Saude/
 ├── test_medico
 ├── test_paciente
 ├── test_prontuario
+├── test_exame
 ├── test_relatorio
 ├── test_triagem
 └── src/
@@ -159,6 +164,7 @@ Gestao_Saude/
     │       │   ├── medico.h
     │       │   ├── paciente.h
     │       │   ├── prontuario.h
+    │       │   ├── exame.h
     │       │   ├── relatorio.h
     │       │   └── triagem.h
     │       ├── model/
@@ -171,6 +177,7 @@ Gestao_Saude/
     │           ├── medico.c
     │           ├── paciente.c
     │           ├── prontuario.c
+    │           ├── exame.c
     │           ├── relatorio.c
     │           └── triagem.c
     └── test/
@@ -183,6 +190,7 @@ Gestao_Saude/
                 ├── test_medico.c
                 ├── test_paciente.c
                 ├── test_prontuario.c
+                ├── test_exame.c
                 ├── test_relatorio.c
                 └── test_triagem.c
 ```
@@ -222,6 +230,7 @@ Esse alvo compila e executa os testes modulares:
 - `test_medico`
 - `test_paciente`
 - `test_prontuario`
+- `test_exame`
 - `test_relatorio`
 - `test_triagem`
 
@@ -250,6 +259,7 @@ Observacao importante:
 - `medico.h`
 - `paciente.h`
 - `prontuario.h`
+- `exame.h`
 - `relatorio.h`
 - `triagem.h`
 
@@ -262,6 +272,7 @@ Observacao importante:
 - `medico.c`
 - `paciente.c`
 - `prontuario.c`
+- `exame.c`
 - `relatorio.c`
 - `triagem.c`
 
@@ -274,6 +285,7 @@ Observacao importante:
 - `test_medico.c`
 - `test_paciente.c`
 - `test_prontuario.c`
+- `test_exame.c`
 - `test_relatorio.c`
 - `test_triagem.c`
 
@@ -368,6 +380,7 @@ Tambem e neste arquivo que ficam definidas as instancias globais de:
 - `internacoes`
 - `triagens`
 - `prontuarios`
+- `exames`
 
 Sem esse arquivo, os `extern` declarados em `hospital.h` nao teriam definicao real no programa principal.
 
@@ -396,6 +409,7 @@ Constantes relevantes:
 - `MAX_INTERNACOES`
 - `MAX_TRIAGENS`
 - `MAX_PRONTUARIOS`
+- `MAX_EXAMES`
 
 Tipos de triagem:
 
@@ -423,6 +437,7 @@ Structs definidas:
 - `Internacao`
 - `Triagem`
 - `Prontuario`
+- `Exame`
 
 Esse arquivo funciona como contrato central da aplicacao inteira.
 
@@ -523,6 +538,10 @@ Declara a interface publica do modulo de relatorios.
 Funcoes expostas:
 
 - `menuRelatorios()`
+- `contarPacientesAtivos()`
+- `contarMedicosAtivos()`
+- `contarProntuariosAtivos()`
+- `contarExamesAtivos()`
 - `contarLeitosOcupados()`
 - `contarLivres()`
 - `taxaAla(int alaId)`
@@ -542,10 +561,36 @@ Declara a interface do modulo de prontuario.
 Funcoes expostas:
 
 - `menuProntuarios()`
+- `criarProntuarioAutomatico(...)`
+- `complementarProntuario(...)`
 - `registrarProntuario(...)`
 - `listarProntuarioPorPaciente(...)`
 - `listarProntuarioPorMedico(...)`
 - `listarProntuarioPorEspecialidade(...)`
+- `contarProntuariosPorPaciente(...)`
+- `contarProntuariosPorMedico(...)`
+- `contarProntuariosPorEspecialidade(...)`
+
+#### `src/main/c/headers/exame.h`
+Declara a interface publica do modulo de exames.
+
+Funcoes expostas:
+
+- `menuExames()`
+- `solicitarExame(...)`
+- `registrarResultadoExame(...)`
+- `cancelarExame(...)`
+- `excluirExame(...)`
+- `listarExames()`
+- `listarExamesPorPaciente(...)`
+- `listarExamesPorMedico(...)`
+- `listarExamesPorProntuario(...)`
+- `listarExamesUrgentes()`
+- `escolherTipoExame()`
+- `exibirNomeTipoExame(...)`
+- `contarExamesPorStatus(...)`
+- `contarExamesPorTipo(...)`
+- `contarExamesUrgentes()`
 
 ---
 
@@ -699,6 +744,7 @@ Modulo de indicadores gerenciais.
 
 Responsabilidades:
 
+- contar pacientes ativos, medicos ativos, prontuarios ativos e exames ativos
 - contar leitos ocupados e livres
 - calcular taxa de ocupacao por ala
 - contar triagens por classificacao
@@ -706,6 +752,7 @@ Responsabilidades:
 - contar pacientes por regiao
 - identificar especialidade mais demandada
 - identificar regiao com mais casos graves
+- consolidar indicadores de exames por status e urgencia
 - exibir painel consolidado de relatorios
 
 Esse modulo transforma os dados operacionais em visao gerencial do sistema.
@@ -716,7 +763,9 @@ Modulo de prontuario integrado.
 Responsabilidades:
 
 - validar paciente e medico ativos antes do registro
-- registrar atendimento clinico
+- criar prontuario base automaticamente
+- registrar atendimento clinico de urgencia
+- complementar prontuario existente
 - armazenar observacoes, diagnostico, conduta e alerta importante
 - listar prontuarios por paciente
 - listar prontuarios por medico
@@ -726,6 +775,34 @@ Responsabilidades:
 Ponto forte do modulo:
 
 Ele nao duplica nome de paciente ou medico dentro da struct. O prontuario guarda os ids e consulta os dados reais do sistema na hora de listar, preservando coerencia.
+
+Integracao atual:
+
+- cria prontuario automatico ao concluir agendamento
+- permite evolucao clinica posterior sem mudar paciente, medico ou data
+
+#### `src/main/c/modules/exame.c`
+Modulo de exames integrado ao fluxo clinico.
+
+Responsabilidades:
+
+- solicitar exame para paciente, medico e prontuario compativeis
+- marcar urgencia com base na triagem atual
+- registrar resultado
+- cancelar exame
+- excluir logicamente
+- listar exames por paciente, medico, prontuario e urgencia
+- contar exames por status, tipo e urgencia
+
+Regras importantes:
+
+- o paciente precisa existir e estar ativo
+- o medico precisa existir e estar ativo
+- o prontuario precisa existir, estar ativo e pertencer ao mesmo paciente e medico
+- o exame novo nasce com status `Solicitado`
+- o resultado muda o status para `Realizado`
+- o cancelamento muda o status para `Cancelado`
+- a exclusao logica usa `ativo`
 
 ---
 
@@ -768,6 +845,12 @@ Valida indicadores do painel de relatorios.
 
 Cenarios cobertos:
 
+- pacientes ativos
+- medicos ativos
+- prontuarios ativos
+- exames ativos
+- exames por status
+- exames urgentes
 - ocupacao de leitos
 - taxa por ala
 - contagem por classificacao
@@ -781,11 +864,29 @@ Valida o modulo de prontuario.
 
 Cenarios cobertos:
 
-- registro valido
+- criacao automatica
+- complemento de prontuario
+- registro de urgencia
 - associacao correta entre paciente e medico
 - armazenamento correto dos campos
 - falha com paciente invalido
 - falha com medico invalido
+- falha com campos obrigatorios vazios
+
+#### `src/test/c/modules/test_exame.c`
+Valida o modulo de exames.
+
+Cenarios cobertos:
+
+- solicitacao valida de exame
+- vinculo com paciente, medico e prontuario
+- urgencia herdada da triagem
+- registro de resultado
+- cancelamento
+- exclusao logica
+- contagem por status
+- contagem por tipo
+- contagem de exames urgentes
 
 ---
 
@@ -820,6 +921,12 @@ Isso significa que o registro nao e apagado do vetor, apenas deixa de ser consid
 - `INTERNADO`
 - `ALTA`
 
+#### Exame
+
+- `Solicitado`
+- `Realizado`
+- `Cancelado`
+
 ### Classificacoes de triagem
 
 - `Emergencia`
@@ -844,6 +951,7 @@ Isso significa que o registro nao e apagado do vetor, apenas deixa de ser consid
 - O sistema ainda nao possui persistencia em arquivo.
 - O sistema ainda nao utiliza banco relacional.
 - Os testes automatizados cobrem bem regras centrais, mas nao substituem testes manuais dos menus.
+- As opcoes de menu principais e varios submenus tratam melhor entradas numericas invalidas para evitar loop com letras.
 - O projeto foi construido para clareza didatica, nao para alta performance ou concorrencia.
 - O uso de vetores globais faz parte da proposta academica atual do sistema.
 
@@ -853,9 +961,9 @@ Isso significa que o registro nao e apagado do vetor, apenas deixa de ser consid
 
 A base atual permite evolucoes como:
 
-- fortalecer ainda mais o modulo de prontuario
-- criar modulo de exames integrados
-- ampliar filtros e consultas do prontuario
+- revisar casos de borda de agendamento e remanejamento
+- integrar indicadores de exames a relatorios mais especificos por tipo
+- ampliar consultas de exame e prontuario
 - adicionar persistencia em `.txt`
 - depois avaliar migracao futura para SQLite
 - ampliar cobertura de testes manuais e automatizados
