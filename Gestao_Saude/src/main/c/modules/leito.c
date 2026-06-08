@@ -69,10 +69,15 @@ void menuLeitos(void)
         printf("0. Voltar ao Menu Principal\n");
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
-        scanf("%d", &caso5);
+        if (lerInteiro(&caso5) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso5)
         {
+        
         case 1:
         {
             int alaId;
@@ -94,6 +99,7 @@ void menuLeitos(void)
             break;
         }
 
+        
         case 2:
         {
             int encontrouAtivo = 0;

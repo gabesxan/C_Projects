@@ -6,6 +6,7 @@ Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
 Agendamento agendamentos[MAX_AGENDAMENTOS];
 Triagem triagens[MAX_TRIAGENS];
+Prontuario prontuarios[MAX_PRONTUARIOS];
 
 Ala alas[MAX_ALAS];
 Leito leitos[MAX_LEITOS];
@@ -15,6 +16,7 @@ int totalPacientes = 0;
 int totalMedicos = 0;
 int totalAgendamentos = 0;
 int totalTriagens = 0;
+int totalProntuarios = 0;
 
 int totalAlas = 0;
 int totalLeitos = 0;
@@ -73,6 +75,7 @@ static void resetarDados(void)
     totalMedicos = 0;
     totalAgendamentos = 0;
     totalTriagens = 0;
+    totalProntuarios = 0;
     totalAlas = 0;
     totalLeitos = 0;
     totalInternacoes = 0;
@@ -107,6 +110,25 @@ int main(void)
     assert(strcmp(agendamentos[0].status, "CANCELADO") == 0);
     assert(medicoOcupado(1, "10/06/2026", "08:00") == 0);
     assert(buscarAgenda(1, "10/06/2026", "08:00") == -1);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Ortopedia", 2, 1);
+    prepararAgendamento(1, 1, 1, "10/06/2026", "09:30", "AGENDADO");
+
+    assert(concluirAgendamento(1) == 1);
+    assert(strcmp(agendamentos[0].status, "CONCLUIDO") == 0);
+    assert(totalProntuarios == 1);
+    assert(prontuarios[0].pacienteId == 1);
+    assert(prontuarios[0].medicoId == 1);
+    assert(strcmp(prontuarios[0].data, "10/06/2026") == 0);
+    assert(strcmp(prontuarios[0].observacoes, "Prontuario base criado automaticamente pelo sistema.") == 0);
+    assert(strcmp(prontuarios[0].diagnostico, "Aguardando avaliacao medica.") == 0);
+    assert(strcmp(prontuarios[0].conduta, "Registrar evolucao do atendimento.") == 0);
+    assert(prontuarios[0].alertaImportante == 0);
+    assert(prontuarios[0].ativo == 1);
+    assert(concluirAgendamento(1) == 0);
+    assert(totalProntuarios == 1);
 
     resetarDados();
     prepararPaciente(1, 2);

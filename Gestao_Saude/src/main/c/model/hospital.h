@@ -5,10 +5,31 @@
 #define TRIAGEM_CARDIOLOGIA 3
 #define TRIAGEM_PNEUMOLOGIA 4
 #define TRIAGEM_PEDIATRIA 5
+#define MAX_EXAMES 300
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static inline void limparEntrada(void)
+{
+    int caractere;
+
+    while ((caractere = getchar()) != '\n' && caractere != EOF)
+    {
+    }
+}
+
+static inline int lerInteiro(int *valor)
+{
+    if (scanf("%d", valor) != 1)
+    {
+        limparEntrada();
+        return 0;
+    }
+
+    return 1;
+}
 
 #define MAX_PACIENTES 100
 #define MAX_MEDICOS 50
@@ -24,6 +45,15 @@
 #define ALA_OBSERVACAO 3
 #define ALA_PEDIATRIA 4
 #define ALA_CIRURGICA 5
+
+#define EXAME_HEMOGRAMA 1
+#define EXAME_RAIO_X 2
+#define EXAME_TOMOGRAFIA 3
+#define EXAME_RESSONANCIA 4
+#define EXAME_ELETROCARDIOGRAMA 5
+#define EXAME_URINA 6
+#define EXAME_ULTRASSONOGRAFIA 7
+
 typedef struct
 {
     int id;
@@ -110,6 +140,21 @@ typedef struct
     int ativo;
 } Prontuario;
 
+typedef struct
+{
+    int id;
+    int pacienteId;
+    int medicoId;
+    int prontuarioId;
+    int tipoExame;
+    char dataSolicitacao[11];
+    char dataResultado[11];
+    char resultado[300];
+    char status[20];
+    int urgente;
+    int ativo;
+} Exame;
+
 extern Paciente pacientes[MAX_PACIENTES];
 extern Medico medicos[MAX_MEDICOS];
 extern Agendamento agendamentos[MAX_AGENDAMENTOS];
@@ -118,6 +163,7 @@ extern Leito leitos[MAX_LEITOS];
 extern Internacao internacoes[MAX_INTERNACOES];
 extern Triagem triagens[MAX_TRIAGENS];
 extern Prontuario prontuarios[MAX_PRONTUARIOS];
+extern Exame exames[MAX_EXAMES];
 
 extern int totalPacientes;
 extern int totalMedicos;
@@ -127,5 +173,6 @@ extern int totalLeitos;
 extern int totalInternacoes;
 extern int totalTriagens;
 extern int totalProntuarios;
+extern int totalExames;
 
 #endif

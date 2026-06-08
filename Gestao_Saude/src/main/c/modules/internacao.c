@@ -155,7 +155,11 @@ void menuInternacoes(void)
         printf("0. Voltar ao Menu Principal\n");
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
-        scanf("%d", &caso6);
+        if (lerInteiro(&caso6) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso6)
         {

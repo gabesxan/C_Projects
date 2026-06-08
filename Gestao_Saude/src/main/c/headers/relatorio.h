@@ -4,6 +4,9 @@
 #include "hospital.h"
 
 void menuRelatorios(void);
+int contarPacientesAtivos(void);
+int contarMedicosAtivos(void);
+int contarProntuariosAtivos(void);
 int contarLeitosOcupados(void);
 int contarLivres(void);
 float taxaAla(int alaId);

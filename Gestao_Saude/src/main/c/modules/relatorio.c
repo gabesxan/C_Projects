@@ -31,7 +31,7 @@ static int contarLeitos(int ocupado)
 
     for (int i = 0; i < totalLeitos; i++)
     {
-        if (leitos[i].ocupado == ocupado)
+        if (leitos[i].ativo == 1 && leitos[i].ocupado == ocupado)
         {
             total++;
         }
@@ -54,6 +54,51 @@ static void exibirContagemPorRegiao(const char titulo[], int (*contador)(int))
     {
         printf("%s: %d\n", nomeRegiao(regiao), contador(regiao));
     }
+}
+
+int contarPacientesAtivos(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalPacientes; i++)
+    {
+        if (pacientes[i].ativo == 1)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+int contarMedicosAtivos(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalMedicos; i++)
+    {
+        if (medicos[i].ativo == 1)
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+int contarProntuariosAtivos(void)
+{
+    int total = 0;
+
+    for (int i = 0; i < totalProntuarios; i++)
+    {
+        if (prontuarios[i].ativo == 1)
+        {
+            total++;
+        }
+    }
+
+    return total;
 }
 
 int contarLeitosOcupados(void)
@@ -85,7 +130,8 @@ int contarTriagens(const char classificacao[])
 
     for (int i = 0; i < totalTriagens; i++)
     {
-        if (strcmp(triagens[i].classificacao, classificacao) == 0)
+        if (triagens[i].ativo == 1 &&
+            strcmp(triagens[i].classificacao, classificacao) == 0)
         {
             total++;
         }
@@ -241,12 +287,15 @@ static void exibirTotaisGerais(void)
     printf("RELATORIOS GERAIS\n");
     printf("=============================================\n");
     printf("Total de pacientes cadastrados: %d\n", totalPacientes);
+    printf("Pacientes ativos: %d\n", contarPacientesAtivos());
     printf("Total de medicos cadastrados: %d\n", totalMedicos);
+    printf("Medicos ativos: %d\n", contarMedicosAtivos());
     printf("Total de agendamentos cadastrados: %d\n", totalAgendamentos);
     printf("Total de alas cadastradas: %d\n", totalAlas);
     printf("Total de leitos cadastrados: %d\n", totalLeitos);
     printf("Total de internacoes cadastradas: %d\n", totalInternacoes);
     printf("Total de triagens cadastradas: %d\n", totalTriagens);
+    printf("Prontuarios ativos: %d\n", contarProntuariosAtivos());
 }
 
 static void exibirTriagensClassificacao(void)

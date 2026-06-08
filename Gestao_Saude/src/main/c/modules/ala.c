@@ -138,7 +138,11 @@ void menuAlas(void)
         printf("0. Voltar ao Menu Principal\n");
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
-        scanf("%d", &caso4);
+        if (lerInteiro(&caso4) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso4)
         {

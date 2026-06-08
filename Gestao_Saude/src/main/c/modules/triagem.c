@@ -165,7 +165,11 @@ int escolherTriagem(void)
     printf("0. Cancelar\n");
     printf("---------------------------------------------\n");
     printf("Escolha uma opcao: ");
-    scanf("%d", &tipoTriagem);
+    if (lerInteiro(&tipoTriagem) == 0)
+    {
+        printf("\nTipo de triagem invalido.\n");
+        return -1;
+    }
 
     if (tipoTriagem < 0 || tipoTriagem > 5)
     {
@@ -381,7 +385,11 @@ void menuTriagem(void)
         printf("0. Voltar ao Menu Principal\n");
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
-        scanf("%d", &caso7);
+        if (lerInteiro(&caso7) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso7)
         {

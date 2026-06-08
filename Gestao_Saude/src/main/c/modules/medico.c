@@ -66,6 +66,11 @@ int cadastrarMedico(const char nome[], const char crm[], const char especialidad
         return 0;
     }
 
+    if (regiaoAdministrativa < 1 || regiaoAdministrativa > 8)
+    {
+        return 0;
+    }
+
     medicos[totalMedicos].id = totalMedicos + 1;
     strcpy(medicos[totalMedicos].nome, nome);
     strcpy(medicos[totalMedicos].crm, crm);
@@ -109,7 +114,11 @@ void menuMedicos(void)
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
 
-        scanf("%d", &caso2);
+        if (lerInteiro(&caso2) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso2)
         {
@@ -198,7 +207,11 @@ void menuMedicos(void)
             printf("4. Regiao administrativa\n");
             printf("0. Cancelar\n");
             printf("Escolha uma opcao: ");
-            scanf("%d", &opcaoEditar);
+            if (lerInteiro(&opcaoEditar) == 0)
+            {
+                printf("\nOpcao invalida. Tente novamente.\n");
+                break;
+            }
 
             switch (opcaoEditar)
             {

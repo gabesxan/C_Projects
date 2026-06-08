@@ -15,14 +15,16 @@ SRC = \
 	src/main/c/modules/internacao.c \
 	src/main/c/modules/triagem.c \
 	src/main/c/modules/relatorio.c \
-	src/main/c/modules/prontuario.c 
+	src/main/c/modules/prontuario.c \
+	src/main/c/modules/exame.c
 
 OUT = sigeh
 
 TEST_AGENDAMENTO = \
         src/test/c/modules/test_agendamento.c \
         src/main/c/modules/agendamento.c \
-        src/main/c/modules/triagem.c
+        src/main/c/modules/triagem.c \
+        src/main/c/modules/prontuario.c
 
 TEST_LEITO = \
 		src/test/c/modules/test_leito.c \
@@ -54,7 +56,14 @@ TEST_RELATORIO = \
 
 TEST_PRONTUARIO = \
         src/test/c/modules/test_prontuario.c \
-        src/main/c/modules/prontuario.c
+        src/main/c/modules/prontuario.c \
+        src/main/c/modules/agendamento.c \
+        src/main/c/modules/triagem.c
+
+TEST_EXAME = \
+        src/test/c/modules/test_exame.c \
+        src/main/c/modules/exame.c \
+        src/main/c/modules/triagem.c
 
 all:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
@@ -63,7 +72,7 @@ run: all
 	./$(OUT)
 
 clean:
-	rm -f $(OUT) test_agendamento test_leito test_triagem test_paciente test_medico test_ala test_internacao test_relatorio test_prontuario
+	rm -f $(OUT) test_agendamento test_leito test_triagem test_paciente test_medico test_ala test_internacao test_relatorio test_prontuario test_exame
 
 test:
 	$(CC) $(CFLAGS) $(TEST_AGENDAMENTO) -o test_agendamento
@@ -84,5 +93,7 @@ test:
 	./test_relatorio
 	$(CC) $(CFLAGS) $(TEST_PRONTUARIO) -o test_prontuario
 	./test_prontuario
+	$(CC) $(CFLAGS) $(TEST_EXAME) -o test_exame
+	./test_exame
 tree:
 	find . -maxdepth 5 | sort

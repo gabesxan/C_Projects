@@ -1,4 +1,5 @@
 #include "agendamento.h"
+#include "prontuario.h"
 #include "triagem.h"
 
 static int buscarPaciente(int pacienteId)
@@ -27,6 +28,19 @@ static int mudarStatus(int id, const char status[])
     }
 
     return 0;
+}
+
+static int buscarAgendamentoPorId(int id)
+{
+    for (int i = 0; i < totalAgendamentos; i++)
+    {
+        if (agendamentos[i].id == id)
+        {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 static void exibirAgendamento(const Agendamento *agendamento)
@@ -89,7 +103,29 @@ int cancelarAgendamento(int id)
 
 int concluirAgendamento(int id)
 {
-    return mudarStatus(id, "CONCLUIDO");
+    int indiceAgendamento = buscarAgendamentoPorId(id);
+
+    if (indiceAgendamento == -1)
+    {
+        return 0;
+    }
+
+    if (strcmp(agendamentos[indiceAgendamento].status, "AGENDADO") != 0)
+    {
+        return 0;
+    }
+
+    strcpy(agendamentos[indiceAgendamento].status, "CONCLUIDO");
+
+    if (criarProntuarioAutomatico(agendamentos[indiceAgendamento].pacienteId,
+                                  agendamentos[indiceAgendamento].medicoId,
+                                  agendamentos[indiceAgendamento].data) == 0)
+    {
+        strcpy(agendamentos[indiceAgendamento].status, "AGENDADO");
+        return 0;
+    }
+
+    return 1;
 }
 
 static int criarAgendamento(int pacienteId, int medicoId, char data[], char horario[])
@@ -358,7 +394,11 @@ void menuAgendamentos(void)
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
 
-        scanf("%d", &caso3);
+        if (lerInteiro(&caso3) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso3)
         {

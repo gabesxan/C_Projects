@@ -68,6 +68,11 @@ int cadastrarPaciente(const char nome[], const char cpf[], int idade, const char
         return 0;
     }
 
+    if (regiaoAdministrativa < 1 || regiaoAdministrativa > 8)
+    {
+        return 0;
+    }
+
     pacientes[totalPacientes].id = totalPacientes + 1;
     strcpy(pacientes[totalPacientes].nome, nome);
     strcpy(pacientes[totalPacientes].cpf, cpf);
@@ -113,7 +118,11 @@ void menuPacientes(void)
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
 
-        scanf("%d", &caso1);
+        if (lerInteiro(&caso1) == 0)
+        {
+            printf("\nOpcao invalida. Tente novamente.\n");
+            continue;
+        }
 
         switch (caso1)
         {
@@ -212,7 +221,11 @@ void menuPacientes(void)
             printf("6. Regiao administrativa\n");
             printf("0. Cancelar\n");
             printf("Escolha uma opcao: ");
-            scanf("%d", &opcaoEditar);
+            if (lerInteiro(&opcaoEditar) == 0)
+            {
+                printf("\nOpcao invalida. Tente novamente.\n");
+                break;
+            }
 
             switch (opcaoEditar)
             {

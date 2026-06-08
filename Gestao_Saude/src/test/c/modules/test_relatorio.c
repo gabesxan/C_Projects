@@ -9,6 +9,7 @@ Ala alas[MAX_ALAS];
 Leito leitos[MAX_LEITOS];
 Internacao internacoes[MAX_INTERNACOES];
 Triagem triagens[MAX_TRIAGENS];
+Prontuario prontuarios[MAX_PRONTUARIOS];
 
 int totalPacientes = 0;
 int totalMedicos = 0;
@@ -17,6 +18,7 @@ int totalInternacoes = 0;
 int totalAlas = 0;
 int totalLeitos = 0;
 int totalTriagens = 0;
+int totalProntuarios = 0;
 
 int main(void)
 {
@@ -46,13 +48,19 @@ int main(void)
     alas[0].leitosOcupados = 2;
     alas[0].ativo = 1;
 
-    totalLeitos = 4;
+    totalLeitos = 5;
+    leitos[0].ativo = 1;
     leitos[0].ocupado = 1;
+    leitos[1].ativo = 1;
     leitos[1].ocupado = 1;
+    leitos[2].ativo = 1;
     leitos[2].ocupado = 0;
+    leitos[3].ativo = 1;
     leitos[3].ocupado = 0;
+    leitos[4].ativo = 0;
+    leitos[4].ocupado = 1;
 
-    totalTriagens = 3;
+    totalTriagens = 4;
 
     triagens[0].pacienteId = 1;
     triagens[0].ativo = 1;
@@ -65,6 +73,10 @@ int main(void)
     triagens[2].pacienteId = 3;
     triagens[2].ativo = 1;
     strcpy(triagens[2].classificacao, "Comum");
+
+    triagens[3].pacienteId = 1;
+    triagens[3].ativo = 0;
+    strcpy(triagens[3].classificacao, "Emergencia");
 
     totalMedicos = 4;
 
@@ -101,6 +113,15 @@ int main(void)
 
     agendamentos[3].medicoId = 4;
     strcpy(agendamentos[3].status, "CANCELADO");
+
+    totalProntuarios = 3;
+    prontuarios[0].ativo = 1;
+    prontuarios[1].ativo = 1;
+    prontuarios[2].ativo = 0;
+
+    assert(contarPacientesAtivos() == 3);
+    assert(contarMedicosAtivos() == 3);
+    assert(contarProntuariosAtivos() == 2);
 
     assert(contarLeitosOcupados() == 2);
     assert(contarLivres() == 2);

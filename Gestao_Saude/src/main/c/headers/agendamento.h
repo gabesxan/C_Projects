@@ -10,7 +10,6 @@ int cancelarAgendamento(int id);
 int concluirAgendamento(int id);
 int trocaHorario(int pacienteNovo, int pacienteAtual);
 int agendarMedico(int medicoId, int pacienteId, char data[], char horario[]);
-
 const char *obterEspecialidade(int tipoTriagem);
 int buscarMedicoRegiao(const char especialidade[], int regiaoAdministrativa, char data[], char horario[]);
 int buscarMedico(const char especialidade[], char data[], char horario[]);
