@@ -96,5 +96,47 @@ int main(void)
 
     assert(totalProntuarios == 2);
 
+    pacientes[1].ativo = 0; 
+    assert(registrarProntuario(2, 1, "12/06/2026", 
+                                "Paciente Inativo",
+                                "Diagnostico",
+                                "Conduta",
+                                0) == 0);
+    
+    assert(totalProntuarios == 2);
+
+    pacientes[1].ativo = 1;
+    medicos[1].ativo = 0;
+
+    pacientes[1].ativo = 1;
+    medicos[1].ativo = 0;
+
+    assert(registrarProntuario(1, 2, "12/06/2026",
+                               "Medico inativo",
+                               "Diagnostico",
+                               "Conduta",
+                               0) == 0);
+
+    assert(totalProntuarios == 2);
+
+    medicos[1].ativo = 1;
+
+    assert(registrarProntuario(1, 2, "13/06/2026",
+                               "Retorno clinico",
+                               "Acompanhamento",
+                               "Manter observacao",
+                               0) == 1);
+
+    assert(totalProntuarios == 3);
+    assert(prontuarios[2].id == 3);
+    assert(prontuarios[2].pacienteId == 1);
+    assert(prontuarios[2].medicoId == 2);
+    assert(strcmp(prontuarios[2].data, "13/06/2026") == 0);
+    assert(strcmp(prontuarios[2].observacoes, "Retorno clinico") == 0);
+    assert(strcmp(prontuarios[2].diagnostico, "Acompanhamento") == 0);
+    assert(strcmp(prontuarios[2].conduta, "Manter observacao") == 0);
+    assert(prontuarios[2].alertaImportante == 0);
+    assert(prontuarios[2].ativo == 1);
+                                
     return 0;
 }

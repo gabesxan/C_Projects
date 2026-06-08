@@ -1,25 +1,45 @@
-# SIGEH-DF - Sistema Integrado de Gestao Hospitalar em C
+# SIGEH-DF
 
-O SIGEH-DF e um projeto academico desenvolvido em linguagem C para a disciplina de Algoritmos e Logica de Programacao.
+## Sistema Integrado de Gestao Hospitalar em C
 
-O sistema roda no terminal e foi construido para praticar:
+O **SIGEH-DF** e um projeto academico em linguagem C, executado no terminal, desenvolvido para a disciplina de **Algoritmos e Logica de Programacao**. A proposta do sistema e simular, de forma modular e didatica, o funcionamento basico de um ambiente hospitalar, com foco em organizacao de codigo, regras de negocio e manipulacao de estruturas em memoria.
 
-- `structs`
-- vetores globais
-- funcoes
-- modularizacao em `.h` e `.c`
-- menus com `switch case`
-- regras de negocio
-- compilacao com `Makefile`
-- testes automatizados simples com `assert.h`
+> Estado atual do projeto:
+>
+> - execucao em terminal
+> - dados mantidos em memoria durante a execucao
+> - modularizacao em `.h` e `.c`
+> - compilacao com `Makefile`
+> - testes simples com `assert.h`
+> - sem banco de dados
+> - sem persistencia em arquivo
+> - sem interface grafica
+> - sem API externa
 
-No estado atual, os dados ficam em memoria durante a execucao. O projeto nao possui banco de dados, persistencia em arquivo, interface grafica, API ou framework externo.
+---
 
-## Objetivo do Projeto
+## Indice
 
-O objetivo do SIGEH-DF e simular a administracao de um ambiente hospitalar de forma simples, modular e explicavel em sala de aula.
+1. [Visao Geral](#visao-geral)
+2. [Objetivos Didaticos](#objetivos-didaticos)
+3. [Funcionalidades Atuais](#funcionalidades-atuais)
+4. [Arquitetura do Projeto](#arquitetura-do-projeto)
+5. [Estrutura de Pastas](#estrutura-de-pastas)
+6. [Como Compilar e Executar](#como-compilar-e-executar)
+7. [Como Rodar os Testes](#como-rodar-os-testes)
+8. [Mapa de Arquivos](#mapa-de-arquivos)
+9. [Explicacao Detalhada Arquivo por Arquivo](#explicacao-detalhada-arquivo-por-arquivo)
+10. [Regras de Modelagem e Estados](#regras-de-modelagem-e-estados)
+11. [Observacoes Importantes](#observacoes-importantes)
+12. [Proximos Passos Naturais do Projeto](#proximos-passos-naturais-do-projeto)
 
-O sistema permite gerenciar:
+---
+
+## Visao Geral
+
+O SIGEH-DF foi estruturado para representar rotinas centrais de um sistema hospitalar simplificado. O projeto foi dividido em modulos pequenos, cada um com responsabilidade bem definida, para facilitar manutencao, leitura e avaliacao academica.
+
+A aplicacao permite trabalhar com:
 
 - pacientes
 - medicos
@@ -28,490 +48,224 @@ O sistema permite gerenciar:
 - leitos
 - internacoes
 - triagens
-- relatorios
+- prontuarios
+- relatorios gerenciais
 
-## Estrutura Geral
+A ideia central do projeto nao e reproduzir um hospital real com toda a sua complexidade, mas sim construir uma base didatica capaz de demonstrar:
+
+- uso de `structs`
+- vetores globais
+- funcoes com responsabilidades separadas
+- menus em terminal com `switch`
+- estados logicos como `ativo`, `AGENDADO`, `INTERNADO` e `REMANEJADO`
+- relacionamento entre modulos
+- validacoes de regras de negocio
+- testes automatizados simples
+
+---
+
+## Objetivos Didaticos
+
+Este projeto foi construido para praticar, em C:
+
+- modelagem de entidades com `struct`
+- compartilhamento de dados via `extern`
+- separacao entre declaracao e implementacao
+- organizacao por modulos
+- leitura e exibicao de dados em terminal
+- validacoes de fluxo
+- testes com `assert.h`
+- evolucao incremental de funcionalidades sem trocar a arquitetura
+
+---
+
+## Funcionalidades Atuais
+
+Atualmente, o sistema oferece:
+
+- cadastro, listagem, edicao e exclusao logica de pacientes
+- cadastro, listagem, edicao e exclusao logica de medicos
+- agendamento orientado por triagem, especialidade, disponibilidade e regiao
+- cancelamento, conclusao e remanejamento de agendamentos
+- cadastro e gerenciamento de alas por tipo numerico
+- cadastro e gerenciamento de leitos
+- internacao e alta hospitalar
+- triagem geral e especializada
+- painel de relatorios com indicadores do sistema
+- prontuario integrado vinculado a paciente e medico
+- listagem de prontuarios por paciente, medico e especialidade
+
+---
+
+## Arquitetura do Projeto
+
+A arquitetura atual do SIGEH-DF segue o padrao:
 
 ```text
-SIGEH-DF/
+app / model / headers / modules / test
+```
+
+### `src/main/c/app`
+Contem o ponto de entrada do programa.
+
+### `src/main/c/model`
+Contem a modelagem central do sistema:
+
+- `#define`
+- `structs`
+- vetores globais
+- contadores globais
+- constantes compartilhadas
+
+### `src/main/c/headers`
+Contem os arquivos `.h` dos modulos, com as assinaturas publicas das funcoes.
+
+### `src/main/c/modules`
+Contem a implementacao de cada modulo em arquivos `.c`.
+
+### `src/test/c/modules`
+Contem testes automatizados simples com `assert.h`, voltados para as regras principais de cada modulo.
+
+---
+
+## Estrutura de Pastas
+
+```text
+Gestao_Saude/
+├── .gitignore
 ├── Makefile
 ├── README.md
-└── src
-    ├── main
-    │   └── c
-    │       ├── app
+├── data/
+├── sigeh
+├── test_agendamento
+├── test_ala
+├── test_internacao
+├── test_leito
+├── test_medico
+├── test_paciente
+├── test_prontuario
+├── test_relatorio
+├── test_triagem
+└── src/
+    ├── main/
+    │   └── c/
+    │       ├── app/
     │       │   └── main.c
-    │       ├── headers
+    │       ├── headers/
     │       │   ├── agendamento.h
     │       │   ├── ala.h
     │       │   ├── internacao.h
     │       │   ├── leito.h
     │       │   ├── medico.h
     │       │   ├── paciente.h
+    │       │   ├── prontuario.h
     │       │   ├── relatorio.h
     │       │   └── triagem.h
-    │       ├── model
+    │       ├── model/
     │       │   └── hospital.h
-    │       └── modules
+    │       └── modules/
     │           ├── agendamento.c
     │           ├── ala.c
     │           ├── internacao.c
     │           ├── leito.c
     │           ├── medico.c
     │           ├── paciente.c
+    │           ├── prontuario.c
     │           ├── relatorio.c
     │           └── triagem.c
-    └── test
-        └── c
-            └── modules
+    └── test/
+        └── c/
+            └── modules/
                 ├── test_agendamento.c
                 ├── test_ala.c
                 ├── test_internacao.c
                 ├── test_leito.c
                 ├── test_medico.c
                 ├── test_paciente.c
+                ├── test_prontuario.c
                 ├── test_relatorio.c
                 └── test_triagem.c
 ```
 
+---
 
-## Arquitetura Adotada
+## Como Compilar e Executar
 
-### `src/main/c/app`
+Na raiz do projeto:
 
-Contem o ponto de entrada da aplicacao.
-
-### `src/main/c/model`
-
-Contem a modelagem principal do sistema:
-- constantes
-- `structs`
-- vetores globais
-- contadores globais
-- tipos e regras compartilhadas
-
-### `src/main/c/headers`
-
-Contem os arquivos `.h` dos modulos, com declaracoes de funcoes.
-
-### `src/main/c/modules`
-
-Contem os arquivos `.c`, com a implementacao de cada modulo.
-
-### `src/test/c/modules`
-
-Contem os testes automatizados simples com `assert.h`.
-
-## Explicacao Arquivo por Arquivo
-
-## `src/main/c/app/main.c`
-
-Este e o ponto de entrada do sistema.
-
-Responsabilidades:
-- declarar os vetores globais do projeto
-- declarar os contadores globais
-- exibir o menu principal
-- encaminhar o usuario para cada modulo
-
-Estrutura atual:
-- `exibirMenuPrincipal()`: imprime o menu principal
-- `executarOpcaoMenuPrincipal(int opcao)`: recebe a opcao e chama o modulo correspondente
-- `main()`: controla o loop principal do sistema
-
-Importancia:
-- centraliza a navegacao
-- evita que a logica hospitalar fique concentrada no `main`
-- deixa o programa mais organizado
-
-## `src/main/c/model/hospital.h`
-
-Este e o arquivo mais importante da modelagem do sistema.
-
-Responsabilidades:
-- incluir bibliotecas padrao
-- definir constantes como `MAX_PACIENTES`, `MAX_MEDICOS`, `MAX_LEITOS`
-- definir os tipos de triagem
-- definir todas as `structs`
-- declarar os vetores globais com `extern`
-- declarar os contadores globais com `extern`
-
-Constantes importantes:
-- limites dos vetores
-- tipos de triagem:
-  - `TRIAGEM_GERAL`
-  - `TRIAGEM_ORTOPEDIA`
-  - `TRIAGEM_CARDIOLOGIA`
-  - `TRIAGEM_PNEUMOLOGIA`
-  - `TRIAGEM_PEDIATRIA`
-
-Structs presentes:
-- `Paciente`
-- `Medico`
-- `Agendamento`
-- `Ala`
-- `Leito`
-- `Internacao`
-- `Triagem`
-
-Tambem concentra regras de estado basicas:
-- `ativo` para exclusao logica
-- `status` para ciclos de vida como agendamento e internacao
-
-Importancia:
-- funciona como o nucleo compartilhado do projeto
-- permite que todos os modulos usem a mesma modelagem
-
-## `src/main/c/headers/paciente.h`
-
-Declara as funcoes do modulo de pacientes.
-
-Responsabilidades:
-- expor o menu de pacientes
-- expor funcoes auxiliares do modulo, como cadastro e exclusao logica
-
-## `src/main/c/modules/paciente.c`
-
-Implementa o gerenciamento de pacientes.
-
-Responsabilidades:
-- cadastrar paciente
-- listar pacientes ativos
-- editar paciente
-- excluir paciente logicamente
-
-Dados tratados:
-- nome
-- CPF
-- idade
-- telefone
-- sexo
-- regiao administrativa
-- status `ativo`
-
-Regras importantes:
-- paciente novo entra como ativo
-- paciente excluido nao e apagado fisicamente, apenas fica inativo
-- listagem ignora pacientes inativos
-
-Importancia:
-- e a base de varias outras operacoes, porque triagem, agendamento e internacao dependem do paciente
-
-## `src/main/c/headers/medico.h`
-
-Declara as funcoes do modulo de medicos.
-
-Responsabilidades:
-- expor o menu de medicos
-- expor funcoes auxiliares de cadastro e exclusao
-
-## `src/main/c/modules/medico.c`
-
-Implementa o gerenciamento de medicos.
-
-Responsabilidades:
-- cadastrar medico
-- listar medicos ativos
-- editar medico
-- excluir medico logicamente
-
-Dados tratados:
-- nome
-- CRM
-- especialidade
-- regiao administrativa
-- status `ativo`
-
-Regras importantes:
-- medico novo entra como ativo
-- exclusao e logica
-- listagem ignora medicos inativos
-- a regiao administrativa ja influencia relatorios e agendamentos
-
-Importancia:
-- influencia diretamente o modulo de agendamento
-- serve de base para regionalizacao e especialidade
-
-## `src/main/c/headers/agendamento.h`
-
-Declara as funcoes do modulo de agendamento.
-
-Responsabilidades:
-- expor o menu de agendamentos
-- expor verificacao de ocupacao/conflito
-- expor operacoes como cancelamento e conclusao
-- expor funcoes auxiliares ligadas a triagem, especialidade, regiao e remanejamento
-
-## `src/main/c/modules/agendamento.c`
-
-Implementa o gerenciamento de agendamentos.
-
-Responsabilidades:
-- criar agendamento
-- listar agendamentos
-- cancelar agendamento
-- concluir agendamento
-- localizar especialidade a partir da triagem
-- localizar medico por especialidade e regiao
-- realizar agendamento orientado por triagem
-- comparar prioridade entre pacientes em conflito
-- remanejar agendamento menos urgente quando permitido
-
-Dados tratados:
-- `pacienteId`
-- `medicoId`
-- `data`
-- `horario`
-- `status`
-
-Status usados:
-- `AGENDADO`
-- `CANCELADO`
-- `CONCLUIDO`
-- `REMANEJADO`
-
-Regras importantes:
-- nao agenda paciente inativo
-- nao agenda medico inativo
-- usa a triagem ativa mais recente do paciente
-- converte o tipo de triagem em especialidade
-- tenta medico da mesma regiao primeiro
-- se nao houver, tenta outra regiao
-- casos urgentes podem substituir casos menos urgentes
-- quem perde o horario e o paciente menos urgente, nao o medico
-- agendamentos `REMANEJADO` nao devem bloquear horario como agendamento ativo
-
-Importancia:
-- e um dos modulos mais ricos em regra de negocio
-- integra paciente, medico, triagem e regionalizacao
-
-## `src/main/c/headers/ala.h`
-
-Declara as funcoes do modulo de alas.
-
-Responsabilidades:
-- expor o menu de alas
-- expor funcoes auxiliares de cadastro e exclusao logica
-
-## `src/main/c/modules/ala.c`
-
-Implementa o gerenciamento de alas hospitalares.
-
-Responsabilidades:
-- cadastrar ala
-- listar alas ativas
-- excluir ala logicamente
-
-Dados tratados:
-- nome da ala
-- tipo
-- total de leitos
-- leitos ocupados
-- status `ativo`
-
-Regras importantes:
-- ala nova comeca ativa
-- exclusao e logica
-- listagem ignora alas inativas
-
-Importancia:
-- estrutura a distribuicao fisica do hospital
-- serve de base para leitos e internacoes
-
-## `src/main/c/headers/leito.h`
-
-Declara as funcoes do modulo de leitos.
-
-Responsabilidades:
-- expor o menu de leitos
-- expor `cadastrarLeito(...)`
-- expor `excluirLeito(...)`
-
-## `src/main/c/modules/leito.c`
-
-Implementa o gerenciamento de leitos.
-
-Responsabilidades:
-- cadastrar leito
-- listar leitos ativos
-- excluir leito logicamente
-
-Dados tratados:
-- `alaId`
-- numero do leito
-- ocupacao
-- `pacienteId`
-- status `ativo`
-
-Regras importantes:
-- leito novo entra ativo
-- leito precisa pertencer a uma ala ativa
-- nao pode excluir leito ocupado
-- listagem ignora leitos inativos
-
-Importancia:
-- conecta a estrutura das alas com a internacao do paciente
-
-## `src/main/c/headers/internacao.h`
-
-Declara as funcoes do modulo de internacao.
-
-Responsabilidades:
-- expor o menu de internacoes
-- expor `internarPaciente(...)`
-- expor `darAltaInternacao(...)`
-
-## `src/main/c/modules/internacao.c`
-
-Implementa o ciclo de vida da internacao.
-
-Responsabilidades:
-- internar paciente em leito disponivel
-- registrar alta
-- listar internacoes
-
-Dados tratados:
-- `pacienteId`
-- `alaId`
-- `leitoId`
-- `dataEntrada`
-- `dataAlta`
-- `status`
-
-Status usados:
-- `INTERNADO`
-- `ALTA`
-
-Regras importantes:
-- paciente precisa existir e estar ativo
-- leito precisa existir, estar ativo e livre
-- ao internar:
-  - leito fica ocupado
-  - `pacienteId` do leito e preenchido
-  - `leitosOcupados` da ala aumenta
-- ao dar alta:
-  - `status` muda para `ALTA`
-  - leito volta a livre
-  - `pacienteId` do leito volta para `0`
-  - `leitosOcupados` da ala diminui
-- historico e preservado; nao ha exclusao fisica
-
-Importancia:
-- e um modulo central do fluxo hospitalar
-- trata ocupacao real de recursos
-
-## `src/main/c/headers/triagem.h`
-
-Declara as funcoes do modulo de triagem.
-
-Responsabilidades:
-- expor o menu de triagem
-- expor funcoes de classificacao
-- expor exclusao logica
-- expor selecao de tipo de triagem
-- expor submenus especializados
-- expor funcoes de prioridade
-
-## `src/main/c/modules/triagem.c`
-
-Implementa o gerenciamento de triagem.
-
-Responsabilidades:
-- selecionar o tipo de triagem
-- executar submenus especificos
-- calcular pontuacao
-- classificar o risco
-- listar triagens ativas
-- excluir triagem logicamente
-- fornecer informacoes de prioridade para o agendamento
-
-Dados tratados:
-- `pacienteId`
-- `tipoTriagem`
-- `pontuacao`
-- `classificacao`
-- `ativo`
-
-Tipos de triagem:
-- Geral
-- Ortopedia
-- Cardiologia
-- Pneumologia
-- Pediatria
-
-Classificacoes usadas:
-- `Emergencia`
-- `Muito prioritario`
-- `Prioritario`
-- `Comum`
-- `Orientacao basica`
-
-Regras importantes:
-- triagem depende de paciente ativo
-- cada tipo de triagem tem seu proprio conjunto de perguntas
-- a struct salva apenas o resultado final
-- exclusao e logica
-- listagem ignora triagens inativas
-- existem funcoes de apoio para prioridade, como:
-  - nivel de prioridade
-  - verificacao de urgencia
-  - busca da triagem ativa mais recente do paciente
-
-Importancia:
-- e a base para encaminhamento clinico
-- alimenta o agendamento por especialidade e urgencia
-
-## `src/main/c/headers/relatorio.h`
-
-Declara as funcoes do modulo de relatorios.
-
-Responsabilidades:
-- expor o menu de relatorios
-- expor funcoes auxiliares de contagem e indicadores
-- preparar a base do painel situacional
-
-## `src/main/c/modules/relatorio.c`
-
-Implementa os relatorios do sistema.
-
-Responsabilidades:
-- mostrar totais gerais
-- exibir ocupacao por ala
-- contar leitos livres e ocupados
-- contar triagens por classificacao
-- contar medicos por regiao
-- contar pacientes por regiao
-- descobrir especialidade mais demandada
-
-Indicadores atuais:
-- total de pacientes cadastrados
-- total de medicos cadastrados
-- total de agendamentos cadastrados
-- total de alas cadastradas
-- total de leitos cadastrados
-- total de internacoes cadastradas
-- total de triagens cadastradas
-- triagens por classificacao
-- leitos ocupados
-- leitos livres
-- taxa de ocupacao por ala
-- medicos ativos por regiao
-- pacientes ativos por regiao
-- especialidade mais demandada
-
-Importancia:
-- transforma dados operacionais em visao gerencial
-- e a base do Painel Situacional do DF
-
-## Testes Automatizados
-
-Os testes ficam em:
-
-```text
-src/test/c/modules/
+```sh
+make clean
+make
+make run
 ```
 
-Arquivos atuais:
+### O que cada comando faz
+
+- `make clean`: remove executavel principal e executaveis de teste
+- `make`: compila o sistema principal e gera o binario `sigeh`
+- `make run`: compila e executa o sistema
+
+---
+
+## Como Rodar os Testes
+
+```sh
+make test
+```
+
+Esse alvo compila e executa os testes modulares:
+
+- `test_agendamento`
+- `test_ala`
+- `test_internacao`
+- `test_leito`
+- `test_medico`
+- `test_paciente`
+- `test_prontuario`
+- `test_relatorio`
+- `test_triagem`
+
+Observacao importante:
+
+- os testes cobrem principalmente funcoes de regra de negocio
+- menus interativos e mensagens impressas no terminal ainda dependem de validacao manual
+
+---
+
+## Mapa de Arquivos
+
+### Arquivos centrais
+
+- `Makefile`: compilacao, limpeza e execucao dos testes
+- `README.md`: documentacao do projeto
+- `src/main/c/app/main.c`: menu principal e definicoes globais
+- `src/main/c/model/hospital.h`: modelagem compartilhada do sistema
+
+### Headers publicos
+
+- `agendamento.h`
+- `ala.h`
+- `internacao.h`
+- `leito.h`
+- `medico.h`
+- `paciente.h`
+- `prontuario.h`
+- `relatorio.h`
+- `triagem.h`
+
+### Modulos de implementacao
+
+- `agendamento.c`
+- `ala.c`
+- `internacao.c`
+- `leito.c`
+- `medico.c`
+- `paciente.c`
+- `prontuario.c`
+- `relatorio.c`
+- `triagem.c`
+
+### Testes
 
 - `test_agendamento.c`
 - `test_ala.c`
@@ -519,228 +273,597 @@ Arquivos atuais:
 - `test_leito.c`
 - `test_medico.c`
 - `test_paciente.c`
+- `test_prontuario.c`
 - `test_relatorio.c`
 - `test_triagem.c`
 
-Cada arquivo de teste valida regras especificas do seu modulo com `assert.h`.
+### Arquivos e pastas auxiliares
 
-### `test_paciente.c`
+- `.gitignore`: define arquivos ignorados pelo Git
+- `.vscode/settings.json`: preferencias locais do ambiente VS Code
+- `data/`: pasta reservada para dados auxiliares do projeto
+- `sigeh`: executavel principal gerado pelo `make`
+- `test_*`: executaveis de teste gerados pelo `make test`
 
-Valida:
-- cadastro de paciente
-- preenchimento correto dos campos
+---
+
+## Explicacao Detalhada Arquivo por Arquivo
+
+### Arquivos da raiz
+
+#### `Makefile`
+Responsavel por toda a orquestracao de compilacao.
+
+O `Makefile`:
+
+- define o compilador (`gcc`)
+- aplica `-Wall -Wextra -pedantic`
+- configura os `-I` para `model`, `headers` e `modules`
+- define os arquivos do executavel principal
+- define os arquivos de cada teste modular
+- possui os alvos `all`, `run`, `clean`, `test` e `tree`
+
+Em termos praticos, ele e o arquivo que transforma a estrutura modular do projeto em um executavel utilizavel e em testes isolados.
+
+#### `README.md`
+Arquivo de documentacao principal do projeto.
+
+Sua funcao e explicar:
+
+- a proposta do sistema
+- a arquitetura adotada
+- a organizacao das pastas
+- a funcao de cada arquivo
+- os comandos de compilacao e teste
+- as regras principais do dominio
+
+#### `.gitignore`
+Arquivo que informa ao Git quais arquivos nao devem ser versionados.
+
+Normalmente ele serve para evitar que binarios e artefatos temporarios sejam enviados para o repositorio.
+
+#### `.vscode/settings.json`
+Arquivo de configuracao local do editor VS Code.
+
+Ele nao faz parte da logica do sistema, mas ajuda a manter uma experiencia de edicao mais estavel no ambiente do desenvolvedor.
+
+#### `data/`
+Pasta de apoio para dados ou estruturas auxiliares do projeto.
+
+Mesmo quando nao estiver sendo usada diretamente por todos os modulos, ela serve como espaco reservado para evolucoes futuras ou suporte ao projeto.
+
+#### `sigeh`
+Executavel principal gerado pelo `make`.
+
+Nao e codigo-fonte, mas sim o resultado compilado do projeto.
+
+#### `test_agendamento`, `test_ala`, `test_internacao`, `test_leito`, `test_medico`, `test_paciente`, `test_prontuario`, `test_relatorio`, `test_triagem`
+Executaveis de teste gerados pelo alvo `make test`.
+
+Eles representam binarios temporarios usados para validar cada modulo individualmente.
+
+---
+
+### `src/main/c/app/main.c`
+Ponto de entrada do sistema.
+
+Este arquivo cumpre dois papeis fundamentais:
+
+1. definir os vetores globais e contadores globais do sistema
+2. controlar o menu principal da aplicacao
+
+Funcoes principais:
+
+- `exibirMenu()`: imprime o menu principal
+- `executarOpcao(int opcao)`: despacha a opcao escolhida para o modulo correspondente
+- `main()`: controla o loop principal do sistema
+
+Tambem e neste arquivo que ficam definidas as instancias globais de:
+
+- `pacientes`
+- `medicos`
+- `agendamentos`
+- `alas`
+- `leitos`
+- `internacoes`
+- `triagens`
+- `prontuarios`
+
+Sem esse arquivo, os `extern` declarados em `hospital.h` nao teriam definicao real no programa principal.
+
+---
+
+### `src/main/c/model/hospital.h`
+Nucleo de modelagem do SIGEH-DF.
+
+Este e o arquivo mais importante do projeto em nivel estrutural, porque centraliza:
+
+- bibliotecas padrao (`stdio.h`, `stdlib.h`, `string.h`)
+- limites dos vetores (`MAX_*`)
+- codigos de tipos de triagem
+- codigos de tipos de ala
+- definicao das structs principais
+- declaracoes `extern` dos vetores globais
+- declaracoes `extern` dos contadores globais
+
+Constantes relevantes:
+
+- `MAX_PACIENTES`
+- `MAX_MEDICOS`
+- `MAX_AGENDAMENTOS`
+- `MAX_ALAS`
+- `MAX_LEITOS`
+- `MAX_INTERNACOES`
+- `MAX_TRIAGENS`
+- `MAX_PRONTUARIOS`
+
+Tipos de triagem:
+
+- `TRIAGEM_GERAL`
+- `TRIAGEM_ORTOPEDIA`
+- `TRIAGEM_CARDIOLOGIA`
+- `TRIAGEM_PNEUMOLOGIA`
+- `TRIAGEM_PEDIATRIA`
+
+Tipos de ala:
+
+- `ALA_INTERNACAO`
+- `ALA_UTI`
+- `ALA_OBSERVACAO`
+- `ALA_PEDIATRIA`
+- `ALA_CIRURGICA`
+
+Structs definidas:
+
+- `Paciente`
+- `Medico`
+- `Agendamento`
+- `Ala`
+- `Leito`
+- `Internacao`
+- `Triagem`
+- `Prontuario`
+
+Esse arquivo funciona como contrato central da aplicacao inteira.
+
+---
+
+### Headers de modulos
+
+#### `src/main/c/headers/paciente.h`
+Declara a interface publica do modulo de pacientes.
+
+Funcoes expostas:
+
+- `menuPacientes()`
+- `cadastrarPaciente(...)`
+- `excluirPaciente(int id)`
+
+Ele permite que outros arquivos conhecam o modulo de pacientes sem acessar sua implementacao interna.
+
+#### `src/main/c/headers/medico.h`
+Declara a interface publica do modulo de medicos.
+
+Funcoes expostas:
+
+- `menuMedicos()`
+- `cadastrarMedico(...)`
+- `excluirMedico(int id)`
+
+#### `src/main/c/headers/agendamento.h`
+Declara a interface publica do modulo de agendamento.
+
+Funcoes expostas:
+
+- `menuAgendamentos()`
+- `buscarAgenda(...)`
+- `medicoOcupado(...)`
+- `cancelarAgendamento(int id)`
+- `concluirAgendamento(int id)`
+- `trocaHorario(...)`
+- `agendarMedico(...)`
+- `obterEspecialidade(...)`
+- `buscarMedicoRegiao(...)`
+- `buscarMedico(...)`
+- `agendarTriagem(...)`
+
+Esse header concentra a parte mais rica de regras operacionais entre triagem, medicos, horario e remanejamento.
+
+#### `src/main/c/headers/ala.h`
+Declara a interface do modulo de alas.
+
+Funcoes expostas:
+
+- `menuAlas()`
+- `cadastrarAla(...)`
+- `excluirAla(int id)`
+- `contarAlasPorTipo(int tipo)`
+- `listarAlasPorTipo(int tipo)`
+
+#### `src/main/c/headers/leito.h`
+Declara a interface do modulo de leitos.
+
+Funcoes expostas:
+
+- `menuLeitos()`
+- `cadastrarLeito(...)`
+- `excluirLeito(int id)`
+
+#### `src/main/c/headers/internacao.h`
+Declara a interface do modulo de internacao.
+
+Funcoes expostas:
+
+- `menuInternacoes()`
+- `internarPaciente(...)`
+- `darAltaInternacao(...)`
+
+#### `src/main/c/headers/triagem.h`
+Declara a interface do modulo de triagem.
+
+Funcoes expostas:
+
+- `menuTriagem()`
+- `classificarTriagem(...)`
+- `nivelPrioridade(...)`
+- `ehUrgente(...)`
+- `triagemAtual(...)`
+- `excluirTriagem(...)`
+- `escolherTriagem()`
+- `triagemGeral(...)`
+- `triagemOrtopedia(...)`
+- `triagemCardiologia(...)`
+- `triagemPneumologia(...)`
+- `triagemPediatria(...)`
+- `exibirTipo(...)`
+
+#### `src/main/c/headers/relatorio.h`
+Declara a interface publica do modulo de relatorios.
+
+Funcoes expostas:
+
+- `menuRelatorios()`
+- `contarLeitosOcupados()`
+- `contarLivres()`
+- `taxaAla(int alaId)`
+- `contarTriagens(...)`
+- `contarMedRegiao(...)`
+- `relMedRegiao()`
+- `contarPacRegiao(...)`
+- `relPacRegiao()`
+- `contarEsp(...)`
+- `espDemandada(...)`
+- `contarCasosGravesRegiao(...)`
+- `regiaoMaisCasosGraves()`
+
+#### `src/main/c/headers/prontuario.h`
+Declara a interface do modulo de prontuario.
+
+Funcoes expostas:
+
+- `menuProntuarios()`
+- `registrarProntuario(...)`
+- `listarProntuarioPorPaciente(...)`
+- `listarProntuarioPorMedico(...)`
+- `listarProntuarioPorEspecialidade(...)`
+
+---
+
+### Modulos de implementacao
+
+#### `src/main/c/modules/paciente.c`
+Responsavel por toda a gestao de pacientes.
+
+Operacoes principais:
+
+- cadastro
+- listagem
+- edicao
 - exclusao logica
-- comportamento de paciente ativo e inativo
+- exibicao das regioes administrativas no fluxo do menu
 
-### `test_medico.c`
+Dados tratados pelo modulo:
 
-Valida:
-- cadastro de medico
-- preenchimento correto dos campos
-- exclusao logica
+- nome
+- CPF
+- idade
+- telefone
+- sexo
 - regiao administrativa
-- comportamento de medico ativo e inativo
+- estado `ativo`
 
-### `test_agendamento.c`
+Importancia:
 
-Valida:
-- conflito/ocupacao de horario
-- cancelamento
-- conclusao
-- mapeamento de triagem para especialidade
-- busca por regiao
-- fallback para outra regiao
-- remanejamento de caso menos urgente
-- bloqueio de remanejamento em caso igual ou mais urgente
-- falha sem triagem ativa
-- falha sem medico compativel
+Esse modulo e base de varios outros. Sem pacientes validos e ativos, o sistema nao consegue realizar triagem, agendamento, internacao ou prontuario.
 
-### `test_ala.c`
+#### `src/main/c/modules/medico.c`
+Responsavel pela gestao de medicos.
 
-Valida:
-- cadastro de ala
-- campos iniciais
+Operacoes principais:
+
+- cadastro
+- listagem
+- edicao
 - exclusao logica
+- controle de especialidade
+- controle de regiao administrativa
 
-### `test_leito.c`
+Importancia:
 
-Valida:
+Esse modulo influencia diretamente agendamento, regionalizacao e prontuario.
+
+#### `src/main/c/modules/agendamento.c`
+Modulo central do fluxo ambulatorial.
+
+Responsabilidades:
+
+- localizar conflitos de horario
+- verificar se um medico esta ocupado
+- cancelar agendamento
+- concluir agendamento
+- descobrir a especialidade correta a partir da triagem
+- buscar medico na mesma regiao
+- buscar medico em outra regiao quando necessario
+- decidir se um paciente mais urgente pode remanejar outro
+- registrar agendamento novo
+- marcar agendamento antigo como `REMANEJADO`
+
+Regras importantes:
+
+- o conflito relevante considera agendamentos com status `AGENDADO`
+- a urgencia depende da classificacao da triagem
+- `Emergencia` e `Muito prioritario` sao tratados como urgentes
+- um paciente so remaneja outro se tiver prioridade maior
+- em caso de empate, o agendamento ja existente e mantido
+
+#### `src/main/c/modules/ala.c`
+Modulo que representa a organizacao fisica das alas.
+
+Responsabilidades:
+
+- cadastrar alas
+- excluir alas logicamente
+- listar alas
+- contar alas por tipo
+- listar alas filtradas por tipo
+- receber o tipo da ala via numeracao de menu
+
+Tipos de ala suportados:
+
+- Internacao
+- UTI
+- Observacao
+- Pediatria
+- Cirurgica
+
+Esse modulo ajuda a estruturar o ambiente hospitalar em categorias padronizadas e evita erro de digitacao ao selecionar tipos.
+
+#### `src/main/c/modules/leito.c`
+Responsavel pelo gerenciamento de leitos.
+
+Operacoes principais:
+
 - cadastro de leito
-- vinculacao com ala
-- inicio como leito livre e ativo
 - exclusao logica
-- bloqueio de exclusao de leito ocupado
+- vinculacao a ala
+- controle de ocupacao
 
-### `test_internacao.c`
+Papel no sistema:
 
-Valida:
-- internacao correta
-- ocupacao do leito
-- atualizacao da ala
-- alta
-- liberacao do leito
-- preservacao do historico
-- bloqueio de alta duplicada
+Ele funciona como ponte entre a estrutura fisica da ala e a internacao do paciente.
 
-### `test_triagem.c`
+#### `src/main/c/modules/internacao.c`
+Responsavel pelo fluxo de internacao e alta.
 
-Valida:
-- classificacao da triagem
+Operacoes principais:
+
+- internar paciente em leito disponivel
+- registrar data de entrada
+- dar alta
+- registrar data de alta
+- liberar leito
+- reduzir `leitosOcupados` da ala correspondente
+
+Regras importantes:
+
+- o paciente precisa existir e estar ativo
+- o leito precisa existir e estar livre
+- a internacao recebe status `INTERNADO`
+- a alta altera o status da internacao e libera o leito
+
+#### `src/main/c/modules/triagem.c`
+Modulo responsavel por classificacao de risco.
+
+Responsabilidades:
+
+- escolher o tipo de triagem
+- aplicar perguntas por especialidade
+- calcular pontuacao
+- converter pontuacao em classificacao
+- informar prioridade numerica
+- dizer se uma classificacao e urgente
+- localizar a triagem ativa mais recente de um paciente
+
+Tipos implementados:
+
+- triagem geral
+- triagem ortopedica
+- triagem cardiologica
+- triagem pneumologica
+- triagem pediatrica
+
+Esse modulo alimenta diretamente as decisoes de agendamento e prioridade.
+
+#### `src/main/c/modules/relatorio.c`
+Modulo de indicadores gerenciais.
+
+Responsabilidades:
+
+- contar leitos ocupados e livres
+- calcular taxa de ocupacao por ala
+- contar triagens por classificacao
+- contar medicos por regiao
+- contar pacientes por regiao
+- identificar especialidade mais demandada
+- identificar regiao com mais casos graves
+- exibir painel consolidado de relatorios
+
+Esse modulo transforma os dados operacionais em visao gerencial do sistema.
+
+#### `src/main/c/modules/prontuario.c`
+Modulo de prontuario integrado.
+
+Responsabilidades:
+
+- validar paciente e medico ativos antes do registro
+- registrar atendimento clinico
+- armazenar observacoes, diagnostico, conduta e alerta importante
+- listar prontuarios por paciente
+- listar prontuarios por medico
+- listar prontuarios por especialidade
+- exibir pacientes e medicos ativos para facilitar o cadastro no menu
+
+Ponto forte do modulo:
+
+Ele nao duplica nome de paciente ou medico dentro da struct. O prontuario guarda os ids e consulta os dados reais do sistema na hora de listar, preservando coerencia.
+
+---
+
+### Testes modulares
+
+#### `src/test/c/modules/test_paciente.c`
+Valida as operacoes principais do modulo de pacientes, como cadastro e exclusao.
+
+#### `src/test/c/modules/test_medico.c`
+Valida cadastro e exclusao logica de medicos.
+
+#### `src/test/c/modules/test_agendamento.c`
+Valida o modulo mais rico em regra de negocio.
+
+Cenarios cobertos:
+
+- busca de agenda
+- ocupacao de medico
+- cancelamento publico
+- agendamento por triagem
+- remanejamento
 - prioridade
-- urgencia
-- busca da triagem ativa por paciente
-- exclusao logica
-- status ativo/inativo
+- empate de prioridade
+- escolha de medico por disponibilidade e regiao
 
-### `test_relatorio.c`
+#### `src/test/c/modules/test_ala.c`
+Valida cadastro de ala, tipo numerico, contagem por tipo e exclusao.
 
-Valida:
-- contagem de leitos ocupados
-- contagem de leitos livres
-- taxa de ocupacao
-- triagens por classificacao
+#### `src/test/c/modules/test_leito.c`
+Valida cadastro e operacoes basicas do modulo de leitos.
+
+#### `src/test/c/modules/test_internacao.c`
+Valida internacao, alta, liberacao de leito e reducao de ocupacao.
+
+#### `src/test/c/modules/test_triagem.c`
+Valida classificacao, prioridade, urgencia e obtencao da triagem atual.
+
+#### `src/test/c/modules/test_relatorio.c`
+Valida indicadores do painel de relatorios.
+
+Cenarios cobertos:
+
+- ocupacao de leitos
+- taxa por ala
+- contagem por classificacao
 - medicos por regiao
 - pacientes por regiao
 - especialidade mais demandada
+- casos graves por regiao
 
-## Makefile
+#### `src/test/c/modules/test_prontuario.c`
+Valida o modulo de prontuario.
 
-O projeto usa `Makefile` para compilar e testar.
+Cenarios cobertos:
 
-Comandos principais:
+- registro valido
+- associacao correta entre paciente e medico
+- armazenamento correto dos campos
+- falha com paciente invalido
+- falha com medico invalido
 
-```bash
-make clean
-make
-make run
-make test
-```
+---
 
-### `make clean`
+## Regras de Modelagem e Estados
 
-Remove:
-- executavel principal `sigeh`
-- executaveis de teste
+### Exclusao logica
 
-### `make`
+O projeto usa exclusao logica em varias entidades.
 
-Compila o sistema principal.
+Campos comuns:
 
-### `make run`
+- `Paciente.ativo`
+- `Medico.ativo`
+- `Ala.ativo`
+- `Leito.ativo`
+- `Triagem.ativo`
+- `Prontuario.ativo`
 
-Compila e executa o sistema.
+Isso significa que o registro nao e apagado do vetor, apenas deixa de ser considerado ativo.
 
-### `make test`
+### Status usados no sistema
 
-Compila e executa os testes automatizados.
+#### Agendamento
 
-## Como Compilar
+- `AGENDADO`
+- `CANCELADO`
+- `CONCLUIDO`
+- `REMANEJADO`
 
-```bash
-make clean
-make
-```
+#### Internacao
 
-## Como Executar
+- `INTERNADO`
+- `ALTA`
 
-```bash
-make run
-```
+### Classificacoes de triagem
 
-Ou, se ja estiver compilado:
+- `Emergencia`
+- `Muito prioritario`
+- `Prioritario`
+- `Comum`
+- `Orientacao basica`
 
-```bash
-./sigeh
-```
+### Tipos de ala
 
-## Como Rodar os Testes
+- `ALA_INTERNACAO`
+- `ALA_UTI`
+- `ALA_OBSERVACAO`
+- `ALA_PEDIATRIA`
+- `ALA_CIRURGICA`
 
-```bash
-make test
-```
+---
 
-## Regras de Persistencia e Estado
+## Observacoes Importantes
 
-No estado atual:
+- Os dados continuam em memoria durante a execucao.
+- O sistema ainda nao possui persistencia em arquivo.
+- O sistema ainda nao utiliza banco relacional.
+- Os testes automatizados cobrem bem regras centrais, mas nao substituem testes manuais dos menus.
+- O projeto foi construido para clareza didatica, nao para alta performance ou concorrencia.
+- O uso de vetores globais faz parte da proposta academica atual do sistema.
 
-- os dados ficam em memoria
-- nao ha salvamento em arquivo
-- nao ha banco de dados
-- nao ha SQLite
-- nao ha API
-- nao ha interface grafica
+---
 
-Isso significa que, ao encerrar o programa, os dados sao perdidos.
+## Proximos Passos Naturais do Projeto
 
-## Padroes de Exclusao no Projeto
+A base atual permite evolucoes como:
 
-O projeto usa dois modelos de “remoção”, dependendo do modulo.
+- fortalecer ainda mais o modulo de prontuario
+- criar modulo de exames integrados
+- ampliar filtros e consultas do prontuario
+- adicionar persistencia em `.txt`
+- depois avaliar migracao futura para SQLite
+- ampliar cobertura de testes manuais e automatizados
 
-### Exclusao logica com `ativo`
+---
 
-Usada em:
-- paciente
-- medico
-- ala
-- leito
-- triagem
+## Fechamento
 
-Exemplo:
+O SIGEH-DF e um projeto academico simples na superficie, mas com uma base modular bem rica para estudo. Ele ja demonstra integracao entre entidades, validacao de regras, menus operacionais, indicadores gerenciais e evolucao incremental de arquitetura sem abandonar a simplicidade do C basico.
 
-```c
-objeto.ativo = 0;
-```
-
-### Ciclo de vida por `status`
-
-Usado em:
-- agendamento
-- internacao
-
-Exemplos:
-- agendamento: `AGENDADO`, `CANCELADO`, `CONCLUIDO`, `REMANEJADO`
-- internacao: `INTERNADO`, `ALTA`
-
-Esse modelo preserva historico e evita apagar registros relevantes.
-
-## Fluxo Geral do Sistema
-
-Um fluxo tipico do sistema hoje pode ser:
-
-1. cadastrar paciente
-2. cadastrar medico
-3. realizar triagem do paciente
-4. classificar a gravidade
-5. identificar o tipo de triagem
-6. criar agendamento com base na especialidade necessaria
-7. priorizar a mesma regiao quando possivel
-8. remanejar caso menos urgente, se aplicavel
-9. internar paciente, se necessario
-10. acompanhar ocupacao de leitos e alas
-11. consultar relatorios
-
-## Proximas Evolucoes Planejadas
-
-As proximas evolucoes previstas para o projeto incluem:
-
-- regiao com mais casos graves
-- consolidacao do Painel Situacional do DF
-- melhoria das categorias e tipos de ala
-- prontuario integrado
-- exames integrados
-- persistencia em arquivos `.txt`
-- SQLite futuramente
-
-## Limites Atuais do Projeto
-
-Alguns limites importantes da versao atual:
-
-- os dados sao mantidos apenas em memoria
-- o sistema ainda depende de `scanf`
-- nao ha validacao robusta para todos os campos
-- nao ha autenticacao ou perfil de acesso
-- nao ha banco de dados
-- nao ha interface grafica
-- nao ha remarcacao automatica completa para casos remanejados
-
-Mesmo assim, o projeto ja atende bem ao objetivo academico de praticar organizacao, modelagem, testes e regras de negocio em C.
+A leitura do codigo fica muito mais proveitosa quando feita junto desta documentacao, porque cada arquivo tem uma responsabilidade clara dentro do sistema.
