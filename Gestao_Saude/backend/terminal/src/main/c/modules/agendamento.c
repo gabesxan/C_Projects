@@ -53,6 +53,22 @@ static void exibirAgendamento(const Agendamento *agendamento)
     printf("Status: %s\n", agendamento->status);
 }
 
+static void listarTodosAgendamentos(void)
+{
+    if (totalAgendamentos == 0)
+    {
+        printf("\nNenhum agendamento cadastrado.\n");
+        return;
+    }
+
+    printf("\nLista de Agendamentos:\n");
+
+    for (int i = 0; i < totalAgendamentos; i++)
+    {
+        exibirAgendamento(&agendamentos[i]);
+    }
+}
+
 int buscarAgenda(int medicoId, char data[], char horario[])
 {
     for (int i = 0; i < totalAgendamentos; i++)
@@ -123,6 +139,36 @@ int concluirAgendamento(int id)
     {
         strcpy(agendamentos[indiceAgendamento].status, "AGENDADO");
         return 0;
+    }
+
+    return 1;
+}
+
+int criarAgendamentoTriagem(int pacienteId, char data[], char horario[], int *agendamentoId, int *medicoId)
+{
+    int indicePaciente = buscarPaciente(pacienteId);
+    int medicoSelecionado;
+
+    if (indicePaciente == -1)
+    {
+        return 0;
+    }
+
+    medicoSelecionado = agendarTriagem(pacienteId, data, horario);
+
+    if (medicoSelecionado == 0)
+    {
+        return 0;
+    }
+
+    if (agendamentoId != NULL)
+    {
+        *agendamentoId = agendamentos[totalAgendamentos - 1].id;
+    }
+
+    if (medicoId != NULL)
+    {
+        *medicoId = medicoSelecionado;
     }
 
     return 1;
@@ -379,7 +425,7 @@ int agendarTriagem(int pacienteId, char data[], char horario[])
 
 void menuAgendamentos(void)
 {
-    int caso3;
+    int opcao;
 
     do
     {
@@ -394,18 +440,18 @@ void menuAgendamentos(void)
         printf("---------------------------------------------\n");
         printf("Escolha uma opcao: ");
 
-        if (lerInteiro(&caso3) == 0)
+        if (lerInteiro(&opcao) == 0)
         {
             printf("\nOpcao invalida. Tente novamente.\n");
             continue;
         }
 
-        switch (caso3)
+        switch (opcao)
         {
         case 1:
         {
             int pacienteId;
-            int indicePaciente;
+            int agendamentoId;
             int medicoSelecionado;
             char data[11];
             char horario[6];
@@ -417,11 +463,13 @@ void menuAgendamentos(void)
             }
 
             printf("\nID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nID invalido.\n");
+                break;
+            }
 
-            indicePaciente = buscarPaciente(pacienteId);
-
-            if (indicePaciente == -1)
+            if (buscarPaciente(pacienteId) == -1)
             {
                 printf("\nPaciente nao encontrado ou inativo.\n");
                 break;
@@ -433,60 +481,41 @@ void menuAgendamentos(void)
             printf("Horario (HH:MM): ");
             scanf(" %[^\n]", horario);
 
-            medicoSelecionado = agendarTriagem(pacienteId, data, horario);
-
-            if (medicoSelecionado == 0)
+            if (criarAgendamentoTriagem(pacienteId, data, horario,
+                                        &agendamentoId, &medicoSelecionado) == 0)
             {
                 printf("\nNao foi possivel criar o agendamento.\n");
                 printf("Verifique se o paciente possui triagem ativa e se ha medico disponivel.\n");
                 break;
             }
 
-            printf("\nAgendamento criado com sucesso! ID: %d\n", agendamentos[totalAgendamentos - 1].id);
+            printf("\nAgendamento criado com sucesso! ID: %d\n", agendamentoId);
             printf("Medico selecionado automaticamente. ID: %d\n", medicoSelecionado);
             break;
         }
 
         case 2:
-        {
-            if (totalAgendamentos == 0)
-            {
-                printf("\nNenhum agendamento cadastrado.\n");
-                break;
-            }
-
-            printf("\nLista de Agendamentos:\n");
-
-            for (int i = 0; i < totalAgendamentos; i++)
-            {
-                exibirAgendamento(&agendamentos[i]);
-            }
-
+            listarTodosAgendamentos();
             break;
-        }
 
         case 3:
         {
             int idBusca;
-            int encontrado = 0;
 
             printf("\nDigite o ID do agendamento que deseja cancelar: ");
-            scanf("%d", &idBusca);
-
-            for (int i = 0; i < totalAgendamentos; i++)
+            if (lerInteiro(&idBusca) == 0)
             {
-                if (agendamentos[i].id == idBusca)
-                {
-                    strcpy(agendamentos[i].status, "CANCELADO");
-                    encontrado = 1;
-                    printf("\nAgendamento cancelado com sucesso.\n");
-                    break;
-                }
+                printf("\nID invalido.\n");
+                break;
             }
 
-            if (encontrado == 0)
+            if (cancelarAgendamento(idBusca) == 1)
             {
-                printf("\nAgendamento nao encontrado.\n");
+                printf("\nAgendamento cancelado com sucesso.\n");
+            }
+            else
+            {
+                printf("\nNao foi possivel cancelar o agendamento.\n");
             }
 
             break;
@@ -495,25 +524,21 @@ void menuAgendamentos(void)
         case 4:
         {
             int idBusca;
-            int encontrado = 0;
 
             printf("\nDigite o ID do agendamento que deseja concluir: ");
-            scanf("%d", &idBusca);
-
-            for (int i = 0; i < totalAgendamentos; i++)
+            if (lerInteiro(&idBusca) == 0)
             {
-                if (agendamentos[i].id == idBusca)
-                {
-                    strcpy(agendamentos[i].status, "CONCLUIDO");
-                    encontrado = 1;
-                    printf("\nAgendamento concluido com sucesso.\n");
-                    break;
-                }
+                printf("\nID invalido.\n");
+                break;
             }
 
-            if (encontrado == 0)
+            if (concluirAgendamento(idBusca) == 1)
             {
-                printf("\nAgendamento nao encontrado.\n");
+                printf("\nAgendamento concluido com sucesso.\n");
+            }
+            else
+            {
+                printf("\nNao foi possivel concluir o agendamento.\n");
             }
 
             break;
@@ -528,5 +553,5 @@ void menuAgendamentos(void)
             break;
         }
 
-    } while (caso3 != 0);
+    } while (opcao != 0);
 }

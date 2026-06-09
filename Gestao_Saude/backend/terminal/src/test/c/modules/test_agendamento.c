@@ -83,6 +83,9 @@ static void resetarDados(void)
 
 int main(void)
 {
+    int agendamentoId;
+    int medicoSelecionado;
+
     assert(strcmp(obterEspecialidade(TRIAGEM_ORTOPEDIA), "Ortopedia") == 0);
     assert(strcmp(obterEspecialidade(TRIAGEM_CARDIOLOGIA), "Cardiologia") == 0);
     assert(strcmp(obterEspecialidade(TRIAGEM_PNEUMOLOGIA), "Pneumologia") == 0);
@@ -129,6 +132,19 @@ int main(void)
     assert(prontuarios[0].ativo == 1);
     assert(concluirAgendamento(1) == 0);
     assert(totalProntuarios == 1);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Ortopedia", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
+
+    assert(criarAgendamentoTriagem(1, "11/06/2026", "09:00", &agendamentoId, &medicoSelecionado) == 1);
+    assert(agendamentoId == 1);
+    assert(medicoSelecionado == 1);
+    assert(totalAgendamentos == 1);
+    assert(agendamentos[0].pacienteId == 1);
+    assert(agendamentos[0].medicoId == 1);
+    assert(strcmp(agendamentos[0].status, "AGENDADO") == 0);
 
     resetarDados();
     prepararPaciente(1, 2);
