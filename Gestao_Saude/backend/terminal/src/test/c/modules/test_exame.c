@@ -39,6 +39,9 @@ static void resetarDados(void)
 
 int main(void)
 {
+    Exame lista[MAX_EXAMES];
+    int totalCopiados;
+
     resetarDados();
 
     pacientes[0].id = 1;
@@ -139,6 +142,33 @@ int main(void)
     assert(contarExamesPorTipo(EXAME_TOMOGRAFIA) == 1);
     assert(contarExamesPorTipo(EXAME_URINA) == 0);
     assert(contarExamesUrgentes() == 1);
+
+    totalCopiados = copiarExames(lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 1);
+    assert(lista[0].pacienteId == 1);
+
+    totalCopiados = copiarExamesPorPaciente(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].pacienteId == 1);
+
+    totalCopiados = copiarExamesPorMedico(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].medicoId == 1);
+
+    totalCopiados = copiarExamesPorProntuario(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].prontuarioId == 1);
+
+    totalCopiados = copiarExamesUrgentes(lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].urgente == 1);
+
+    assert(copiarExames(NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesPorPaciente(1, NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesPorMedico(1, lista, 0) == 0);
+    assert(copiarExamesPorProntuario(1, NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesUrgentes(NULL, MAX_EXAMES) == 0);
 
     return 0;
 }

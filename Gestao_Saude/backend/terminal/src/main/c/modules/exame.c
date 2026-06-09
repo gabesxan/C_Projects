@@ -155,6 +155,111 @@ static void exibirExame(const Exame *exame)
     printf("Urgente: %s\n", exame->urgente == 1 ? "Sim" : "Nao");
 }
 
+int copiarExames(Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorPaciente(int pacienteId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].pacienteId == pacienteId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorMedico(int medicoId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].medicoId == medicoId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorProntuario(int prontuarioId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].prontuarioId == prontuarioId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesUrgentes(Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].urgente == 1)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
 int escolherTipoExame(void)
 {
     int tipoExame;
@@ -291,96 +396,86 @@ int excluirExame(int exameId)
 
 void listarExames(void)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExames(lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame cadastrado.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorPaciente(int pacienteId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorPaciente(pacienteId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].pacienteId == pacienteId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse paciente.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorMedico(int medicoId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorMedico(medicoId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].medicoId == medicoId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse medico.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorProntuario(int prontuarioId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorProntuario(prontuarioId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].prontuarioId == prontuarioId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse prontuario.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesUrgentes(void)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesUrgentes(lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].urgente == 1)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame urgente encontrado.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 

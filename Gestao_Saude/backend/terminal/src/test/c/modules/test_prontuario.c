@@ -24,6 +24,9 @@ int totalTriagens = 0;
 
 int main(void)
 {
+    Prontuario lista[MAX_PRONTUARIOS];
+    int totalCopiados;
+
     pacientes[0].id = 1;
     pacientes[0].ativo = 1;
     strcpy(pacientes[0].nome, "Maria Silva");
@@ -178,5 +181,32 @@ int main(void)
     assert(contarProntuariosPorEspecialidade("Ortopedia") == 2);
     assert(contarProntuariosPorEspecialidade("Pediatria") == 0);
     assert(contarProntuariosPorEspecialidade("Inexistente") == 0);
+    assert(contarProntuariosPorEspecialidade(NULL) == 0);
+
+    totalCopiados = copiarProntuarios(lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 4);
+    assert(lista[0].id == 1);
+    assert(lista[3].id == 4);
+
+    totalCopiados = copiarProntuariosPorPaciente(1, lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 3);
+    assert(lista[0].pacienteId == 1);
+    assert(lista[1].pacienteId == 1);
+    assert(lista[2].pacienteId == 1);
+
+    totalCopiados = copiarProntuariosPorMedico(2, lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].medicoId == 2);
+    assert(lista[1].medicoId == 2);
+
+    totalCopiados = copiarProntuariosPorEspecialidade("Cardiologia", lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].medicoId == 1);
+    assert(lista[1].medicoId == 1);
+
+    assert(copiarProntuarios(NULL, MAX_PRONTUARIOS) == 0);
+    assert(copiarProntuariosPorPaciente(1, NULL, MAX_PRONTUARIOS) == 0);
+    assert(copiarProntuariosPorMedico(2, lista, 0) == 0);
+    assert(copiarProntuariosPorEspecialidade(NULL, lista, MAX_PRONTUARIOS) == 0);
     return 0;
 }

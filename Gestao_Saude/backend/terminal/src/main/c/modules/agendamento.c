@@ -55,7 +55,10 @@ static void exibirAgendamento(const Agendamento *agendamento)
 
 static void listarTodosAgendamentos(void)
 {
-    if (totalAgendamentos == 0)
+    Agendamento lista[MAX_AGENDAMENTOS];
+    int totalCopiados = copiarAgendamentos(lista, MAX_AGENDAMENTOS);
+
+    if (totalCopiados == 0)
     {
         printf("\nNenhum agendamento cadastrado.\n");
         return;
@@ -63,9 +66,9 @@ static void listarTodosAgendamentos(void)
 
     printf("\nLista de Agendamentos:\n");
 
-    for (int i = 0; i < totalAgendamentos; i++)
+    for (int i = 0; i < totalCopiados; i++)
     {
-        exibirAgendamento(&agendamentos[i]);
+        exibirAgendamento(&lista[i]);
     }
 }
 
@@ -172,6 +175,67 @@ int criarAgendamentoTriagem(int pacienteId, char data[], char horario[], int *ag
     }
 
     return 1;
+}
+
+int copiarAgendamentos(Agendamento destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalAgendamentos && totalCopiados < maximo; i++)
+    {
+        /* Agendamento preserva historico por status; a consulta retorna todos os registros. */
+        destino[totalCopiados] = agendamentos[i];
+        totalCopiados++;
+    }
+
+    return totalCopiados;
+}
+
+int copiarAgendamentosPorPaciente(int pacienteId, Agendamento destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalAgendamentos && totalCopiados < maximo; i++)
+    {
+        if (agendamentos[i].pacienteId == pacienteId)
+        {
+            destino[totalCopiados] = agendamentos[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarAgendamentosPorMedico(int medicoId, Agendamento destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalAgendamentos && totalCopiados < maximo; i++)
+    {
+        if (agendamentos[i].medicoId == medicoId)
+        {
+            destino[totalCopiados] = agendamentos[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
 }
 
 static int criarAgendamento(int pacienteId, int medicoId, char data[], char horario[])
