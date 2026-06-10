@@ -6,4 +6,7 @@
 void menuPacientes(void);
 int cadastrarPaciente(const char nome[], const char cpf[], int idade, const char telefone[], char sexo, int regiaoAdministrativa);
 int excluirPaciente(int id);
+int salvarPacienteNoBanco(const Paciente *paciente);
+int carregarPacientesDoBanco(Paciente destino[], int maximo);
+
 #endif

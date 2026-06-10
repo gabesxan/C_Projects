@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "prontuario.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -24,6 +25,18 @@ int totalTriagens = 0;
 
 int main(void)
 {
+    Prontuario lista[MAX_PRONTUARIOS];
+    int totalCopiados;
+
+    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
+    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
+    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
+    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
+    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (701, 'Paciente Prontuario', '701.701.701-70', 45, '(61) 97010-0000', 'F', 1, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (801, 'Medico Prontuario', '801', 'Cardiologia', 1, 1);") == 1);
+
     pacientes[0].id = 1;
     pacientes[0].ativo = 1;
     strcpy(pacientes[0].nome, "Maria Silva");
@@ -178,5 +191,50 @@ int main(void)
     assert(contarProntuariosPorEspecialidade("Ortopedia") == 2);
     assert(contarProntuariosPorEspecialidade("Pediatria") == 0);
     assert(contarProntuariosPorEspecialidade("Inexistente") == 0);
+    assert(contarProntuariosPorEspecialidade(NULL) == 0);
+
+    totalCopiados = copiarProntuarios(lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 4);
+    assert(lista[0].id == 1);
+    assert(lista[3].id == 4);
+
+    totalCopiados = copiarProntuariosPorPaciente(1, lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 3);
+    assert(lista[0].pacienteId == 1);
+    assert(lista[1].pacienteId == 1);
+    assert(lista[2].pacienteId == 1);
+
+    totalCopiados = copiarProntuariosPorMedico(2, lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].medicoId == 2);
+    assert(lista[1].medicoId == 2);
+
+    totalCopiados = copiarProntuariosPorEspecialidade("Cardiologia", lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].medicoId == 1);
+    assert(lista[1].medicoId == 1);
+
+    assert(copiarProntuarios(NULL, MAX_PRONTUARIOS) == 0);
+    assert(copiarProntuariosPorPaciente(1, NULL, MAX_PRONTUARIOS) == 0);
+    assert(copiarProntuariosPorMedico(2, lista, 0) == 0);
+    assert(copiarProntuariosPorEspecialidade(NULL, lista, MAX_PRONTUARIOS) == 0);
+
+    prontuarios[0].id = 701;
+    prontuarios[0].pacienteId = 701;
+    prontuarios[0].medicoId = 801;
+    strcpy(prontuarios[0].data, "21/06/2026");
+    strcpy(prontuarios[0].observacoes, "Observacao SQLite");
+    strcpy(prontuarios[0].diagnostico, "Diagnostico SQLite");
+    strcpy(prontuarios[0].conduta, "Conduta SQLite");
+    prontuarios[0].alertaImportante = 1;
+    prontuarios[0].ativo = 1;
+
+    assert(salvarProntuarioNoBanco(&prontuarios[0]) == 1);
+    assert(salvarProntuarioNoBanco(NULL) == 0);
+    totalCopiados = carregarProntuariosDoBanco(lista, MAX_PRONTUARIOS);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 701);
+    assert(lista[0].pacienteId == 701);
+    assert(lista[0].medicoId == 801);
     return 0;
 }

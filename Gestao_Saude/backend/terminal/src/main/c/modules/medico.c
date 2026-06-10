@@ -1,4 +1,5 @@
 #include "medico.h"
+#include "sqlite_db.h"
 
 static void listarRegioes(void)
 {
@@ -95,6 +96,91 @@ int excluirMedico(int id)
     }
 
     return 0;
+}
+
+int salvarMedicoNoBanco(const Medico *medico)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT OR REPLACE INTO medicos "
+        "(id, nome, crm, especialidade, regiao_administrativa, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?);";
+
+    if (medico == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, medico->id);
+    sqlite3_bind_text(stmt, 2, medico->nome, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, medico->crm, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, medico->especialidade, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 5, medico->regiaoAdministrativa);
+    sqlite3_bind_int(stmt, 6, medico->ativo);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarMedicosDoBanco(Medico destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, nome, crm, especialidade, regiao_administrativa, ativo "
+        "FROM medicos ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        strcpy(destino[totalCarregados].nome, (const char *)sqlite3_column_text(stmt, 1));
+        strcpy(destino[totalCarregados].crm, (const char *)sqlite3_column_text(stmt, 2));
+        strcpy(destino[totalCarregados].especialidade, (const char *)sqlite3_column_text(stmt, 3));
+        destino[totalCarregados].regiaoAdministrativa = sqlite3_column_int(stmt, 4);
+        destino[totalCarregados].ativo = sqlite3_column_int(stmt, 5);
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
 }
 
 void menuMedicos(void)

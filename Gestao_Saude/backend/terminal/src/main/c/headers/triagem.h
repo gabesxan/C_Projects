@@ -17,5 +17,7 @@ int triagemCardiologia(int idadePaciente);
 int triagemPneumologia(int idadePaciente);
 int triagemPediatria(int idadePaciente);
 void exibirTipo(int tipoTriagem);
+int salvarTriagemNoBanco(const Triagem *triagem);
+int carregarTriagensDoBanco(Triagem destino[], int maximo);
 
 #endif
