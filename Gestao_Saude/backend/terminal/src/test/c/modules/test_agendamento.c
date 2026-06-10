@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "agendamento.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -83,6 +84,20 @@ static void resetarDados(void)
 
 int main(void)
 {
+    int agendamentoId;
+    int medicoSelecionado;
+    Agendamento lista[MAX_AGENDAMENTOS];
+    int totalCopiados;
+
+    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
+    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
+    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
+    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
+    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (501, 'Paciente Agenda', '501.501.501-50', 30, '(61) 95010-0000', 'F', 2, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (601, 'Medico Agenda', '601', 'Ortopedia', 2, 1);") == 1);
+
     assert(strcmp(obterEspecialidade(TRIAGEM_ORTOPEDIA), "Ortopedia") == 0);
     assert(strcmp(obterEspecialidade(TRIAGEM_CARDIOLOGIA), "Cardiologia") == 0);
     assert(strcmp(obterEspecialidade(TRIAGEM_PNEUMOLOGIA), "Pneumologia") == 0);
@@ -135,6 +150,67 @@ int main(void)
     prepararMedico(1, "Ortopedia", 2, 1);
     prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
 
+    assert(criarAgendamentoTriagem(1, "11/06/2026", "09:00", &agendamentoId, &medicoSelecionado) == 1);
+    assert(agendamentoId == 1);
+    assert(medicoSelecionado == 1);
+    assert(totalAgendamentos == 1);
+    assert(agendamentos[0].pacienteId == 1);
+    assert(agendamentos[0].medicoId == 1);
+    assert(strcmp(agendamentos[0].status, "AGENDADO") == 0);
+    totalCopiados = copiarAgendamentos(lista, MAX_AGENDAMENTOS);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 1);
+    assert(lista[0].pacienteId == 1);
+    assert(lista[0].medicoId == 1);
+    assert(strcmp(lista[0].data, "11/06/2026") == 0);
+    assert(strcmp(lista[0].horario, "09:00") == 0);
+    assert(strcmp(lista[0].status, "AGENDADO") == 0);
+    assert(copiarAgendamentos(NULL, MAX_AGENDAMENTOS) == 0);
+    assert(copiarAgendamentos(lista, 0) == 0);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararPaciente(2, 3);
+    prepararPaciente(3, 4);
+    prepararMedico(1, "Ortopedia", 2, 1);
+    prepararMedico(2, "Cardiologia", 3, 1);
+    prepararAgendamento(1, 1, 1, "11/06/2026", "08:00", "AGENDADO");
+    prepararAgendamento(2, 1, 2, "11/06/2026", "09:00", "CONCLUIDO");
+    prepararAgendamento(3, 3, 2, "11/06/2026", "10:00", "CANCELADO");
+
+    totalCopiados = copiarAgendamentosPorPaciente(1, lista, MAX_AGENDAMENTOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].pacienteId == 1);
+    assert(lista[1].pacienteId == 1);
+    assert(lista[0].medicoId == 1);
+    assert(lista[1].medicoId == 2);
+
+    totalCopiados = copiarAgendamentosPorMedico(2, lista, MAX_AGENDAMENTOS);
+    assert(totalCopiados == 2);
+    assert(lista[0].medicoId == 2);
+    assert(lista[1].medicoId == 2);
+    assert(lista[0].pacienteId == 1);
+    assert(lista[1].pacienteId == 3);
+
+    assert(copiarAgendamentosPorPaciente(1, NULL, MAX_AGENDAMENTOS) == 0);
+    assert(copiarAgendamentosPorMedico(2, lista, 0) == 0);
+
+    resetarDados();
+    prepararAgendamento(501, 501, 601, "21/06/2026", "08:30", "AGENDADO");
+    assert(salvarAgendamentoNoBanco(&agendamentos[0]) == 1);
+    assert(salvarAgendamentoNoBanco(NULL) == 0);
+    totalCopiados = carregarAgendamentosDoBanco(lista, MAX_AGENDAMENTOS);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 501);
+    assert(lista[0].pacienteId == 501);
+    assert(lista[0].medicoId == 601);
+    assert(strcmp(lista[0].status, "AGENDADO") == 0);
+
+    resetarDados();
+    prepararPaciente(1, 2);
+    prepararMedico(1, "Ortopedia", 2, 1);
+    prepararTriagem(1, 1, TRIAGEM_ORTOPEDIA, "Emergencia", 1);
+
     assert(agendarTriagem(1, "11/06/2026", "09:00") == 1);
     assert(totalAgendamentos == 1);
     assert(agendamentos[0].pacienteId == 1);
@@ -156,6 +232,10 @@ int main(void)
     assert(agendamentos[1].pacienteId == 1);
     assert(agendamentos[1].medicoId == 1);
     assert(strcmp(agendamentos[1].status, "AGENDADO") == 0);
+    totalCopiados = copiarAgendamentos(lista, MAX_AGENDAMENTOS);
+    assert(totalCopiados == 2);
+    assert(strcmp(lista[0].status, "REMANEJADO") == 0);
+    assert(strcmp(lista[1].status, "AGENDADO") == 0);
 
     resetarDados();
     prepararPaciente(1, 2);

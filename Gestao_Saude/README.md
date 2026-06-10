@@ -975,3 +975,4 @@ A base atual permite evolucoes como:
 O SIGEH-DF e um projeto academico simples na superficie, mas com uma base modular bem rica para estudo. Ele ja demonstra integracao entre entidades, validacao de regras, menus operacionais, indicadores gerenciais e evolucao incremental de arquitetura sem abandonar a simplicidade do C basico.
 
 A leitura do codigo fica muito mais proveitosa quando feita junto desta documentacao, porque cada arquivo tem uma responsabilidade clara dentro do sistema.
+

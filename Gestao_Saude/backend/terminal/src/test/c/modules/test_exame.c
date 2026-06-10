@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "exame.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -39,7 +40,20 @@ static void resetarDados(void)
 
 int main(void)
 {
+    Exame lista[MAX_EXAMES];
+    int totalCopiados;
+
     resetarDados();
+
+    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
+    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
+    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
+    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
+    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (901, 'Paciente Exame', '901.901.901-90', 35, '(61) 99010-0000', 'F', 3, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (902, 'Medico Exame', '902', 'Cardiologia', 3, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO prontuarios (id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo) VALUES (903, 901, 902, '21/06/2026', 'Obs', 'Diag', 'Conduta', 0, 1);") == 1);
 
     pacientes[0].id = 1;
     pacientes[0].ativo = 1;
@@ -139,6 +153,52 @@ int main(void)
     assert(contarExamesPorTipo(EXAME_TOMOGRAFIA) == 1);
     assert(contarExamesPorTipo(EXAME_URINA) == 0);
     assert(contarExamesUrgentes() == 1);
+
+    totalCopiados = copiarExames(lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 1);
+    assert(lista[0].pacienteId == 1);
+
+    totalCopiados = copiarExamesPorPaciente(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].pacienteId == 1);
+
+    totalCopiados = copiarExamesPorMedico(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].medicoId == 1);
+
+    totalCopiados = copiarExamesPorProntuario(1, lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].prontuarioId == 1);
+
+    totalCopiados = copiarExamesUrgentes(lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].urgente == 1);
+
+    assert(copiarExames(NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesPorPaciente(1, NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesPorMedico(1, lista, 0) == 0);
+    assert(copiarExamesPorProntuario(1, NULL, MAX_EXAMES) == 0);
+    assert(copiarExamesUrgentes(NULL, MAX_EXAMES) == 0);
+
+    exames[0].id = 901;
+    exames[0].pacienteId = 901;
+    exames[0].medicoId = 902;
+    exames[0].prontuarioId = 903;
+    exames[0].tipoExame = EXAME_RAIO_X;
+    strcpy(exames[0].dataSolicitacao, "21/06/2026");
+    strcpy(exames[0].dataResultado, "");
+    strcpy(exames[0].resultado, "");
+    strcpy(exames[0].status, "Solicitado");
+    exames[0].urgente = 0;
+    exames[0].ativo = 1;
+
+    assert(salvarExameNoBanco(&exames[0]) == 1);
+    assert(salvarExameNoBanco(NULL) == 0);
+    totalCopiados = carregarExamesDoBanco(lista, MAX_EXAMES);
+    assert(totalCopiados == 1);
+    assert(lista[0].id == 901);
+    assert(lista[0].prontuarioId == 903);
 
     return 0;
 }

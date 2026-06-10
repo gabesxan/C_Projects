@@ -1,4 +1,5 @@
 #include "triagem.h"
+#include "sqlite_db.h"
 
 static int pontosResposta(int resposta, int pontos)
 {
@@ -123,6 +124,91 @@ int excluirTriagem(int id)
     }
 
     return 0;
+}
+
+int salvarTriagemNoBanco(const Triagem *triagem)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT OR REPLACE INTO triagens "
+        "(id, paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?);";
+
+    if (triagem == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, triagem->id);
+    sqlite3_bind_int(stmt, 2, triagem->pacienteId);
+    sqlite3_bind_int(stmt, 3, triagem->tipoTriagem);
+    sqlite3_bind_int(stmt, 4, triagem->pontuacao);
+    sqlite3_bind_text(stmt, 5, triagem->classificacao, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 6, triagem->ativo);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarTriagensDoBanco(Triagem destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao, ativo "
+        "FROM triagens ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        destino[totalCarregados].pacienteId = sqlite3_column_int(stmt, 1);
+        destino[totalCarregados].tipoTriagem = sqlite3_column_int(stmt, 2);
+        destino[totalCarregados].pontuacao = sqlite3_column_int(stmt, 3);
+        strcpy(destino[totalCarregados].classificacao, (const char *)sqlite3_column_text(stmt, 4));
+        destino[totalCarregados].ativo = sqlite3_column_int(stmt, 5);
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
 }
 
 void exibirTipo(int tipoTriagem)

@@ -1,5 +1,6 @@
 #include "exame.h"
 #include "triagem.h"
+#include "sqlite_db.h"
 
 static int buscarPacienteAtivo(int pacienteId)
 {
@@ -155,6 +156,206 @@ static void exibirExame(const Exame *exame)
     printf("Urgente: %s\n", exame->urgente == 1 ? "Sim" : "Nao");
 }
 
+int copiarExames(Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorPaciente(int pacienteId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].pacienteId == pacienteId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorMedico(int medicoId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].medicoId == medicoId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesPorProntuario(int prontuarioId, Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].prontuarioId == prontuarioId)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarExamesUrgentes(Exame destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalExames && totalCopiados < maximo; i++)
+    {
+        if (exames[i].ativo == 1 && exames[i].urgente == 1)
+        {
+            destino[totalCopiados] = exames[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int salvarExameNoBanco(const Exame *exame)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT OR REPLACE INTO exames "
+        "(id, paciente_id, medico_id, prontuario_id, tipo_exame, data_solicitacao, data_resultado, resultado, status, urgente, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+
+    if (exame == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, exame->id);
+    sqlite3_bind_int(stmt, 2, exame->pacienteId);
+    sqlite3_bind_int(stmt, 3, exame->medicoId);
+    sqlite3_bind_int(stmt, 4, exame->prontuarioId);
+    sqlite3_bind_int(stmt, 5, exame->tipoExame);
+    sqlite3_bind_text(stmt, 6, exame->dataSolicitacao, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, exame->dataResultado, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 8, exame->resultado, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, exame->status, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 10, exame->urgente);
+    sqlite3_bind_int(stmt, 11, exame->ativo);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarExamesDoBanco(Exame destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, data_solicitacao, data_resultado, resultado, status, urgente, ativo "
+        "FROM exames ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        destino[totalCarregados].pacienteId = sqlite3_column_int(stmt, 1);
+        destino[totalCarregados].medicoId = sqlite3_column_int(stmt, 2);
+        destino[totalCarregados].prontuarioId = sqlite3_column_int(stmt, 3);
+        destino[totalCarregados].tipoExame = sqlite3_column_int(stmt, 4);
+        strcpy(destino[totalCarregados].dataSolicitacao, (const char *)sqlite3_column_text(stmt, 5));
+        strcpy(destino[totalCarregados].dataResultado, (const char *)sqlite3_column_text(stmt, 6));
+        strcpy(destino[totalCarregados].resultado, (const char *)sqlite3_column_text(stmt, 7));
+        strcpy(destino[totalCarregados].status, (const char *)sqlite3_column_text(stmt, 8));
+        destino[totalCarregados].urgente = sqlite3_column_int(stmt, 9);
+        destino[totalCarregados].ativo = sqlite3_column_int(stmt, 10);
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
+}
+
 int escolherTipoExame(void)
 {
     int tipoExame;
@@ -291,96 +492,86 @@ int excluirExame(int exameId)
 
 void listarExames(void)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExames(lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame cadastrado.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorPaciente(int pacienteId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorPaciente(pacienteId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].pacienteId == pacienteId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse paciente.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorMedico(int medicoId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorMedico(medicoId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].medicoId == medicoId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse medico.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesPorProntuario(int prontuarioId)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesPorProntuario(prontuarioId, lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].prontuarioId == prontuarioId)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame encontrado para esse prontuario.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 
 void listarExamesUrgentes(void)
 {
-    int encontrou = 0;
+    Exame lista[MAX_EXAMES];
+    int totalCopiados = copiarExamesUrgentes(lista, MAX_EXAMES);
 
-    for (int i = 0; i < totalExames; i++)
-    {
-        if (exames[i].ativo == 1 && exames[i].urgente == 1)
-        {
-            exibirExame(&exames[i]);
-            encontrou = 1;
-        }
-    }
-
-    if (encontrou == 0)
+    if (totalCopiados == 0)
     {
         printf("\nNenhum exame urgente encontrado.\n");
+        return;
+    }
+
+    for (int i = 0; i < totalCopiados; i++)
+    {
+        exibirExame(&lista[i]);
     }
 }
 

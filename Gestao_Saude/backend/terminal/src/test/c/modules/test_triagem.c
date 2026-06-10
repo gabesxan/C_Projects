@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "triagem.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Triagem triagens[MAX_TRIAGENS];
@@ -11,6 +12,15 @@ int totalTriagens = 0;
 int main(void)
 {
     char classificacao[30];
+    Triagem lista[MAX_TRIAGENS];
+    int totalCarregados;
+
+    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
+    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
+    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
+    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
+    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (777, 'Paciente Triagem', '777.777.777-77', 25, '(61) 90000-7777', 'M', 1, 1);") == 1);
 
     classificarTriagem(0, classificacao);
     assert(strcmp(classificacao, "Orientacao basica") == 0);
@@ -81,6 +91,21 @@ int main(void)
     assert(triagemAtual(2) == 1);
     assert(triagemAtual(3) == -1);
     assert(triagemAtual(99) == -1);
+
+    triagens[0].id = 777;
+    triagens[0].pacienteId = 777;
+    triagens[0].tipoTriagem = TRIAGEM_GERAL;
+    triagens[0].pontuacao = 6;
+    strcpy(triagens[0].classificacao, "Muito prioritario");
+    triagens[0].ativo = 1;
+
+    assert(salvarTriagemNoBanco(&triagens[0]) == 1);
+    assert(salvarTriagemNoBanco(NULL) == 0);
+    totalCarregados = carregarTriagensDoBanco(lista, MAX_TRIAGENS);
+    assert(totalCarregados == 1);
+    assert(lista[0].id == 777);
+    assert(lista[0].pacienteId == 777);
+    assert(strcmp(lista[0].classificacao, "Muito prioritario") == 0);
 
     return 0;
 }

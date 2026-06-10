@@ -6,5 +6,7 @@
 void menuMedicos(void);
 int cadastrarMedico(const char nome[], const char crm[], const char especialidade[], int regiaoAdministrativa);
 int excluirMedico(int id);
+int salvarMedicoNoBanco(const Medico *medico);
+int carregarMedicosDoBanco(Medico destino[], int maximo);
 
 #endif

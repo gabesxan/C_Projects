@@ -1,5 +1,6 @@
 #include "prontuario.h"
 #include "agendamento.h"
+#include "sqlite_db.h"
 
 static int buscarPacienteAtivo(int pacienteId)
 {
@@ -149,6 +150,182 @@ static void listarEspecialidades(void)
     }
 }
 
+int copiarProntuarios(Prontuario destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalProntuarios && totalCopiados < maximo; i++)
+    {
+        if (prontuarios[i].ativo == 1)
+        {
+            destino[totalCopiados] = prontuarios[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarProntuariosPorPaciente(int pacienteId, Prontuario destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalProntuarios && totalCopiados < maximo; i++)
+    {
+        if (prontuarios[i].ativo == 1 && prontuarios[i].pacienteId == pacienteId)
+        {
+            destino[totalCopiados] = prontuarios[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarProntuariosPorMedico(int medicoId, Prontuario destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalProntuarios && totalCopiados < maximo; i++)
+    {
+        if (prontuarios[i].ativo == 1 && prontuarios[i].medicoId == medicoId)
+        {
+            destino[totalCopiados] = prontuarios[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int copiarProntuariosPorEspecialidade(const char especialidade[], Prontuario destino[], int maximo)
+{
+    int totalCopiados = 0;
+
+    if (especialidade == NULL || destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < totalProntuarios && totalCopiados < maximo; i++)
+    {
+        if (prontuarios[i].ativo == 1 &&
+            strcmp(especialidadeMedico(prontuarios[i].medicoId), especialidade) == 0)
+        {
+            destino[totalCopiados] = prontuarios[i];
+            totalCopiados++;
+        }
+    }
+
+    return totalCopiados;
+}
+
+int salvarProntuarioNoBanco(const Prontuario *prontuario)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT OR REPLACE INTO prontuarios "
+        "(id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+
+    if (prontuario == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, prontuario->id);
+    sqlite3_bind_int(stmt, 2, prontuario->pacienteId);
+    sqlite3_bind_int(stmt, 3, prontuario->medicoId);
+    sqlite3_bind_text(stmt, 4, prontuario->data, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, prontuario->observacoes, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, prontuario->diagnostico, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, prontuario->conduta, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 8, prontuario->alertaImportante);
+    sqlite3_bind_int(stmt, 9, prontuario->ativo);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarProntuariosDoBanco(Prontuario destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo "
+        "FROM prontuarios ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        destino[totalCarregados].pacienteId = sqlite3_column_int(stmt, 1);
+        destino[totalCarregados].medicoId = sqlite3_column_int(stmt, 2);
+        strcpy(destino[totalCarregados].data, (const char *)sqlite3_column_text(stmt, 3));
+        strcpy(destino[totalCarregados].observacoes, (const char *)sqlite3_column_text(stmt, 4));
+        strcpy(destino[totalCarregados].diagnostico, (const char *)sqlite3_column_text(stmt, 5));
+        strcpy(destino[totalCarregados].conduta, (const char *)sqlite3_column_text(stmt, 6));
+        destino[totalCarregados].alertaImportante = sqlite3_column_int(stmt, 7);
+        destino[totalCarregados].ativo = sqlite3_column_int(stmt, 8);
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
+}
+
 int criarProntuarioAutomatico(int pacienteId, int medicoId, const char data[])
 {
     return registrarProntuario(pacienteId, medicoId, data,
@@ -255,6 +432,11 @@ int contarProntuariosPorEspecialidade(const char especialidade[])
 {
     int total = 0;
 
+    if (especialidade == NULL)
+    {
+        return 0;
+    }
+
     for (int i = 0; i < totalProntuarios; i++)
     {
         if (prontuarios[i].ativo == 1 &&
@@ -269,53 +451,52 @@ int contarProntuariosPorEspecialidade(const char especialidade[])
 
 void listarProntuarioPorPaciente(int pacienteId)
 {
-    if (contarProntuariosPorPaciente(pacienteId) == 0)
+    Prontuario lista[MAX_PRONTUARIOS];
+    int totalCopiados = copiarProntuariosPorPaciente(pacienteId, lista, MAX_PRONTUARIOS);
+
+    if (totalCopiados == 0)
     {
         printf("\nNenhum prontuario encontrado para esse paciente.\n");
         return;
     }
 
-    for (int i = 0; i < totalProntuarios; i++)
+    for (int i = 0; i < totalCopiados; i++)
     {
-        if (prontuarios[i].pacienteId == pacienteId && prontuarios[i].ativo == 1)
-        {
-            exibirProntuario(&prontuarios[i]);
-        }
+        exibirProntuario(&lista[i]);
     }
 }
 
 void listarProntuarioPorMedico(int medicoId)
 {
-    if (contarProntuariosPorMedico(medicoId) == 0)
+    Prontuario lista[MAX_PRONTUARIOS];
+    int totalCopiados = copiarProntuariosPorMedico(medicoId, lista, MAX_PRONTUARIOS);
+
+    if (totalCopiados == 0)
     {
         printf("\nNenhum prontuario encontrado para esse medico.\n");
         return;
     }
 
-    for (int i = 0; i < totalProntuarios; i++)
+    for (int i = 0; i < totalCopiados; i++)
     {
-        if (prontuarios[i].medicoId == medicoId && prontuarios[i].ativo == 1)
-        {
-            exibirProntuario(&prontuarios[i]);
-        }
+        exibirProntuario(&lista[i]);
     }
 }
 
 void listarProntuarioPorEspecialidade(const char especialidade[])
 {
-    if (contarProntuariosPorEspecialidade(especialidade) == 0)
+    Prontuario lista[MAX_PRONTUARIOS];
+    int totalCopiados = copiarProntuariosPorEspecialidade(especialidade, lista, MAX_PRONTUARIOS);
+
+    if (totalCopiados == 0)
     {
         printf("\nNenhum prontuario encontrado para essa especialidade.\n");
         return;
     }
 
-    for (int i = 0; i < totalProntuarios; i++)
+    for (int i = 0; i < totalCopiados; i++)
     {
-        if (prontuarios[i].ativo == 1 &&
-            strcmp(especialidadeMedico(prontuarios[i].medicoId), especialidade) == 0)
-        {
-            exibirProntuario(&prontuarios[i]);
-        }
+        exibirProntuario(&lista[i]);
     }
 }
 
@@ -353,7 +534,11 @@ void menuProntuarios(void)
 
             listarPacientesAtivos();
             printf("\nID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nPaciente invalido.\n");
+                break;
+            }
 
             if (buscarPacienteAtivo(pacienteId) == -1)
             {
@@ -363,7 +548,11 @@ void menuProntuarios(void)
 
             listarMedicosAtivos();
             printf("\nID do medico: ");
-            scanf("%d", &medicoId);
+            if (lerInteiro(&medicoId) == 0)
+            {
+                printf("\nMedico invalido.\n");
+                break;
+            }
 
             if (buscarMedicoAtivo(medicoId) == -1)
             {
@@ -398,7 +587,11 @@ void menuProntuarios(void)
 
             listarPacientesAtivos();
             printf("\nID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nPaciente invalido.\n");
+                break;
+            }
 
             if (buscarPacienteAtivo(pacienteId) == -1)
             {
@@ -408,7 +601,11 @@ void menuProntuarios(void)
 
             listarMedicosAtivos();
             printf("\nID do medico: ");
-            scanf("%d", &medicoId);
+            if (lerInteiro(&medicoId) == 0)
+            {
+                printf("\nMedico invalido.\n");
+                break;
+            }
 
             if (buscarMedicoAtivo(medicoId) == -1)
             {
@@ -429,7 +626,11 @@ void menuProntuarios(void)
             scanf(" %[^\n]", conduta);
 
             printf("Alerta importante? (1-Sim / 0-Nao): ");
-            scanf("%d", &alertaImportante);
+            if (lerInteiro(&alertaImportante) == 0)
+            {
+                printf("\nAlerta invalido.\n");
+                break;
+            }
 
             if (registrarProntuario(pacienteId, medicoId, data, observacoes,
                                     diagnostico, conduta, alertaImportante) == 1)
@@ -472,7 +673,11 @@ void menuProntuarios(void)
             }
 
             printf("\nDigite o ID do prontuario: ");
-            scanf("%d", &prontuarioId);
+            if (lerInteiro(&prontuarioId) == 0)
+            {
+                printf("\nProntuario invalido.\n");
+                break;
+            }
 
             if (buscarProntuarioAtivo(prontuarioId) == -1)
             {
@@ -490,7 +695,11 @@ void menuProntuarios(void)
             scanf(" %[^\n]", conduta);
 
             printf("Alerta importante? (1-Sim / 0-Nao): ");
-            scanf("%d", &alertaImportante);
+            if (lerInteiro(&alertaImportante) == 0)
+            {
+                printf("\nAlerta invalido.\n");
+                break;
+            }
 
             if (complementarProntuario(prontuarioId, observacoes, diagnostico,
                                        conduta, alertaImportante) == 1)
@@ -511,7 +720,11 @@ void menuProntuarios(void)
 
             listarPacientesAtivos();
             printf("\nDigite o ID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nPaciente invalido.\n");
+                break;
+            }
 
             listarProntuarioPorPaciente(pacienteId);
             break;
@@ -523,7 +736,11 @@ void menuProntuarios(void)
 
             listarMedicosAtivos();
             printf("\nDigite o ID do medico: ");
-            scanf("%d", &medicoId);
+            if (lerInteiro(&medicoId) == 0)
+            {
+                printf("\nMedico invalido.\n");
+                break;
+            }
 
             listarProntuarioPorMedico(medicoId);
             break;
@@ -536,7 +753,11 @@ void menuProntuarios(void)
 
             listarEspecialidades();
             printf("\nEscolha a especialidade: ");
-            scanf("%d", &opcaoEspecialidade);
+            if (lerInteiro(&opcaoEspecialidade) == 0)
+            {
+                printf("\nEspecialidade invalida.\n");
+                break;
+            }
 
             if (preencherEspecialidade(especialidade, opcaoEspecialidade) == 0)
             {
