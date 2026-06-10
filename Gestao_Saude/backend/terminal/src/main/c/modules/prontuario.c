@@ -240,9 +240,18 @@ int salvarProntuarioNoBanco(const Prontuario *prontuario)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO prontuarios "
+        "INSERT INTO prontuarios "
         "(id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "paciente_id = excluded.paciente_id, "
+        "medico_id = excluded.medico_id, "
+        "data = excluded.data, "
+        "observacoes = excluded.observacoes, "
+        "diagnostico = excluded.diagnostico, "
+        "conduta = excluded.conduta, "
+        "alerta_importante = excluded.alerta_importante, "
+        "ativo = excluded.ativo;";
 
     if (prontuario == NULL)
     {
@@ -356,6 +365,11 @@ int complementarProntuario(int prontuarioId, const char observacoes[],
     strcpy(prontuarios[indiceProntuario].conduta, conduta);
     prontuarios[indiceProntuario].alertaImportante = alertaImportante;
 
+    if (salvarProntuarioNoBanco(&prontuarios[indiceProntuario]) == 0)
+    {
+        return 0;
+    }
+
     return 1;
 }
 
@@ -393,6 +407,11 @@ int registrarProntuario(int pacienteId, int medicoId, const char data[],
     strcpy(prontuarios[totalProntuarios].conduta, conduta);
     prontuarios[totalProntuarios].alertaImportante = alertaImportante;
     prontuarios[totalProntuarios].ativo = 1;
+
+    if (salvarProntuarioNoBanco(&prontuarios[totalProntuarios]) == 0)
+    {
+        return 0;
+    }
 
     totalProntuarios++;
 

@@ -12,10 +12,8 @@ int main(void)
     Medico lista[MAX_MEDICOS];
     int totalCarregados;
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_medico.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
 
     assert(cadastrarMedico("Carlos Henrique Almeida", "12345", "Cardiologia", 3) == 1);
     assert(totalMedicos == 1);
@@ -44,6 +42,8 @@ int main(void)
     strcpy(medicoTeste.especialidade, "Clinico Geral");
     medicoTeste.regiaoAdministrativa = 2;
     medicoTeste.ativo = 1;
+
+    assert(reinicializarBancoSQLite() == 1);
 
     assert(salvarMedicoNoBanco(&medicoTeste) == 1);
     assert(salvarMedicoNoBanco(NULL) == 0);

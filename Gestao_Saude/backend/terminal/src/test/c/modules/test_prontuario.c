@@ -28,12 +28,8 @@ int main(void)
     Prontuario lista[MAX_PRONTUARIOS];
     int totalCopiados;
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
-    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
-    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_prontuario.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
     assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (701, 'Paciente Prontuario', '701.701.701-70', 45, '(61) 97010-0000', 'F', 1, 1);") == 1);
     assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (801, 'Medico Prontuario', '801', 'Cardiologia', 1, 1);") == 1);
 
@@ -218,6 +214,10 @@ int main(void)
     assert(copiarProntuariosPorPaciente(1, NULL, MAX_PRONTUARIOS) == 0);
     assert(copiarProntuariosPorMedico(2, lista, 0) == 0);
     assert(copiarProntuariosPorEspecialidade(NULL, lista, MAX_PRONTUARIOS) == 0);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (701, 'Paciente Prontuario', '701.701.701-70', 45, '(61) 97010-0000', 'F', 1, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (801, 'Medico Prontuario', '801', 'Cardiologia', 1, 1);") == 1);
 
     prontuarios[0].id = 701;
     prontuarios[0].pacienteId = 701;

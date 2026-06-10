@@ -6,7 +6,9 @@ int main(void)
 {
     sqlite3 *db = NULL;
 
-    assert(strcmp(obterCaminhoBancoSQLite(), "../data/sigeh_v2.db") == 0);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_sqlite_db.db") == 1);
+    assert(strcmp(obterCaminhoBancoSQLite(), "/tmp/sigeh_test_sqlite_db.db") == 0);
+    assert(reinicializarBancoSQLite() == 1);
     assert(abrirBancoSQLite(&db) == 1);
     assert(db != NULL);
 
