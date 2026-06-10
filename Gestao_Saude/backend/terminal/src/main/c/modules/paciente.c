@@ -64,6 +64,8 @@ static void exibirPaciente(const Paciente *paciente)
 
 int cadastrarPaciente(const char nome[], const char cpf[], int idade, const char telefone[], char sexo, int regiaoAdministrativa)
 {
+    Paciente *novoPaciente = NULL;
+
     if (totalPacientes >= MAX_PACIENTES)
     {
         return 0;
@@ -74,14 +76,20 @@ int cadastrarPaciente(const char nome[], const char cpf[], int idade, const char
         return 0;
     }
 
-    pacientes[totalPacientes].id = totalPacientes + 1;
-    strcpy(pacientes[totalPacientes].nome, nome);
-    strcpy(pacientes[totalPacientes].cpf, cpf);
-    pacientes[totalPacientes].idade = idade;
-    strcpy(pacientes[totalPacientes].telefone, telefone);
-    pacientes[totalPacientes].sexo = sexo;
-    pacientes[totalPacientes].regiaoAdministrativa = regiaoAdministrativa;
-    pacientes[totalPacientes].ativo = 1;
+    novoPaciente = &pacientes[totalPacientes];
+    novoPaciente->id = totalPacientes + 1;
+    strcpy(novoPaciente->nome, nome);
+    strcpy(novoPaciente->cpf, cpf);
+    novoPaciente->idade = idade;
+    strcpy(novoPaciente->telefone, telefone);
+    novoPaciente->sexo = sexo;
+    novoPaciente->regiaoAdministrativa = regiaoAdministrativa;
+    novoPaciente->ativo = 1;
+
+    if (salvarPacienteNoBanco(novoPaciente) == 0)
+    {
+        return 0;
+    }
 
     totalPacientes++;
 
@@ -95,6 +103,11 @@ int excluirPaciente(int id)
         if (pacientes[i].id == id && pacientes[i].ativo == 1)
         {
             pacientes[i].ativo = 0;
+            if (salvarPacienteNoBanco(&pacientes[i]) == 0)
+            {
+                pacientes[i].ativo = 1;
+                return 0;
+            }
             return 1;
         }
     }
@@ -107,9 +120,17 @@ int salvarPacienteNoBanco(const Paciente *paciente)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO pacientes "
+        "INSERT INTO pacientes "
         "(id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "nome = excluded.nome, "
+        "cpf = excluded.cpf, "
+        "idade = excluded.idade, "
+        "telefone = excluded.telefone, "
+        "sexo = excluded.sexo, "
+        "regiao_administrativa = excluded.regiao_administrativa, "
+        "ativo = excluded.ativo;";
 
     if (paciente == NULL)
     {
@@ -360,6 +381,11 @@ void menuPacientes(void)
 
             if (opcaoEditar != 0)
             {
+                if (salvarPacienteNoBanco(&pacientes[indicePaciente]) == 0)
+                {
+                    printf("\nNao foi possivel salvar a atualizacao no banco.\n");
+                    break;
+                }
                 printf("\nPaciente atualizado com sucesso.\n");
             }
 

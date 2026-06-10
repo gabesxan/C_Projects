@@ -12,11 +12,8 @@ int main(void)
     Paciente lista[MAX_PACIENTES];
     int totalCarregados;
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
-    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_paciente.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
 
     pacienteTeste.id = 999;
     strcpy(pacienteTeste.nome, "Paciente SQLite");
@@ -43,6 +40,9 @@ int main(void)
     assert(pacientes[0].ativo == 0);
     assert(excluirPaciente(1) == 0);
     assert(excluirPaciente(99) == 0);
+
+    assert(reinicializarBancoSQLite() == 1);
+
     assert(salvarPacienteNoBanco(&pacienteTeste) == 1);
     assert(salvarPacienteNoBanco(NULL) == 0);
     totalCarregados = carregarPacientesDoBanco(lista, MAX_PACIENTES);

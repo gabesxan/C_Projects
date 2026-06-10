@@ -10,3 +10,4 @@ int salvarMedicoNoBanco(const Medico *medico);
 int carregarMedicosDoBanco(Medico destino[], int maximo);
 
 #endif
+

@@ -9,6 +9,7 @@
 #include "relatorio.h"
 #include "prontuario.h"
 #include "exame.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Medico medicos[MAX_MEDICOS];
@@ -29,6 +30,26 @@ int totalInternacoes = 0;
 int totalTriagens = 0;
 int totalProntuarios = 0;
 int totalExames = 0;
+
+static void carregarDadosIniciais(void)
+{
+    sqlite3 *db = NULL;
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        printf("\nAviso: nao foi possivel abrir o banco SQLite. O sistema iniciara apenas com dados em memoria.\n");
+        return;
+    }
+
+    fecharBancoSQLite(db);
+
+    totalPacientes = carregarPacientesDoBanco(pacientes, MAX_PACIENTES);
+    totalMedicos = carregarMedicosDoBanco(medicos, MAX_MEDICOS);
+    totalTriagens = carregarTriagensDoBanco(triagens, MAX_TRIAGENS);
+    totalAgendamentos = carregarAgendamentosDoBanco(agendamentos, MAX_AGENDAMENTOS);
+    totalProntuarios = carregarProntuariosDoBanco(prontuarios, MAX_PRONTUARIOS);
+    totalExames = carregarExamesDoBanco(exames, MAX_EXAMES);
+}
 
 static void exibirMenu(void)
 {
@@ -107,6 +128,8 @@ static void executarOpcao(int opcao)
 int main(void)
 {
     int opcao;
+
+    carregarDadosIniciais();
 
     do
     {

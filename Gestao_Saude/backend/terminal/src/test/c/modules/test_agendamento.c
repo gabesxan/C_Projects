@@ -89,12 +89,8 @@ int main(void)
     Agendamento lista[MAX_AGENDAMENTOS];
     int totalCopiados;
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
-    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
-    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_agendamento.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
     assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (501, 'Paciente Agenda', '501.501.501-50', 30, '(61) 95010-0000', 'F', 2, 1);") == 1);
     assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (601, 'Medico Agenda', '601', 'Ortopedia', 2, 1);") == 1);
 
@@ -194,6 +190,10 @@ int main(void)
 
     assert(copiarAgendamentosPorPaciente(1, NULL, MAX_AGENDAMENTOS) == 0);
     assert(copiarAgendamentosPorMedico(2, lista, 0) == 0);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (501, 'Paciente Agenda', '501.501.501-50', 30, '(61) 95010-0000', 'F', 2, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (601, 'Medico Agenda', '601', 'Ortopedia', 2, 1);") == 1);
 
     resetarDados();
     prepararAgendamento(501, 501, 601, "21/06/2026", "08:30", "AGENDADO");

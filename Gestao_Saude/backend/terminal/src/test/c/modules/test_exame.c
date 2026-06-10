@@ -45,12 +45,8 @@ int main(void)
 
     resetarDados();
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
-    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
-    assert(executarSQLSQLite("DELETE FROM medicos;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_exame.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
     assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (901, 'Paciente Exame', '901.901.901-90', 35, '(61) 99010-0000', 'F', 3, 1);") == 1);
     assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (902, 'Medico Exame', '902', 'Cardiologia', 3, 1);") == 1);
     assert(executarSQLSQLite("INSERT INTO prontuarios (id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo) VALUES (903, 901, 902, '21/06/2026', 'Obs', 'Diag', 'Conduta', 0, 1);") == 1);
@@ -180,6 +176,11 @@ int main(void)
     assert(copiarExamesPorMedico(1, lista, 0) == 0);
     assert(copiarExamesPorProntuario(1, NULL, MAX_EXAMES) == 0);
     assert(copiarExamesUrgentes(NULL, MAX_EXAMES) == 0);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (901, 'Paciente Exame', '901.901.901-90', 35, '(61) 99010-0000', 'F', 3, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO medicos (id, nome, crm, especialidade, regiao_administrativa, ativo) VALUES (902, 'Medico Exame', '902', 'Cardiologia', 3, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO prontuarios (id, paciente_id, medico_id, data, observacoes, diagnostico, conduta, alerta_importante, ativo) VALUES (903, 901, 902, '21/06/2026', 'Obs', 'Diag', 'Conduta', 0, 1);") == 1);
 
     exames[0].id = 901;
     exames[0].pacienteId = 901;

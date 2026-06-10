@@ -15,11 +15,8 @@ int main(void)
     Triagem lista[MAX_TRIAGENS];
     int totalCarregados;
 
-    assert(executarSQLSQLite("DELETE FROM exames;") == 1);
-    assert(executarSQLSQLite("DELETE FROM prontuarios;") == 1);
-    assert(executarSQLSQLite("DELETE FROM agendamentos;") == 1);
-    assert(executarSQLSQLite("DELETE FROM triagens;") == 1);
-    assert(executarSQLSQLite("DELETE FROM pacientes;") == 1);
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_triagem.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
     assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (777, 'Paciente Triagem', '777.777.777-77', 25, '(61) 90000-7777', 'M', 1, 1);") == 1);
 
     classificarTriagem(0, classificacao);
@@ -91,6 +88,9 @@ int main(void)
     assert(triagemAtual(2) == 1);
     assert(triagemAtual(3) == -1);
     assert(triagemAtual(99) == -1);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (777, 'Paciente Triagem', '777.777.777-77', 25, '(61) 90000-7777', 'M', 1, 1);") == 1);
 
     triagens[0].id = 777;
     triagens[0].pacienteId = 777;

@@ -62,6 +62,8 @@ static void exibirMedico(const Medico *medico)
 
 int cadastrarMedico(const char nome[], const char crm[], const char especialidade[], int regiaoAdministrativa)
 {
+    Medico *novoMedico = NULL;
+
     if (totalMedicos >= MAX_MEDICOS)
     {
         return 0;
@@ -72,12 +74,18 @@ int cadastrarMedico(const char nome[], const char crm[], const char especialidad
         return 0;
     }
 
-    medicos[totalMedicos].id = totalMedicos + 1;
-    strcpy(medicos[totalMedicos].nome, nome);
-    strcpy(medicos[totalMedicos].crm, crm);
-    strcpy(medicos[totalMedicos].especialidade, especialidade);
-    medicos[totalMedicos].regiaoAdministrativa = regiaoAdministrativa;
-    medicos[totalMedicos].ativo = 1;
+    novoMedico = &medicos[totalMedicos];
+    novoMedico->id = totalMedicos + 1;
+    strcpy(novoMedico->nome, nome);
+    strcpy(novoMedico->crm, crm);
+    strcpy(novoMedico->especialidade, especialidade);
+    novoMedico->regiaoAdministrativa = regiaoAdministrativa;
+    novoMedico->ativo = 1;
+
+    if (salvarMedicoNoBanco(novoMedico) == 0)
+    {
+        return 0;
+    }
 
     totalMedicos++;
 
@@ -91,6 +99,11 @@ int excluirMedico(int id)
         if (medicos[i].id == id && medicos[i].ativo == 1)
         {
             medicos[i].ativo = 0;
+            if (salvarMedicoNoBanco(&medicos[i]) == 0)
+            {
+                medicos[i].ativo = 1;
+                return 0;
+            }
             return 1;
         }
     }
@@ -103,9 +116,15 @@ int salvarMedicoNoBanco(const Medico *medico)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO medicos "
+        "INSERT INTO medicos "
         "(id, nome, crm, especialidade, regiao_administrativa, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "nome = excluded.nome, "
+        "crm = excluded.crm, "
+        "especialidade = excluded.especialidade, "
+        "regiao_administrativa = excluded.regiao_administrativa, "
+        "ativo = excluded.ativo;";
 
     if (medico == NULL)
     {
@@ -334,6 +353,11 @@ void menuMedicos(void)
 
             if (opcaoEditar != 0)
             {
+                if (salvarMedicoNoBanco(&medicos[indiceMedico]) == 0)
+                {
+                    printf("\nNao foi possivel salvar a atualizacao no banco.\n");
+                    break;
+                }
                 printf("\nMedico atualizado com sucesso.\n");
             }
 

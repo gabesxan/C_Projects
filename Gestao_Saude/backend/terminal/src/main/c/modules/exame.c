@@ -266,9 +266,20 @@ int salvarExameNoBanco(const Exame *exame)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO exames "
+        "INSERT INTO exames "
         "(id, paciente_id, medico_id, prontuario_id, tipo_exame, data_solicitacao, data_resultado, resultado, status, urgente, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "paciente_id = excluded.paciente_id, "
+        "medico_id = excluded.medico_id, "
+        "prontuario_id = excluded.prontuario_id, "
+        "tipo_exame = excluded.tipo_exame, "
+        "data_solicitacao = excluded.data_solicitacao, "
+        "data_resultado = excluded.data_resultado, "
+        "resultado = excluded.resultado, "
+        "status = excluded.status, "
+        "urgente = excluded.urgente, "
+        "ativo = excluded.ativo;";
 
     if (exame == NULL)
     {
@@ -427,6 +438,11 @@ int solicitarExame(int pacienteId, int medicoId, int prontuarioId,
     exames[totalExames].urgente = exameUrgentePorTriagem(pacienteId);
     exames[totalExames].ativo = 1;
 
+    if (salvarExameNoBanco(&exames[totalExames]) == 0)
+    {
+        return 0;
+    }
+
     totalExames++;
 
     return 1;
@@ -456,6 +472,11 @@ int registrarResultadoExame(int exameId, const char dataResultado[],
     strcpy(exames[indiceExame].resultado, resultado);
     strcpy(exames[indiceExame].status, "Realizado");
 
+    if (salvarExameNoBanco(&exames[indiceExame]) == 0)
+    {
+        return 0;
+    }
+
     return 1;
 }
 
@@ -474,6 +495,11 @@ int cancelarExame(int exameId)
     }
 
     strcpy(exames[indiceExame].status, "Cancelado");
+    if (salvarExameNoBanco(&exames[indiceExame]) == 0)
+    {
+        strcpy(exames[indiceExame].status, "Solicitado");
+        return 0;
+    }
     return 1;
 }
 
@@ -487,6 +513,11 @@ int excluirExame(int exameId)
     }
 
     exames[indiceExame].ativo = 0;
+    if (salvarExameNoBanco(&exames[indiceExame]) == 0)
+    {
+        exames[indiceExame].ativo = 1;
+        return 0;
+    }
     return 1;
 }
 

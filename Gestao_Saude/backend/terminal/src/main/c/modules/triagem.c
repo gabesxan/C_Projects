@@ -119,6 +119,11 @@ int excluirTriagem(int id)
         if (triagens[i].id == id && triagens[i].ativo == 1)
         {
             triagens[i].ativo = 0;
+            if (salvarTriagemNoBanco(&triagens[i]) == 0)
+            {
+                triagens[i].ativo = 1;
+                return 0;
+            }
             return 1;
         }
     }
@@ -131,9 +136,15 @@ int salvarTriagemNoBanco(const Triagem *triagem)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO triagens "
+        "INSERT INTO triagens "
         "(id, paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "paciente_id = excluded.paciente_id, "
+        "tipo_triagem = excluded.tipo_triagem, "
+        "pontuacao = excluded.pontuacao, "
+        "classificacao = excluded.classificacao, "
+        "ativo = excluded.ativo;";
 
     if (triagem == NULL)
     {
@@ -536,6 +547,12 @@ void menuTriagem(void)
             classificarTriagem(
                 triagens[totalTriagens].pontuacao,
                 triagens[totalTriagens].classificacao);
+
+            if (salvarTriagemNoBanco(&triagens[totalTriagens]) == 0)
+            {
+                printf("\nNao foi possivel salvar a triagem no banco.\n");
+                break;
+            }
 
             printf("\nTriagem registrada com sucesso.\n");
             exibirTriagem(&triagens[totalTriagens]);

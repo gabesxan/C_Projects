@@ -23,7 +23,15 @@ static int mudarStatus(int id, const char status[])
         if (agendamentos[i].id == id &&
             strcmp(agendamentos[i].status, "AGENDADO") == 0)
         {
+            char statusAnterior[20];
+
+            strcpy(statusAnterior, agendamentos[i].status);
             strcpy(agendamentos[i].status, status);
+            if (salvarAgendamentoNoBanco(&agendamentos[i]) == 0)
+            {
+                strcpy(agendamentos[i].status, statusAnterior);
+                return 0;
+            }
             return 1;
         }
     }
@@ -145,6 +153,12 @@ int concluirAgendamento(int id)
         return 0;
     }
 
+    if (salvarAgendamentoNoBanco(&agendamentos[indiceAgendamento]) == 0)
+    {
+        strcpy(agendamentos[indiceAgendamento].status, "AGENDADO");
+        return 0;
+    }
+
     return 1;
 }
 
@@ -183,9 +197,15 @@ int salvarAgendamentoNoBanco(const Agendamento *agendamento)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "INSERT OR REPLACE INTO agendamentos "
+        "INSERT INTO agendamentos "
         "(id, paciente_id, medico_id, data, horario, status) "
-        "VALUES (?, ?, ?, ?, ?, ?);";
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "paciente_id = excluded.paciente_id, "
+        "medico_id = excluded.medico_id, "
+        "data = excluded.data, "
+        "horario = excluded.horario, "
+        "status = excluded.status;";
 
     if (agendamento == NULL)
     {
@@ -337,6 +357,11 @@ static int criarAgendamento(int pacienteId, int medicoId, char data[], char hora
     strcpy(agendamentos[totalAgendamentos].data, data);
     strcpy(agendamentos[totalAgendamentos].horario, horario);
     strcpy(agendamentos[totalAgendamentos].status, "AGENDADO");
+
+    if (salvarAgendamentoNoBanco(&agendamentos[totalAgendamentos]) == 0)
+    {
+        return 0;
+    }
 
     totalAgendamentos++;
 
