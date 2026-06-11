@@ -1,4 +1,5 @@
 #include "ala.h"
+#include "sqlite_db.h"
 
 static const char *nomeTipoAla(int tipo)
 {
@@ -50,6 +51,8 @@ static void exibirAla(const Ala *ala)
 
 int cadastrarAla(const char nome[], int tipo, int totalLeitosAla)
 {
+    Ala *novaAla = NULL;
+
     if (totalAlas >= MAX_ALAS)
     {
         return 0;
@@ -60,12 +63,18 @@ int cadastrarAla(const char nome[], int tipo, int totalLeitosAla)
         return 0;
     }
 
-    alas[totalAlas].id = totalAlas + 1;
-    strcpy(alas[totalAlas].nome, nome);
-    alas[totalAlas].tipo = tipo;
-    alas[totalAlas].totalLeitos = totalLeitosAla;
-    alas[totalAlas].leitosOcupados = 0;
-    alas[totalAlas].ativo = 1;
+    novaAla = &alas[totalAlas];
+    novaAla->id = totalAlas + 1;
+    strcpy(novaAla->nome, nome);
+    novaAla->tipo = tipo;
+    novaAla->totalLeitos = totalLeitosAla;
+    novaAla->leitosOcupados = 0;
+    novaAla->ativo = 1;
+
+    if (salvarAlaNoBanco(novaAla) == 0)
+    {
+        return 0;
+    }
 
     totalAlas++;
 
@@ -79,11 +88,107 @@ int excluirAla(int id)
         if (alas[i].id == id && alas[i].ativo == 1)
         {
             alas[i].ativo = 0;
+            if (salvarAlaNoBanco(&alas[i]) == 0)
+            {
+                alas[i].ativo = 1;
+                return 0;
+            }
             return 1;
         }
     }
 
     return 0;
+}
+
+int salvarAlaNoBanco(const Ala *ala)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT INTO alas "
+        "(id, nome, tipo, total_leitos, leitos_ocupados, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "nome = excluded.nome, "
+        "tipo = excluded.tipo, "
+        "total_leitos = excluded.total_leitos, "
+        "leitos_ocupados = excluded.leitos_ocupados, "
+        "ativo = excluded.ativo;";
+
+    if (ala == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, ala->id);
+    sqlite3_bind_text(stmt, 2, ala->nome, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 3, ala->tipo);
+    sqlite3_bind_int(stmt, 4, ala->totalLeitos);
+    sqlite3_bind_int(stmt, 5, ala->leitosOcupados);
+    sqlite3_bind_int(stmt, 6, ala->ativo);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarAlasDoBanco(Ala destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, nome, tipo, total_leitos, leitos_ocupados, ativo "
+        "FROM alas ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        strcpy(destino[totalCarregados].nome, (const char *)sqlite3_column_text(stmt, 1));
+        destino[totalCarregados].tipo = sqlite3_column_int(stmt, 2);
+        destino[totalCarregados].totalLeitos = sqlite3_column_int(stmt, 3);
+        destino[totalCarregados].leitosOcupados = sqlite3_column_int(stmt, 4);
+        destino[totalCarregados].ativo = sqlite3_column_int(stmt, 5);
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
 }
 
 int contarAlasPorTipo(int tipo)

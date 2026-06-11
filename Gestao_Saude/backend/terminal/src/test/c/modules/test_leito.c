@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "leito.h"
+#include "sqlite_db.h"
 
 Ala alas[MAX_ALAS];
 Leito leitos[MAX_LEITOS];
@@ -22,6 +23,13 @@ static void prepararAlaAtiva(void)
 
 int main(void)
 {
+    Leito lista[MAX_LEITOS];
+    int totalCarregados;
+
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_leito.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO alas (id, nome, tipo, total_leitos, leitos_ocupados, ativo) VALUES (1, 'Clinica Medica', 1, 10, 0, 1);") == 1);
+
     prepararAlaAtiva();
 
     assert(cadastrarLeito(1, 101) == 1);
@@ -53,6 +61,22 @@ int main(void)
 
     assert(excluirLeito(2) == 0);
     assert(leitos[1].ativo == 1);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO alas (id, nome, tipo, total_leitos, leitos_ocupados, ativo) VALUES (1, 'Clinica Medica', 1, 10, 0, 1);") == 1);
+    leitos[0].id = 888;
+    leitos[0].alaId = 1;
+    leitos[0].numero = 205;
+    leitos[0].ocupado = 1;
+    leitos[0].pacienteId = 9;
+    leitos[0].ativo = 1;
+    assert(salvarLeitoNoBanco(&leitos[0]) == 1);
+    assert(salvarLeitoNoBanco(NULL) == 0);
+    totalCarregados = carregarLeitosDoBanco(lista, MAX_LEITOS);
+    assert(totalCarregados == 1);
+    assert(lista[0].id == 888);
+    assert(lista[0].numero == 205);
+    assert(lista[0].pacienteId == 9);
 
     return 0;
 }

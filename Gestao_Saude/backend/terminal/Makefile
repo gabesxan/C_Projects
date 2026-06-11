@@ -32,7 +32,8 @@ TEST_AGENDAMENTO = \
 
 TEST_LEITO = \
 		src/test/c/modules/test_leito.c \
-		src/main/c/modules/leito.c
+		src/main/c/modules/leito.c \
+		src/main/c/modules/sqlite_db.c
 
 TEST_TRIAGEM = \
 		src/test/c/modules/test_triagem.c \
@@ -51,11 +52,15 @@ TEST_MEDICO = \
 	
 TEST_ALA = \
 		src/test/c/modules/test_ala.c \
-		src/main/c/modules/ala.c
+		src/main/c/modules/ala.c \
+		src/main/c/modules/sqlite_db.c
 
 TEST_INTERNACAO = \
 		src/test/c/modules/test_internacao.c \
-	src/main/c/modules/internacao.c
+	src/main/c/modules/internacao.c \
+	src/main/c/modules/ala.c \
+	src/main/c/modules/leito.c \
+	src/main/c/modules/sqlite_db.c
 
 TEST_RELATORIO = \
 		src/test/c/modules/test_relatorio.c \

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include "internacao.h"
+#include "sqlite_db.h"
 
 Paciente pacientes[MAX_PACIENTES];
 Ala alas[MAX_ALAS];
@@ -40,6 +41,15 @@ static void prepararDados(void)
 
 int main(void)
 {
+    Internacao lista[MAX_INTERNACOES];
+    int totalCarregados;
+
+    assert(definirCaminhoBancoSQLite("/tmp/sigeh_test_internacao.db") == 1);
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (1, 'Maria Aparecida Santos', '111.111.111-11', 62, '(61) 90000-0001', 'F', 1, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO alas (id, nome, tipo, total_leitos, leitos_ocupados, ativo) VALUES (1, 'Clinica Medica', 1, 10, 0, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO leitos (id, ala_id, numero, ocupado, paciente_id, ativo) VALUES (1, 1, 101, 0, 0, 1);") == 1);
+
     prepararDados();
 
     assert(internarPaciente(1, 1, "05/06/2026") == 1);
@@ -62,6 +72,25 @@ int main(void)
     assert(leitos[0].pacienteId == 0);
     assert(alas[0].leitosOcupados == 0);
     assert(darAltaInternacao(1, "07/06/2026") == 0);
+
+    assert(reinicializarBancoSQLite() == 1);
+    assert(executarSQLSQLite("INSERT INTO pacientes (id, nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) VALUES (501, 'Paciente SQLite', '501.501.501-50', 40, '(61) 95010-0000', 'F', 2, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO alas (id, nome, tipo, total_leitos, leitos_ocupados, ativo) VALUES (601, 'Ala SQLite', 1, 8, 1, 1);") == 1);
+    assert(executarSQLSQLite("INSERT INTO leitos (id, ala_id, numero, ocupado, paciente_id, ativo) VALUES (701, 601, 12, 1, 501, 1);") == 1);
+    internacoes[0].id = 901;
+    internacoes[0].pacienteId = 501;
+    internacoes[0].alaId = 601;
+    internacoes[0].leitoId = 701;
+    strcpy(internacoes[0].dataEntrada, "21/06/2026");
+    strcpy(internacoes[0].dataAlta, "00/00/0000");
+    strcpy(internacoes[0].status, "INTERNADO");
+    assert(salvarInternacaoNoBanco(&internacoes[0]) == 1);
+    assert(salvarInternacaoNoBanco(NULL) == 0);
+    totalCarregados = carregarInternacoesDoBanco(lista, MAX_INTERNACOES);
+    assert(totalCarregados == 1);
+    assert(lista[0].id == 901);
+    assert(lista[0].pacienteId == 501);
+    assert(strcmp(lista[0].status, "INTERNADO") == 0);
 
     return 0;
 }

@@ -46,7 +46,10 @@ static void carregarDadosIniciais(void)
     totalPacientes = carregarPacientesDoBanco(pacientes, MAX_PACIENTES);
     totalMedicos = carregarMedicosDoBanco(medicos, MAX_MEDICOS);
     totalTriagens = carregarTriagensDoBanco(triagens, MAX_TRIAGENS);
+    totalAlas = carregarAlasDoBanco(alas, MAX_ALAS);
+    totalLeitos = carregarLeitosDoBanco(leitos, MAX_LEITOS);
     totalAgendamentos = carregarAgendamentosDoBanco(agendamentos, MAX_AGENDAMENTOS);
+    totalInternacoes = carregarInternacoesDoBanco(internacoes, MAX_INTERNACOES);
     totalProntuarios = carregarProntuariosDoBanco(prontuarios, MAX_PRONTUARIOS);
     totalExames = carregarExamesDoBanco(exames, MAX_EXAMES);
 }

@@ -41,6 +41,38 @@ CREATE TABLE agendamentos (
     FOREIGN KEY (medico_id) REFERENCES medicos(id)
 );
 
+CREATE TABLE alas (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL,
+    tipo INTEGER NOT NULL,
+    total_leitos INTEGER NOT NULL,
+    leitos_ocupados INTEGER NOT NULL,
+    ativo INTEGER NOT NULL
+);
+
+CREATE TABLE leitos (
+    id INTEGER PRIMARY KEY,
+    ala_id INTEGER NOT NULL,
+    numero INTEGER NOT NULL,
+    ocupado INTEGER NOT NULL,
+    paciente_id INTEGER NOT NULL,
+    ativo INTEGER NOT NULL,
+    FOREIGN KEY (ala_id) REFERENCES alas(id)
+);
+
+CREATE TABLE internacoes (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    ala_id INTEGER NOT NULL,
+    leito_id INTEGER NOT NULL,
+    data_entrada TEXT NOT NULL,
+    data_alta TEXT NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+    FOREIGN KEY (ala_id) REFERENCES alas(id),
+    FOREIGN KEY (leito_id) REFERENCES leitos(id)
+);
+
 CREATE TABLE prontuarios (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,

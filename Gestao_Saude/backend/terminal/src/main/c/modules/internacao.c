@@ -1,4 +1,7 @@
 #include "internacao.h"
+#include "ala.h"
+#include "leito.h"
+#include "sqlite_db.h"
 
 static int buscarPaciente(int pacienteId)
 {
@@ -81,6 +84,100 @@ static void exibirInternacao(const Internacao *internacao)
     printf("Status: %s\n", internacao->status);
 }
 
+int salvarInternacaoNoBanco(const Internacao *internacao)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "INSERT INTO internacoes "
+        "(id, paciente_id, ala_id, leito_id, data_entrada, data_alta, status) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "paciente_id = excluded.paciente_id, "
+        "ala_id = excluded.ala_id, "
+        "leito_id = excluded.leito_id, "
+        "data_entrada = excluded.data_entrada, "
+        "data_alta = excluded.data_alta, "
+        "status = excluded.status;";
+
+    if (internacao == NULL)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, internacao->id);
+    sqlite3_bind_int(stmt, 2, internacao->pacienteId);
+    sqlite3_bind_int(stmt, 3, internacao->alaId);
+    sqlite3_bind_int(stmt, 4, internacao->leitoId);
+    sqlite3_bind_text(stmt, 5, internacao->dataEntrada, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, internacao->dataAlta, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, internacao->status, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return 1;
+}
+
+int carregarInternacoesDoBanco(Internacao destino[], int maximo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id, ala_id, leito_id, data_entrada, data_alta, status "
+        "FROM internacoes ORDER BY id;";
+    int totalCarregados = 0;
+
+    if (destino == NULL || maximo <= 0)
+    {
+        return 0;
+    }
+
+    if (abrirBancoSQLite(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        fecharBancoSQLite(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && totalCarregados < maximo)
+    {
+        destino[totalCarregados].id = sqlite3_column_int(stmt, 0);
+        destino[totalCarregados].pacienteId = sqlite3_column_int(stmt, 1);
+        destino[totalCarregados].alaId = sqlite3_column_int(stmt, 2);
+        destino[totalCarregados].leitoId = sqlite3_column_int(stmt, 3);
+        strcpy(destino[totalCarregados].dataEntrada, (const char *)sqlite3_column_text(stmt, 4));
+        strcpy(destino[totalCarregados].dataAlta, (const char *)sqlite3_column_text(stmt, 5));
+        strcpy(destino[totalCarregados].status, (const char *)sqlite3_column_text(stmt, 6));
+        totalCarregados++;
+    }
+
+    sqlite3_finalize(stmt);
+    fecharBancoSQLite(db);
+    return totalCarregados;
+}
+
 int internarPaciente(int pacienteId, int leitoId, const char dataEntrada[])
 {
     int indicePaciente;
@@ -118,6 +215,30 @@ int internarPaciente(int pacienteId, int leitoId, const char dataEntrada[])
 
     ocuparLeito(indiceLeito, indiceAla, pacienteId);
 
+    if (salvarLeitoNoBanco(&leitos[indiceLeito]) == 0)
+    {
+        liberarLeito(leitoId, leitos[indiceLeito].alaId);
+        return 0;
+    }
+
+    if (indiceAla != -1 && salvarAlaNoBanco(&alas[indiceAla]) == 0)
+    {
+        liberarLeito(leitoId, leitos[indiceLeito].alaId);
+        salvarLeitoNoBanco(&leitos[indiceLeito]);
+        return 0;
+    }
+
+    if (salvarInternacaoNoBanco(&internacoes[totalInternacoes]) == 0)
+    {
+        liberarLeito(leitoId, leitos[indiceLeito].alaId);
+        salvarLeitoNoBanco(&leitos[indiceLeito]);
+        if (indiceAla != -1)
+        {
+            salvarAlaNoBanco(&alas[indiceAla]);
+        }
+        return 0;
+    }
+
     totalInternacoes++;
 
     return 1;
@@ -129,9 +250,27 @@ int darAltaInternacao(int internacaoId, const char dataAlta[])
     {
         if (internacoes[i].id == internacaoId && strcmp(internacoes[i].status, "INTERNADO") == 0)
         {
+            int indiceLeito = buscarLeito(internacoes[i].leitoId);
+            int indiceAla = buscarAlaAtiva(internacoes[i].alaId);
+
             strcpy(internacoes[i].dataAlta, dataAlta);
             strcpy(internacoes[i].status, "ALTA");
             liberarLeito(internacoes[i].leitoId, internacoes[i].alaId);
+
+            if (indiceLeito != -1 && salvarLeitoNoBanco(&leitos[indiceLeito]) == 0)
+            {
+                return 0;
+            }
+
+            if (indiceAla != -1 && salvarAlaNoBanco(&alas[indiceAla]) == 0)
+            {
+                return 0;
+            }
+
+            if (salvarInternacaoNoBanco(&internacoes[i]) == 0)
+            {
+                return 0;
+            }
 
             return 1;
         }
