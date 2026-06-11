@@ -122,7 +122,7 @@ int excluirTriagem(int id)
             if (salvarTriagemNoBanco(&triagens[i]) == 0)
             {
                 triagens[i].ativo = 1;
-                return 0;
+                return -1;
             }
             return 1;
         }
@@ -212,7 +212,15 @@ int carregarTriagensDoBanco(Triagem destino[], int maximo)
         destino[totalCarregados].pacienteId = sqlite3_column_int(stmt, 1);
         destino[totalCarregados].tipoTriagem = sqlite3_column_int(stmt, 2);
         destino[totalCarregados].pontuacao = sqlite3_column_int(stmt, 3);
-        strcpy(destino[totalCarregados].classificacao, (const char *)sqlite3_column_text(stmt, 4));
+        const char *classificacao = (const char *)sqlite3_column_text(stmt, 4);
+        if (classificacao != NULL)
+        {
+            strcpy(destino[totalCarregados].classificacao, classificacao);
+        }
+        else
+        {
+            destino[totalCarregados].classificacao[0] = '\0';
+        }
         destino[totalCarregados].ativo = sqlite3_column_int(stmt, 5);
         totalCarregados++;
     }
@@ -279,25 +287,25 @@ int escolherTriagem(void)
 
 int triagemGeral(int idadePaciente)
 {
-    int febre;
-    int faltaAr;
-    int dorIntensa;
-    int pressaoAlta;
+    int febre = 0;
+    int faltaAr = 0;
+    int dorIntensa = 0;
+    int pressaoAlta = 0;
     int pontuacao = 0;
 
     printf("\nTRIAGEM GERAL\n");
 
     printf("Febre? (1-Sim / 0-Nao): ");
-    scanf("%d", &febre);
+    lerInteiro(&febre);
 
     printf("Falta de ar? (1-Sim / 0-Nao): ");
-    scanf("%d", &faltaAr);
+    lerInteiro(&faltaAr);
 
     printf("Dor intensa? (1-Sim / 0-Nao): ");
-    scanf("%d", &dorIntensa);
+    lerInteiro(&dorIntensa);
 
     printf("Pressao alta? (1-Sim / 0-Nao): ");
-    scanf("%d", &pressaoAlta);
+    lerInteiro(&pressaoAlta);
 
     pontuacao += pontosResposta(febre, 2);
     pontuacao += pontosResposta(faltaAr, 5);
@@ -310,37 +318,37 @@ int triagemGeral(int idadePaciente)
 
 int triagemOrtopedia(int idadePaciente)
 {
-    int suspeitaFratura;
-    int deformidadeVisivel;
-    int dificuldadeMovimento;
-    int dorIntensa;
-    int inchacoIntenso;
-    int sangramento;
-    int perdaSensibilidade;
+    int suspeitaFratura = 0;
+    int deformidadeVisivel = 0;
+    int dificuldadeMovimento = 0;
+    int dorIntensa = 0;
+    int inchacoIntenso = 0;
+    int sangramento = 0;
+    int perdaSensibilidade = 0;
     int pontuacao = 0;
 
     printf("\nTRIAGEM ORTOPEDICA\n");
 
     printf("Suspeita de fratura? (1-Sim / 0-Nao): ");
-    scanf("%d", &suspeitaFratura);
+    lerInteiro(&suspeitaFratura);
 
     printf("Deformidade visivel? (1-Sim / 0-Nao): ");
-    scanf("%d", &deformidadeVisivel);
+    lerInteiro(&deformidadeVisivel);
 
     printf("Dificuldade ou impossibilidade de andar/mover? (1-Sim / 0-Nao): ");
-    scanf("%d", &dificuldadeMovimento);
+    lerInteiro(&dificuldadeMovimento);
 
     printf("Dor intensa? (1-Sim / 0-Nao): ");
-    scanf("%d", &dorIntensa);
+    lerInteiro(&dorIntensa);
 
     printf("Inchaco intenso? (1-Sim / 0-Nao): ");
-    scanf("%d", &inchacoIntenso);
+    lerInteiro(&inchacoIntenso);
 
     printf("Sangramento? (1-Sim / 0-Nao): ");
-    scanf("%d", &sangramento);
+    lerInteiro(&sangramento);
 
     printf("Perda de sensibilidade? (1-Sim / 0-Nao): ");
-    scanf("%d", &perdaSensibilidade);
+    lerInteiro(&perdaSensibilidade);
 
     pontuacao += pontosResposta(suspeitaFratura, 5);
     pontuacao += pontosResposta(deformidadeVisivel, 5);
@@ -356,29 +364,29 @@ int triagemOrtopedia(int idadePaciente)
 
 int triagemCardiologia(int idadePaciente)
 {
-    int dorPeito;
-    int faltaAr;
-    int desmaio;
-    int palpitacaoIntensa;
-    int pressaoAlta;
+    int dorPeito = 0;
+    int faltaAr = 0;
+    int desmaio = 0;
+    int palpitacaoIntensa = 0;
+    int pressaoAlta = 0;
     int pontuacao = 0;
 
     printf("\nTRIAGEM CARDIOLOGICA\n");
 
     printf("Dor no peito? (1-Sim / 0-Nao): ");
-    scanf("%d", &dorPeito);
+    lerInteiro(&dorPeito);
 
     printf("Falta de ar? (1-Sim / 0-Nao): ");
-    scanf("%d", &faltaAr);
+    lerInteiro(&faltaAr);
 
     printf("Desmaio ou quase desmaio? (1-Sim / 0-Nao): ");
-    scanf("%d", &desmaio);
+    lerInteiro(&desmaio);
 
     printf("Palpitacao intensa? (1-Sim / 0-Nao): ");
-    scanf("%d", &palpitacaoIntensa);
+    lerInteiro(&palpitacaoIntensa);
 
     printf("Pressao alta? (1-Sim / 0-Nao): ");
-    scanf("%d", &pressaoAlta);
+    lerInteiro(&pressaoAlta);
 
     pontuacao += pontosResposta(dorPeito, 5);
     pontuacao += pontosResposta(faltaAr, 4);
@@ -392,33 +400,33 @@ int triagemCardiologia(int idadePaciente)
 
 int triagemPneumologia(int idadePaciente)
 {
-    int faltaAr;
-    int chiadoPeito;
-    int tosseIntensa;
-    int dorRespirar;
-    int saturacaoBaixa;
-    int febre;
+    int faltaAr = 0;
+    int chiadoPeito = 0;
+    int tosseIntensa = 0;
+    int dorRespirar = 0;
+    int saturacaoBaixa = 0;
+    int febre = 0;
     int pontuacao = 0;
 
     printf("\nTRIAGEM PNEUMOLOGICA\n");
 
     printf("Falta de ar? (1-Sim / 0-Nao): ");
-    scanf("%d", &faltaAr);
+    lerInteiro(&faltaAr);
 
     printf("Chiado no peito? (1-Sim / 0-Nao): ");
-    scanf("%d", &chiadoPeito);
+    lerInteiro(&chiadoPeito);
 
     printf("Tosse intensa? (1-Sim / 0-Nao): ");
-    scanf("%d", &tosseIntensa);
+    lerInteiro(&tosseIntensa);
 
     printf("Dor ao respirar? (1-Sim / 0-Nao): ");
-    scanf("%d", &dorRespirar);
+    lerInteiro(&dorRespirar);
 
     printf("Saturacao baixa? (1-Sim / 0-Nao): ");
-    scanf("%d", &saturacaoBaixa);
+    lerInteiro(&saturacaoBaixa);
 
     printf("Febre? (1-Sim / 0-Nao): ");
-    scanf("%d", &febre);
+    lerInteiro(&febre);
 
     pontuacao += pontosResposta(faltaAr, 5);
     pontuacao += pontosResposta(chiadoPeito, 3);
@@ -433,29 +441,29 @@ int triagemPneumologia(int idadePaciente)
 
 int triagemPediatria(int idadePaciente)
 {
-    int febreAlta;
-    int vomitosPersistentes;
-    int convulsao;
-    int prostracaoIntensa;
-    int dificuldadeRespirar;
+    int febreAlta = 0;
+    int vomitosPersistentes = 0;
+    int convulsao = 0;
+    int prostracaoIntensa = 0;
+    int dificuldadeRespirar = 0;
     int pontuacao = 0;
 
     printf("\nTRIAGEM PEDIATRICA\n");
 
     printf("Febre alta? (1-Sim / 0-Nao): ");
-    scanf("%d", &febreAlta);
+    lerInteiro(&febreAlta);
 
     printf("Vomitos persistentes? (1-Sim / 0-Nao): ");
-    scanf("%d", &vomitosPersistentes);
+    lerInteiro(&vomitosPersistentes);
 
     printf("Convulsao? (1-Sim / 0-Nao): ");
-    scanf("%d", &convulsao);
+    lerInteiro(&convulsao);
 
     printf("Prostracao intensa? (1-Sim / 0-Nao): ");
-    scanf("%d", &prostracaoIntensa);
+    lerInteiro(&prostracaoIntensa);
 
     printf("Dificuldade para respirar? (1-Sim / 0-Nao): ");
-    scanf("%d", &dificuldadeRespirar);
+    lerInteiro(&dificuldadeRespirar);
 
     pontuacao += pontosResposta(febreAlta, 3);
     pontuacao += pontosResposta(vomitosPersistentes, 3);
@@ -505,7 +513,11 @@ void menuTriagem(void)
             }
 
             printf("\nID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nPaciente invalido.\n");
+                break;
+            }
 
             indicePaciente = buscarPaciente(pacienteId);
 
@@ -595,11 +607,21 @@ void menuTriagem(void)
             int idBusca;
 
             printf("\nDigite o ID da triagem que deseja excluir: ");
-            scanf("%d", &idBusca);
+            if (lerInteiro(&idBusca) == 0)
+            {
+                printf("\nID invalido.\n");
+                break;
+            }
 
-            if (excluirTriagem(idBusca) == 1)
+            int resultado = excluirTriagem(idBusca);
+
+            if (resultado == 1)
             {
                 printf("\nTriagem removida com sucesso.\n");
+            }
+            else if (resultado == -1)
+            {
+                printf("\nNao foi possivel salvar a exclusao no banco.\n");
             }
             else
             {

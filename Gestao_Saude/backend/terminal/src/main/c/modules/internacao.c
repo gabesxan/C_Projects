@@ -252,6 +252,25 @@ int darAltaInternacao(int internacaoId, const char dataAlta[])
         {
             int indiceLeito = buscarLeito(internacoes[i].leitoId);
             int indiceAla = buscarAlaAtiva(internacoes[i].alaId);
+            char dataAltaAnterior[11];
+            char statusAnterior[20];
+            int leitoOcupadoAnterior = 0;
+            int leitoPacienteAnterior = 0;
+            int leitosOcupadosAnterior = 0;
+
+            strcpy(dataAltaAnterior, internacoes[i].dataAlta);
+            strcpy(statusAnterior, internacoes[i].status);
+
+            if (indiceLeito != -1)
+            {
+                leitoOcupadoAnterior = leitos[indiceLeito].ocupado;
+                leitoPacienteAnterior = leitos[indiceLeito].pacienteId;
+            }
+
+            if (indiceAla != -1)
+            {
+                leitosOcupadosAnterior = alas[indiceAla].leitosOcupados;
+            }
 
             strcpy(internacoes[i].dataAlta, dataAlta);
             strcpy(internacoes[i].status, "ALTA");
@@ -259,16 +278,46 @@ int darAltaInternacao(int internacaoId, const char dataAlta[])
 
             if (indiceLeito != -1 && salvarLeitoNoBanco(&leitos[indiceLeito]) == 0)
             {
+                strcpy(internacoes[i].dataAlta, dataAltaAnterior);
+                strcpy(internacoes[i].status, statusAnterior);
+                leitos[indiceLeito].ocupado = leitoOcupadoAnterior;
+                leitos[indiceLeito].pacienteId = leitoPacienteAnterior;
+                if (indiceAla != -1)
+                {
+                    alas[indiceAla].leitosOcupados = leitosOcupadosAnterior;
+                }
                 return 0;
             }
 
             if (indiceAla != -1 && salvarAlaNoBanco(&alas[indiceAla]) == 0)
             {
+                strcpy(internacoes[i].dataAlta, dataAltaAnterior);
+                strcpy(internacoes[i].status, statusAnterior);
+                if (indiceLeito != -1)
+                {
+                    leitos[indiceLeito].ocupado = leitoOcupadoAnterior;
+                    leitos[indiceLeito].pacienteId = leitoPacienteAnterior;
+                    salvarLeitoNoBanco(&leitos[indiceLeito]);
+                }
+                alas[indiceAla].leitosOcupados = leitosOcupadosAnterior;
                 return 0;
             }
 
             if (salvarInternacaoNoBanco(&internacoes[i]) == 0)
             {
+                strcpy(internacoes[i].dataAlta, dataAltaAnterior);
+                strcpy(internacoes[i].status, statusAnterior);
+                if (indiceLeito != -1)
+                {
+                    leitos[indiceLeito].ocupado = leitoOcupadoAnterior;
+                    leitos[indiceLeito].pacienteId = leitoPacienteAnterior;
+                    salvarLeitoNoBanco(&leitos[indiceLeito]);
+                }
+                if (indiceAla != -1)
+                {
+                    alas[indiceAla].leitosOcupados = leitosOcupadosAnterior;
+                    salvarAlaNoBanco(&alas[indiceAla]);
+                }
                 return 0;
             }
 
@@ -318,7 +367,11 @@ void menuInternacoes(void)
             }
 
             printf("\nID do paciente: ");
-            scanf("%d", &pacienteId);
+            if (lerInteiro(&pacienteId) == 0)
+            {
+                printf("\nPaciente invalido.\n");
+                break;
+            }
 
             for (int i = 0; i < totalPacientes; i++)
             {
@@ -336,7 +389,11 @@ void menuInternacoes(void)
             }
 
             printf("ID do leito: ");
-            scanf("%d", &leitoId);
+            if (lerInteiro(&leitoId) == 0)
+            {
+                printf("\nLeito invalido.\n");
+                break;
+            }
 
             for (int i = 0; i < totalLeitos; i++)
             {
@@ -374,7 +431,11 @@ void menuInternacoes(void)
             char dataAlta[11];
 
             printf("\nDigite o ID da internacao: ");
-            scanf("%d", &idBusca);
+            if (lerInteiro(&idBusca) == 0)
+            {
+                printf("\nID invalido.\n");
+                break;
+            }
 
             for (int i = 0; i < totalInternacoes; i++)
             {

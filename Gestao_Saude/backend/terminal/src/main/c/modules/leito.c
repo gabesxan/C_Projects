@@ -188,10 +188,18 @@ void menuLeitos(void)
             int numero;
 
             printf("\nID da ala: ");
-            scanf("%d", &alaId);
+            if (lerInteiro(&alaId) == 0)
+            {
+                printf("\nID da ala invalido.\n");
+                break;
+            }
 
             printf("Numero do leito: ");
-            scanf("%d", &numero);
+            if (lerInteiro(&numero) == 0)
+            {
+                printf("\nNumero do leito invalido.\n");
+                break;
+            }
 
             if (cadastrarLeito(alaId, numero) == 0)
             {
@@ -243,7 +251,11 @@ void menuLeitos(void)
             int idBusca;
 
             printf("\nDigite o ID do leito que deseja excluir: ");
-            scanf("%d", &idBusca);
+            if (lerInteiro(&idBusca) == 0)
+            {
+                printf("\nID invalido.\n");
+                break;
+            }
 
             if (excluirLeito(idBusca) == 1)
             {

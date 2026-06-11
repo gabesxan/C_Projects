@@ -268,7 +268,11 @@ void menuAlas(void)
 
             exibirOpcoesTipoAla();
             printf("Escolha o tipo da ala: ");
-            scanf("%d", &tipo);
+            if (lerInteiro(&tipo) == 0)
+            {
+                printf("\nTipo de ala invalido.\n");
+                break;
+            }
 
             if (tipoAlaValido(tipo) == 0)
             {
@@ -277,7 +281,11 @@ void menuAlas(void)
             }
 
             printf("Total de leitos: ");
-            scanf("%d", &totalLeitosAla);
+            if (lerInteiro(&totalLeitosAla) == 0)
+            {
+                printf("\nTotal de leitos invalido.\n");
+                break;
+            }
 
             if (cadastrarAla(nome, tipo, totalLeitosAla) == 1)
             {
@@ -317,7 +325,11 @@ void menuAlas(void)
             int idBusca;
 
             printf("\nDigite o ID da ala que deseja excluir: ");
-            scanf("%d", &idBusca);
+            if (lerInteiro(&idBusca) == 0)
+            {
+                printf("\nID invalido.\n");
+                break;
+            }
 
             if (excluirAla(idBusca) == 1)
             {
@@ -337,7 +349,11 @@ void menuAlas(void)
 
             exibirOpcoesTipoAla();
             printf("Escolha o tipo que deseja consultar: ");
-            scanf("%d", &tipo);
+            if (lerInteiro(&tipo) == 0)
+            {
+                printf("\nTipo de ala invalido.\n");
+                break;
+            }
 
             if (tipoAlaValido(tipo) == 0)
             {
