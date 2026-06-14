@@ -2,17 +2,17 @@
 .vscode/
 **/.vscode/
 
-# Build outputs
+# macOS
+.DS_Store
+
+# Build outputs (compilados)
 /main
 sigeh
 *.out
 *.o
 *.exe
 
-# macOS
-.DS_Store
-
-sigeh
+# V1 terminal: binarios de teste
 test_agendamento
 test_leito
 test_triagem
@@ -23,6 +23,10 @@ test_internacao
 test_relatorio
 test_prontuario
 test_exame
-test_sqlite_dbbackend/api/sigeh_api
+test_sqlite_db
+
+# Backend web: binarios e bancos gerados
+backend/api/sigeh_api
+backend/tests/test_*_repository
 backend/data/*.db
-*.o
+backend/tests/*.db
