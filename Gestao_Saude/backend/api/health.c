@@ -1,5 +1,6 @@
 #include "database.h"
 #include "paciente_repository.h"
+#include "medico_repository.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,19 +12,25 @@
 
 /*
  * Servidor HTTP minimo do backend web do SIGEH-DF.
- * Expoe apenas GET /health, que confirma que o banco esta acessivel.
  * Sockets POSIX puros, sem dependencia externa alem da database.h/sqlite3.
+ *
+ * Rotas:
+ *   GET    /health
+ *   GET    /pacientes              GET /pacientes/contar
+ *   POST   /pacientes?nome=..&cpf=..&idade=..&telefone=..&sexo=..&regiao=..
+ *   DELETE /pacientes/{id}
+ *   GET    /medicos                GET /medicos/contar
+ *   POST   /medicos?nome=..&crm=..&especialidade=..&regiao=..
+ *   DELETE /medicos/{id}
  */
 
 #define PORTA_PADRAO 8080
 #define TAM_REQUISICAO 2048
+#define TAM_JSON 65536
 
-/* Health real: tenta uma consulta trivial na tabela pacientes.
- * Retorna 1 se o schema responde, 0 caso contrario. */
-static int bancoSaudavel(void)
-{
-    return db_executar("SELECT 1 FROM pacientes LIMIT 1;");
-}
+/* ----------------------------------------------------------------------- */
+/* Utilitarios HTTP                                                         */
+/* ----------------------------------------------------------------------- */
 
 static void responder(int cliente, const char *status, const char *corpo)
 {
@@ -42,6 +49,282 @@ static void responder(int cliente, const char *status, const char *corpo)
         write(cliente, corpo, strlen(corpo));
     }
 }
+
+/* Decodifica %XX e '+' de um trecho de query para 'destino'. */
+static void urlDecode(char *destino, int tamanho, const char *origem, int len)
+{
+    int i = 0;
+    int j = 0;
+
+    while (i < len && j < tamanho - 1)
+    {
+        if (origem[i] == '%' && i + 2 < len)
+        {
+            char hex[3];
+            hex[0] = origem[i + 1];
+            hex[1] = origem[i + 2];
+            hex[2] = '\0';
+            destino[j++] = (char)strtol(hex, NULL, 16);
+            i += 3;
+        }
+        else if (origem[i] == '+')
+        {
+            destino[j++] = ' ';
+            i++;
+        }
+        else
+        {
+            destino[j++] = origem[i++];
+        }
+    }
+
+    destino[j] = '\0';
+}
+
+/* Extrai o valor do parametro 'chave' da query string. Retorna 1/0. */
+static int extrairParam(const char *consulta, const char *chave,
+                        char *destino, int tamanho)
+{
+    char alvo[64];
+    const char *p;
+    int n = snprintf(alvo, sizeof(alvo), "%s=", chave);
+
+    destino[0] = '\0';
+
+    if (consulta == NULL || n <= 0 || n >= (int)sizeof(alvo))
+    {
+        return 0;
+    }
+
+    p = consulta;
+    while (p != NULL && *p != '\0')
+    {
+        if (strncmp(p, alvo, (size_t)n) == 0)
+        {
+            const char *inicio = p + n;
+            const char *fim = strchr(inicio, '&');
+            int len = fim != NULL ? (int)(fim - inicio) : (int)strlen(inicio);
+            urlDecode(destino, tamanho, inicio, len);
+            return 1;
+        }
+
+        p = strchr(p, '&');
+        if (p != NULL)
+        {
+            p++;
+        }
+    }
+
+    return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Handlers de rota                                                         */
+/* ----------------------------------------------------------------------- */
+
+static void rotaHealth(int cliente)
+{
+    if (db_executar("SELECT 1 FROM pacientes LIMIT 1;"))
+    {
+        responder(cliente, "200 OK", "{\"status\":\"ok\",\"database\":\"ok\"}");
+    }
+    else
+    {
+        responder(cliente, "503 Service Unavailable",
+                  "{\"status\":\"degraded\",\"database\":\"down\"}");
+    }
+}
+
+static void rotaListarPacientes(int cliente)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && paciente_repo_listar_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar pacientes\"}");
+    }
+
+    free(json);
+}
+
+static void rotaContarPacientes(int cliente)
+{
+    char corpo[64];
+    int total = paciente_repo_contar_ativos();
+
+    snprintf(corpo, sizeof(corpo), "{\"ativos\":%d}", total);
+    responder(cliente, "200 OK", corpo);
+}
+
+static void rotaCriarPaciente(int cliente, const char *consulta)
+{
+    char nome[128];
+    char cpf[32];
+    char telefone[32];
+    char sexo[8];
+    char idadeStr[16];
+    char regiaoStr[16];
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "cpf", cpf, sizeof(cpf));
+    extrairParam(consulta, "idade", idadeStr, sizeof(idadeStr));
+    extrairParam(consulta, "telefone", telefone, sizeof(telefone));
+    extrairParam(consulta, "sexo", sexo, sizeof(sexo));
+    extrairParam(consulta, "regiao", regiaoStr, sizeof(regiaoStr));
+
+    if (paciente_repo_criar(nome, cpf, atoi(idadeStr), telefone, sexo,
+                            atoi(regiaoStr)) == 1)
+    {
+        responder(cliente, "201 Created", "{\"status\":\"criado\"}");
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"dados invalidos para paciente\"}");
+    }
+}
+
+static void rotaDesativarPaciente(int cliente, int id)
+{
+    if (paciente_repo_desativar(id) == 1)
+    {
+        responder(cliente, "200 OK", "{\"status\":\"desativado\"}");
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"paciente nao encontrado ou ja inativo\"}");
+    }
+}
+
+static void rotaListarMedicos(int cliente)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && medico_repo_listar_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar medicos\"}");
+    }
+
+    free(json);
+}
+
+static void rotaContarMedicos(int cliente)
+{
+    char corpo[64];
+    int total = medico_repo_contar_ativos();
+
+    snprintf(corpo, sizeof(corpo), "{\"ativos\":%d}", total);
+    responder(cliente, "200 OK", corpo);
+}
+
+static void rotaCriarMedico(int cliente, const char *consulta)
+{
+    char nome[128];
+    char crm[32];
+    char especialidade[64];
+    char regiaoStr[16];
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "crm", crm, sizeof(crm));
+    extrairParam(consulta, "especialidade", especialidade, sizeof(especialidade));
+    extrairParam(consulta, "regiao", regiaoStr, sizeof(regiaoStr));
+
+    if (medico_repo_criar(nome, crm, especialidade, atoi(regiaoStr)) == 1)
+    {
+        responder(cliente, "201 Created", "{\"status\":\"criado\"}");
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"dados invalidos para medico\"}");
+    }
+}
+
+static void rotaDesativarMedico(int cliente, int id)
+{
+    if (medico_repo_desativar(id) == 1)
+    {
+        responder(cliente, "200 OK", "{\"status\":\"desativado\"}");
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"medico nao encontrado ou ja inativo\"}");
+    }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Roteamento                                                               */
+/* ----------------------------------------------------------------------- */
+
+static void rotear(int cliente, const char *metodo, char *caminho)
+{
+    char *consulta = strchr(caminho, '?');
+    int id;
+
+    if (consulta != NULL)
+    {
+        *consulta = '\0';
+        consulta++;
+    }
+
+    if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/health") == 0)
+    {
+        rotaHealth(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)
+    {
+        rotaListarPacientes(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes/contar") == 0)
+    {
+        rotaContarPacientes(cliente);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/pacientes") == 0)
+    {
+        rotaCriarPaciente(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/pacientes/%d", &id) == 1)
+    {
+        rotaDesativarPaciente(cliente, id);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/medicos") == 0)
+    {
+        rotaListarMedicos(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/medicos/contar") == 0)
+    {
+        rotaContarMedicos(cliente);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/medicos") == 0)
+    {
+        rotaCriarMedico(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicos/%d", &id) == 1)
+    {
+        rotaDesativarMedico(cliente, id);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"rota nao encontrada\"}");
+    }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Servidor                                                                 */
+/* ----------------------------------------------------------------------- */
 
 int main(int argc, char *argv[])
 {
@@ -87,7 +370,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("SIGEH-DF API ouvindo em http://localhost:%d/health\n", porta);
+    printf("SIGEH-DF API ouvindo em http://localhost:%d\n", porta);
     fflush(stdout);
 
     for (;;)
@@ -120,41 +403,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/health") == 0)
-        {
-            if (bancoSaudavel())
-            {
-                responder(cliente, "200 OK",
-                          "{\"status\":\"ok\",\"database\":\"ok\"}");
-            }
-            else
-            {
-                responder(cliente, "503 Service Unavailable",
-                          "{\"status\":\"degraded\",\"database\":\"down\"}");
-            }
-        }
-        else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)
-        {
-            char *json = malloc(65536);
-
-            if (json != NULL && paciente_repo_listar_json(json, 65536) == 1)
-            {
-                responder(cliente, "200 OK", json);
-            }
-            else
-            {
-                responder(cliente, "500 Internal Server Error",
-                          "{\"erro\":\"falha ao listar pacientes\"}");
-            }
-
-            free(json);
-        }
-        else
-        {
-            responder(cliente, "404 Not Found",
-                      "{\"erro\":\"rota nao encontrada\"}");
-        }
-
+        rotear(cliente, metodo, caminho);
         close(cliente);
     }
 

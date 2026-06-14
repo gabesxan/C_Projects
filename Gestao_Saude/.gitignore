@@ -23,4 +23,6 @@ test_internacao
 test_relatorio
 test_prontuario
 test_exame
-test_sqlite_db
+test_sqlite_dbbackend/api/sigeh_api
+backend/data/*.db
+*.o

@@ -30,8 +30,8 @@ database.o: $(DB_SRC)
 	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
 
 # Compila o servidor HTTP minimo (endpoint GET /health).
-api: $(API_SRC) $(PAC_SRC) $(DB_SRC)
-	$(CC) $(CFLAGS) $(API_SRC) $(PAC_SRC) $(DB_SRC) -o api/sigeh_api $(LDLIBS)
+api: $(API_SRC) $(PAC_SRC) $(MED_SRC) $(DB_SRC)
+	$(CC) $(CFLAGS) $(API_SRC) $(PAC_SRC) $(MED_SRC) $(DB_SRC) -o api/sigeh_api $(LDLIBS)
 
 # Sobe o servidor (precisa rodar de dentro de backend/ para achar data/).
 run: api
