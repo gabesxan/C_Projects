@@ -11,6 +11,8 @@ DB_SRC = database/database.c
 PAC_SRC = repositories/paciente_repository.c
 MED_SRC = repositories/medico_repository.c
 
+API_SRC = api/health.c
+
 TEST_PAC = \
 	tests/test_paciente_repository.c \
 	$(PAC_SRC) \
@@ -21,11 +23,19 @@ TEST_MED = \
 	$(MED_SRC) \
 	$(DB_SRC)
 
-# Alvo padrao: compila apenas a camada de banco (prova que ela esta sa).
-all: database.o
+# Alvo padrao: compila a camada de banco e a API de health.
+all: database.o api
 
 database.o: $(DB_SRC)
 	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
+
+# Compila o servidor HTTP minimo (endpoint GET /health).
+api: $(API_SRC) $(PAC_SRC) $(DB_SRC)
+	$(CC) $(CFLAGS) $(API_SRC) $(PAC_SRC) $(DB_SRC) -o api/sigeh_api $(LDLIBS)
+
+# Sobe o servidor (precisa rodar de dentro de backend/ para achar data/).
+run: api
+	./api/sigeh_api
 
 test: test_paciente_repository test_medico_repository
 
@@ -39,8 +49,9 @@ test_medico_repository:
 
 clean:
 	rm -f database.o \
+		api/sigeh_api \
 		tests/test_paciente_repository \
 		tests/test_medico_repository \
 		tests/test_sigeh_repository.db
 
-.PHONY: all test clean test_paciente_repository test_medico_repository
+.PHONY: all api run test clean test_paciente_repository test_medico_repository
