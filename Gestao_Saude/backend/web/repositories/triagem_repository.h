@@ -9,6 +9,12 @@
 int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                        const char *classificacao);
 int triagem_repo_listar_json(char *buffer, int tamanho);
+
+/* Lista (JSON) as triagens ativas cujo tipo_triagem esta no vetor 'tipos'
+ * (tamanho 'n'). Com n <= 0 devolve uma lista vazia. 1 = ok, 0 = erro. */
+int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
+                                       char *buffer, int tamanho);
+
 int triagem_repo_desativar(int id);
 int triagem_repo_contar_ativos(void);
 

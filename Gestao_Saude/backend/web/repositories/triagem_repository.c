@@ -141,6 +141,132 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
     return 1;
 }
 
+int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
+                                       char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char placeholders[64];
+    char sql[256];
+    int usado = 0;
+    int primeiro = 1;
+    int i;
+    int pos = 0;
+
+    if (buffer == NULL || tamanho <= 0 || tipos == NULL)
+    {
+        return 0;
+    }
+
+    /* Sem tipos correspondentes: lista vazia, mas resposta valida. */
+    if (n <= 0)
+    {
+        buffer[0] = '\0';
+        return repo_json_anexar(buffer, tamanho, &usado, "[]");
+    }
+
+    /* Monta "?,?,..." com n marcadores para o IN, limitando a capacidade. */
+    if (n > 32)
+    {
+        n = 32;
+    }
+    for (i = 0; i < n; i++)
+    {
+        int escrito = snprintf(placeholders + pos, sizeof(placeholders) - pos,
+                               i == 0 ? "?" : ",?");
+        if (escrito < 0 || escrito >= (int)sizeof(placeholders) - pos)
+        {
+            return 0;
+        }
+        pos += escrito;
+    }
+
+    if (snprintf(sql, sizeof(sql),
+            "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao "
+            "FROM triagens WHERE ativo = 1 AND tipo_triagem IN (%s) "
+            "ORDER BY id;", placeholders) >= (int)sizeof(sql))
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    for (i = 0; i < n; i++)
+    {
+        sqlite3_bind_int(stmt, i + 1, tipos[i]);
+    }
+
+    buffer[0] = '\0';
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char classificacaoJson[128];
+        char objeto[384];
+        int id = sqlite3_column_int(stmt, 0);
+        int pacienteId = sqlite3_column_int(stmt, 1);
+        int tipo = sqlite3_column_int(stmt, 2);
+        int pontuacao = sqlite3_column_int(stmt, 3);
+        const char *classificacao = (const char *)sqlite3_column_text(stmt, 4);
+        int escrito;
+
+        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson),
+                              classificacao) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
+            "\"pontuacao\":%d,\"classificacao\":%s}",
+            primeiro ? "" : ",",
+            id, pacienteId, tipo, pontuacao, classificacaoJson);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto))
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        if (repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "]") == 0)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int triagem_repo_desativar(int id)
 {
     sqlite3 *db = NULL;

@@ -143,6 +143,27 @@ int main(void)
                                            json, sizeof(json)) == 0);
     assert(strstr(json, "\"encaminhado\":false") != NULL);
 
+    /* --- Fila de triagem escopada pela especialidade do medico --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
+    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1);  /* tipo 3: Cardiologia */
+    assert(triagem_repo_criar(2, 2, 4, "Prioritario") == 1); /* tipo 2: Ortopedia */
+
+    /* Cardiologista ve so a triagem cardiologica (tipo 3). */
+    assert(triagem_service_listar_por_especialidade_json("Cardiologia", json, sizeof(json)) == 1);
+    assert(strstr(json, "\"tipoTriagem\":3") != NULL);
+    assert(strstr(json, "\"tipoTriagem\":2") == NULL);
+
+    /* Ortopedista ve so a triagem ortopedica (tipo 2). */
+    assert(triagem_service_listar_por_especialidade_json("Ortopedia", json, sizeof(json)) == 1);
+    assert(strstr(json, "\"tipoTriagem\":2") != NULL);
+    assert(strstr(json, "\"tipoTriagem\":3") == NULL);
+
+    /* Especialidade sem tipo correspondente -> lista vazia valida. */
+    assert(triagem_service_listar_por_especialidade_json("Neurologia", json, sizeof(json)) == 1);
+    assert(strcmp(json, "[]") == 0);
+
     printf("test_triagem_service: OK\n");
     return 0;
 }

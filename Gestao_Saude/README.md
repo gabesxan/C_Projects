@@ -329,6 +329,7 @@ Além da autorização por papel, as **listagens amplas são filtradas pela iden
 | `GET /agendamentos` | todos | apenas a própria agenda |
 | `GET /prontuarios` | todos | apenas os prontuários que ele assinou |
 | `GET /exames` | todos | apenas os exames que ele solicitou |
+| `GET /triagens` | todas | apenas as triagens cuja especialidade provável (pelo `tipo`) é a dele |
 
 As contagens (`/...../contar`) permanecem **globais** (indicadores). As rotas `/me/...` seguem como o caminho explícito do "só o seu".
 

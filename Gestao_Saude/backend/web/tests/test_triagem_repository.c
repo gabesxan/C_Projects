@@ -40,6 +40,25 @@ int main(void)
     antes = triagem_repo_contar_ativos();
     assert(antes == 2);
 
+    /* Filtro por tipos: triagem 1 e tipo 1; triagem 2 e tipo 3. */
+    {
+        int tiposCardio[1] = {3};
+        int tiposGeral[1] = {1};
+        int tiposVarios[2] = {1, 3};
+
+        assert(triagem_repo_listar_por_tipos_json(tiposCardio, 1, json, sizeof(json)) == 1);
+        assert(strstr(json, "\"tipoTriagem\":3") != NULL);
+        assert(strstr(json, "\"tipoTriagem\":1") == NULL);
+
+        assert(triagem_repo_listar_por_tipos_json(tiposVarios, 2, json, sizeof(json)) == 1);
+        assert(strstr(json, "\"tipoTriagem\":1") != NULL);
+        assert(strstr(json, "\"tipoTriagem\":3") != NULL);
+
+        /* n <= 0 devolve uma lista vazia valida. */
+        assert(triagem_repo_listar_por_tipos_json(tiposGeral, 0, json, sizeof(json)) == 1);
+        assert(strcmp(json, "[]") == 0);
+    }
+
     assert(triagem_repo_desativar(1) == 1);
     assert(triagem_repo_contar_ativos() == antes - 1);
     assert(triagem_repo_desativar(9999) == 0);

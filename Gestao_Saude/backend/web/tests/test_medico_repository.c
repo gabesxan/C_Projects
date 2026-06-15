@@ -46,10 +46,26 @@ int main(void)
     antes = medico_repo_contar_ativos();
     assert(antes == 2);
 
+    /* Getter de especialidade do medico ativo. */
+    {
+        char esp[64];
+        assert(medico_repo_especialidade(1, esp, sizeof(esp)) == 1);
+        assert(strcmp(esp, "Cardiologia") == 0);
+        assert(medico_repo_especialidade(2, esp, sizeof(esp)) == 1);
+        assert(strcmp(esp, "Pediatria") == 0);
+        assert(medico_repo_especialidade(9999, esp, sizeof(esp)) == 0);
+    }
+
     /* Exclusao logica do primeiro medico (id = 1). */
     assert(medico_repo_desativar(1) == 1);
     depois = medico_repo_contar_ativos();
     assert(depois == antes - 1);
+
+    /* Medico inativo nao expoe especialidade. */
+    {
+        char esp[64];
+        assert(medico_repo_especialidade(1, esp, sizeof(esp)) == 0);
+    }
 
     /* Desativar id inexistente nao deve contar como sucesso. */
     assert(medico_repo_desativar(9999) == 0);

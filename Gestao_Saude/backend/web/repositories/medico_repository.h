@@ -32,4 +32,8 @@ int medico_repo_ids_por_especialidade_regiao(const char *especialidade,
  * formato [{"especialidade":"Cardiologia","total":2},...]. 1 = ok, 0 = erro. */
 int medico_repo_distribuicao_por_especialidade_json(char *buffer, int tamanho);
 
+/* Copia para 'destino' a especialidade do medico ativo de id informado.
+ * Retorna 1 se encontrou (e coube), 0 caso contrario. */
+int medico_repo_especialidade(int id, char *destino, int tamanho);
+
 #endif

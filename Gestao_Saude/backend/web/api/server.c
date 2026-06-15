@@ -749,6 +749,53 @@ static void rotaListarAgendamentos(int cliente, const char *papel, int medico_id
     free(json);
 }
 
+static void rotaListarTriagens(int cliente, const char *papel, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas as triagens da sua especialidade (escopo por identidade);
+     * o tipo da triagem define a especialidade provavel. */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        char especialidade[64];
+
+        if (medico_repo_especialidade(medico_id, especialidade,
+                                      sizeof(especialidade)) == 1)
+        {
+            ok = triagem_service_listar_por_especialidade_json(
+                especialidade, json, TAM_JSON);
+        }
+        else
+        {
+            ok = 0;
+        }
+    }
+    else
+    {
+        ok = triagem_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar triagens\"}");
+    }
+
+    free(json);
+}
+
 static void rotaListarProntuarios(int cliente, const char *papel, int medico_id)
 {
     char *json = malloc(TAM_JSON);
@@ -1202,7 +1249,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagens") == 0)
     {
-        responderLista(cliente, triagem_repo_listar_json, "{\"erro\":\"falha ao listar triagens\"}");
+        rotaListarTriagens(cliente, papel, authMedicoId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagens/contar") == 0)
     {

@@ -492,3 +492,48 @@ int medico_repo_contar_ativos(void)
     db_fechar(db);
     return total;
 }
+
+int medico_repo_especialidade(int id, char *destino, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT especialidade FROM medicos WHERE id = ? AND ativo = 1;";
+    int encontrado = 0;
+
+    if (destino == NULL || tamanho <= 0 || id <= 0)
+    {
+        return 0;
+    }
+
+    destino[0] = '\0';
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char *especialidade = (const char *)sqlite3_column_text(stmt, 0);
+        int escrito = snprintf(destino, (size_t)tamanho, "%s",
+                               especialidade != NULL ? especialidade : "");
+
+        if (escrito >= 0 && escrito < tamanho)
+        {
+            encontrado = 1;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return encontrado;
+}

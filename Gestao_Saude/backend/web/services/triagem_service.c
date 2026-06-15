@@ -89,6 +89,31 @@ static const char *exames_sugeridos(int tipo_triagem)
     }
 }
 
+int triagem_service_listar_por_especialidade_json(const char *especialidade,
+                                                  char *buffer, int tamanho)
+{
+    int tipos[5];
+    int n = 0;
+    int tipo;
+
+    if (buffer == NULL || tamanho <= 0 || especialidade == NULL)
+    {
+        return 0;
+    }
+
+    /* Seleciona os tipos de triagem cuja especialidade provavel bate com a
+     * especialidade do medico (mesma fonte usada na sugestao de medicos). */
+    for (tipo = SVC_TRIAGEM_GERAL; tipo <= SVC_TRIAGEM_PEDIATRIA; tipo++)
+    {
+        if (strcmp(especialidade_provavel(tipo), especialidade) == 0)
+        {
+            tipos[n++] = tipo;
+        }
+    }
+
+    return triagem_repo_listar_por_tipos_json(tipos, n, buffer, tamanho);
+}
+
 int triagem_service_avaliar_json(int paciente_id, char *buffer, int tamanho)
 {
     int tipo = 0;

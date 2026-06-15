@@ -372,5 +372,19 @@ if grep -Fq '"medicoId":2' "${RESP_FILE}"; then
 fi
 echo "[OK] /exames escopado por papel (MEDICO nao ve exame de outro)"
 
+# Triagens de tipos diferentes: tipo 3 -> Cardiologia (do DrSmoke), tipo 2 -> Ortopedia.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=1&tipo=3&pontuacao=8&classificacao=Emergencia" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=2&tipo=2&pontuacao=4&classificacao=Prioritario" >/dev/null
+
+# O MEDICO (Cardiologia) ve a triagem cardiologica (tipo 3) na fila escopada.
+request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_AUTH}" contains '"tipoTriagem":3'
+# Valida que a triagem de outra especialidade (tipo 2) NAO aparece para ele.
+rm -f "${RESP_FILE}"
+curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/triagens" >/dev/null
+if grep -Fq '"tipoTriagem":2' "${RESP_FILE}"; then
+    fail "/triagens (MEDICO) vazou triagem de outra especialidade"
+fi
+echo "[OK] /triagens escopado por especialidade (MEDICO nao ve fora da sua area)"
+
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"
