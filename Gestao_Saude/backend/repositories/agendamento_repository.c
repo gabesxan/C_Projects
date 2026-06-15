@@ -181,6 +181,47 @@ int agendamento_repo_cancelar(int id)
     return alteradas > 0 ? 1 : 0;
 }
 
+int agendamento_repo_medico_ocupado(int medico_id, const char *data,
+                                    const char *horario)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT COUNT(*) FROM agendamentos "
+        "WHERE medico_id = ? AND data = ? AND horario = ? "
+        "AND status != 'CANCELADO';";
+    int ocupado = -1;
+
+    if (medico_id <= 0 || data == NULL || horario == NULL)
+    {
+        return -1;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return -1;
+    }
+
+    sqlite3_bind_int(stmt, 1, medico_id);
+    sqlite3_bind_text(stmt, 2, data, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, horario, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        ocupado = sqlite3_column_int(stmt, 0) > 0 ? 1 : 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ocupado;
+}
+
 int agendamento_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;

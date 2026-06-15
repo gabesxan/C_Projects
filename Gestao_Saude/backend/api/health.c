@@ -1,6 +1,7 @@
 #include "database.h"
 #include "paciente_repository.h"
 #include "medico_repository.h"
+#include "triagem_service.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,6 +265,108 @@ static void rotaDesativarMedico(int cliente, int id)
     }
 }
 
+static void rotaTriagemAvaliacao(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && triagem_service_avaliar_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"sem triagem ativa para o paciente\"}");
+    }
+
+    free(json);
+}
+
+static void rotaTriagemMedicos(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && triagem_service_sugerir_medicos_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"sem triagem ativa para o paciente\"}");
+    }
+
+    free(json);
+}
+
+static void rotaTriagemHistorico(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && triagem_service_historico_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"paciente invalido\"}");
+    }
+
+    free(json);
+}
+
+static void rotaTriagemExames(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && triagem_service_sugerir_exames_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"sem triagem ativa para o paciente\"}");
+    }
+
+    free(json);
+}
+
+static void rotaTriagemAgendar(int cliente, int paciente_id, const char *consulta)
+{
+    char data[32];
+    char horario[16];
+    char *json = malloc(TAM_JSON);
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    json[0] = '\0';
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "horario", horario, sizeof(horario));
+
+    if (triagem_service_agendar_json(paciente_id, data, horario, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "201 Created", json);
+    }
+    else if (json[0] != '\0')
+    {
+        responder(cliente, "409 Conflict", json);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"sem triagem ativa ou data/horario invalidos\"}");
+    }
+
+    free(json);
+}
+
 /* ----------------------------------------------------------------------- */
 /* Roteamento                                                               */
 /* ----------------------------------------------------------------------- */
@@ -271,6 +374,7 @@ static void rotaDesativarMedico(int cliente, int id)
 static void rotear(int cliente, const char *metodo, char *caminho)
 {
     char *consulta = strchr(caminho, '?');
+    char acao[32];
     int id;
 
     if (consulta != NULL)
@@ -314,6 +418,34 @@ static void rotear(int cliente, const char *metodo, char *caminho)
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicos/%d", &id) == 1)
     {
         rotaDesativarMedico(cliente, id);
+    }
+    else if (sscanf(caminho, "/triagem/%d/%31s", &id, acao) == 2)
+    {
+        if (strcmp(metodo, "GET") == 0 && strcmp(acao, "avaliacao") == 0)
+        {
+            rotaTriagemAvaliacao(cliente, id);
+        }
+        else if (strcmp(metodo, "GET") == 0 && strcmp(acao, "medicos") == 0)
+        {
+            rotaTriagemMedicos(cliente, id);
+        }
+        else if (strcmp(metodo, "GET") == 0 && strcmp(acao, "historico") == 0)
+        {
+            rotaTriagemHistorico(cliente, id);
+        }
+        else if (strcmp(metodo, "GET") == 0 && strcmp(acao, "exames") == 0)
+        {
+            rotaTriagemExames(cliente, id);
+        }
+        else if (strcmp(metodo, "POST") == 0 && strcmp(acao, "agendar") == 0)
+        {
+            rotaTriagemAgendar(cliente, id, consulta);
+        }
+        else
+        {
+            responder(cliente, "404 Not Found",
+                      "{\"erro\":\"rota de triagem nao encontrada\"}");
+        }
     }
     else
     {

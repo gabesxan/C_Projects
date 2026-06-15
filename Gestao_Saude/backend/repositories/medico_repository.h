@@ -23,4 +23,9 @@ int medico_repo_listar_por_especialidade_regiao_json(const char *especialidade,
                                                      int regiao,
                                                      char *buffer, int tamanho);
 
+/* Preenche 'ids' com os ids dos medicos ativos da especialidade/regiao
+ * (ate 'max'). Retorna a quantidade encontrada. */
+int medico_repo_ids_por_especialidade_regiao(const char *especialidade,
+                                             int regiao, int *ids, int max);
+
 #endif

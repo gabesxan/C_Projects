@@ -10,6 +10,7 @@
 int exame_repo_criar(int paciente_id, int medico_id, int prontuario_id,
                      int tipo_exame, const char *data_solicitacao, int urgente);
 int exame_repo_listar_json(char *buffer, int tamanho);
+int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int tamanho);
 int exame_repo_desativar(int id);
 int exame_repo_contar_ativos(void);
 

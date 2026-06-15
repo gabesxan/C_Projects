@@ -13,4 +13,9 @@ int agendamento_repo_listar_json(char *buffer, int tamanho);
 int agendamento_repo_cancelar(int id);
 int agendamento_repo_contar_ativos(void);
 
+/* 1 se o medico tem agendamento nao-cancelado na data/horario; 0 se livre;
+ * -1 em erro de banco. */
+int agendamento_repo_medico_ocupado(int medico_id, const char *data,
+                                    const char *horario);
+
 #endif

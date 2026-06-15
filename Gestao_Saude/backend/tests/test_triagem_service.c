@@ -2,6 +2,9 @@
 #include "triagem_repository.h"
 #include "paciente_repository.h"
 #include "medico_repository.h"
+#include "prontuario_repository.h"
+#include "exame_repository.h"
+#include "agendamento_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -65,6 +68,50 @@ int main(void)
 
     /* Paciente sem triagem -> 0. */
     assert(triagem_service_sugerir_medicos_json(999, json, sizeof(json)) == 0);
+
+    /* --- Historico clinico (prontuarios + exames anteriores) --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(prontuario_repo_criar(1, 1, "2026-06-01", "Estavel", "Gripe",
+                                 "Repouso", 0) == 1);
+    assert(exame_repo_criar(1, 1, 1, 1, "2026-06-01", 0) == 1);
+
+    assert(triagem_service_historico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"prontuarios\":") != NULL);
+    assert(strstr(json, "\"exames\":") != NULL);
+    assert(strstr(json, "Gripe") != NULL);
+
+    /* Paciente sem historico -> retorna 1 com listas vazias. */
+    assert(triagem_service_historico_json(2, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"prontuarios\":[]") != NULL);
+    assert(strstr(json, "\"exames\":[]") != NULL);
+
+    /* --- Sugestao de exames iniciais por tipo de triagem --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1); /* Cardiologia */
+    assert(triagem_service_sugerir_exames_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "Eletrocardiograma") != NULL);
+    assert(triagem_service_sugerir_exames_json(999, json, sizeof(json)) == 0);
+
+    /* --- Agendamento automatico --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1); /* Cardiologia */
+    assert(medico_repo_criar("Dr Cardio", "CRM1", "Cardiologia", 7) == 1); /* id 1 */
+
+    /* Horario livre -> agenda com o medico 1. */
+    assert(triagem_service_agendar_json(1, "2026-06-20", "09:00", json, sizeof(json)) == 1);
+    assert(strstr(json, "\"agendado\":true") != NULL);
+    assert(strstr(json, "\"medicoId\":1") != NULL);
+    assert(agendamento_repo_contar_ativos() == 1);
+
+    /* Mesmo horario, unico medico ocupado -> nao agenda. */
+    assert(triagem_service_agendar_json(1, "2026-06-20", "09:00", json, sizeof(json)) == 0);
+    assert(strstr(json, "\"agendado\":false") != NULL);
+    assert(agendamento_repo_contar_ativos() == 1);
+
+    /* Outro horario livre -> agenda de novo. */
+    assert(triagem_service_agendar_json(1, "2026-06-20", "10:00", json, sizeof(json)) == 1);
+    assert(agendamento_repo_contar_ativos() == 2);
 
     printf("test_triagem_service: OK\n");
     return 0;

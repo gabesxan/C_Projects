@@ -34,7 +34,7 @@ TEST_AGEND = tests/test_agendamento_repository.c $(AGEND_SRC) $(JSON_SRC) $(DB_S
 TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(JSON_SRC) $(DB_SRC)
-TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e a API de health.
 all: database.o api
@@ -42,9 +42,12 @@ all: database.o api
 database.o: $(DB_SRC)
 	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
 
-# Compila o servidor HTTP minimo (endpoints /health, /pacientes, /medicos).
-api: $(API_SRC) $(PAC_SRC) $(MED_SRC) $(DB_SRC)
-	$(CC) $(CFLAGS) $(API_SRC) $(PAC_SRC) $(MED_SRC) $(DB_SRC) -o api/sigeh_api $(LDLIBS)
+# Compila o servidor HTTP (health, pacientes, medicos e triagem inteligente).
+API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) \
+	$(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+
+api: $(API_DEPS)
+	$(CC) $(CFLAGS) $(API_DEPS) -o api/sigeh_api $(LDLIBS)
 
 # Sobe o servidor (precisa rodar de dentro de backend/ para achar data/).
 run: api

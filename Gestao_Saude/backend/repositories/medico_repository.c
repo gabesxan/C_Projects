@@ -306,6 +306,47 @@ int medico_repo_listar_por_especialidade_regiao_json(const char *especialidade,
     return 1;
 }
 
+int medico_repo_ids_por_especialidade_regiao(const char *especialidade,
+                                             int regiao, int *ids, int max)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id FROM medicos "
+        "WHERE ativo = 1 AND especialidade = ? AND regiao_administrativa = ? "
+        "ORDER BY id;";
+    int total = 0;
+
+    if (ids == NULL || max <= 0 || especialidade == NULL)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, especialidade, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, regiao);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && total < max)
+    {
+        ids[total] = sqlite3_column_int(stmt, 0);
+        total++;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return total;
+}
+
 int medico_repo_desativar(int id)
 {
     sqlite3 *db = NULL;

@@ -10,6 +10,7 @@ int prontuario_repo_criar(int paciente_id, int medico_id, const char *data,
                           const char *observacoes, const char *diagnostico,
                           const char *conduta, int alerta_importante);
 int prontuario_repo_listar_json(char *buffer, int tamanho);
+int prontuario_repo_listar_por_paciente_json(int paciente_id, char *buffer, int tamanho);
 int prontuario_repo_desativar(int id);
 int prontuario_repo_contar_ativos(void);
 
