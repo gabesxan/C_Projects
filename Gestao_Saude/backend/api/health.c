@@ -1,6 +1,13 @@
 #include "database.h"
 #include "paciente_repository.h"
 #include "medico_repository.h"
+#include "ala_repository.h"
+#include "leito_repository.h"
+#include "triagem_repository.h"
+#include "agendamento_repository.h"
+#include "prontuario_repository.h"
+#include "exame_repository.h"
+#include "internacao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 
@@ -49,6 +56,58 @@ static void responder(int cliente, const char *status, const char *corpo)
     {
         write(cliente, cabecalho, (size_t)n);
         write(cliente, corpo, strlen(corpo));
+    }
+}
+
+/* Responde com o JSON produzido por uma funcao de listagem do repository. */
+static void responderLista(int cliente, int (*listar)(char *, int), const char *erro)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && listar(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error", erro);
+    }
+
+    free(json);
+}
+
+/* Responde {"ativos":N} a partir de uma funcao de contagem do repository. */
+static void responderContagem(int cliente, int (*contar)(void))
+{
+    char corpo[64];
+
+    snprintf(corpo, sizeof(corpo), "{\"ativos\":%d}", contar());
+    responder(cliente, "200 OK", corpo);
+}
+
+/* Resposta padrao de criacao: 201 em sucesso, 400 com 'erro' caso contrario. */
+static void responderCriacao(int cliente, int ok, const char *erro)
+{
+    if (ok)
+    {
+        responder(cliente, "201 Created", "{\"status\":\"criado\"}");
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request", erro);
+    }
+}
+
+/* Resposta padrao de remocao: 200 em sucesso, 404 com 'erro' caso contrario. */
+static void responderRemocao(int cliente, int ok, const char *erro)
+{
+    if (ok)
+    {
+        responder(cliente, "200 OK", "{\"status\":\"removido\"}");
+    }
+    else
+    {
+        responder(cliente, "404 Not Found", erro);
     }
 }
 
@@ -422,6 +481,151 @@ static void rotaRelatorioIndicadores(int cliente)
     free(json);
 }
 
+static void rotaCriarAla(int cliente, const char *consulta)
+{
+    char nome[128];
+    char tipo[16];
+    char totalLeitos[16];
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "total_leitos", totalLeitos, sizeof(totalLeitos));
+
+    responderCriacao(cliente,
+        ala_repo_criar(nome, atoi(tipo), atoi(totalLeitos)) == 1,
+        "{\"erro\":\"dados invalidos para ala\"}");
+}
+
+static void rotaCriarLeito(int cliente, const char *consulta)
+{
+    char alaId[16];
+    char numero[16];
+
+    extrairParam(consulta, "ala_id", alaId, sizeof(alaId));
+    extrairParam(consulta, "numero", numero, sizeof(numero));
+
+    responderCriacao(cliente,
+        leito_repo_criar(atoi(alaId), atoi(numero)) == 1,
+        "{\"erro\":\"dados invalidos para leito\"}");
+}
+
+static void rotaCriarTriagem(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char tipo[16];
+    char pontuacao[16];
+    char classificacao[64];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "pontuacao", pontuacao, sizeof(pontuacao));
+    extrairParam(consulta, "classificacao", classificacao, sizeof(classificacao));
+
+    responderCriacao(cliente,
+        triagem_repo_criar(atoi(pacienteId), atoi(tipo), atoi(pontuacao),
+                           classificacao) == 1,
+        "{\"erro\":\"dados invalidos para triagem\"}");
+}
+
+static void rotaCriarAgendamento(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char medicoId[16];
+    char data[32];
+    char horario[16];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "horario", horario, sizeof(horario));
+
+    responderCriacao(cliente,
+        agendamento_repo_criar(atoi(pacienteId), atoi(medicoId), data, horario) == 1,
+        "{\"erro\":\"dados invalidos para agendamento\"}");
+}
+
+static void rotaCriarProntuario(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char medicoId[16];
+    char data[32];
+    char observacoes[512];
+    char diagnostico[256];
+    char conduta[256];
+    char alerta[16];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
+    extrairParam(consulta, "diagnostico", diagnostico, sizeof(diagnostico));
+    extrairParam(consulta, "conduta", conduta, sizeof(conduta));
+    extrairParam(consulta, "alerta_importante", alerta, sizeof(alerta));
+
+    responderCriacao(cliente,
+        prontuario_repo_criar(atoi(pacienteId), atoi(medicoId), data,
+                              observacoes, diagnostico, conduta,
+                              atoi(alerta)) == 1,
+        "{\"erro\":\"dados invalidos para prontuario\"}");
+}
+
+static void rotaCriarExame(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char medicoId[16];
+    char prontuarioId[16];
+    char tipo[16];
+    char dataSolicitacao[32];
+    char urgente[16];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
+    extrairParam(consulta, "prontuario_id", prontuarioId, sizeof(prontuarioId));
+    extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "data_solicitacao", dataSolicitacao, sizeof(dataSolicitacao));
+    extrairParam(consulta, "urgente", urgente, sizeof(urgente));
+
+    responderCriacao(cliente,
+        exame_repo_criar(atoi(pacienteId), atoi(medicoId), atoi(prontuarioId),
+                         atoi(tipo), dataSolicitacao, atoi(urgente)) == 1,
+        "{\"erro\":\"dados invalidos para exame\"}");
+}
+
+static void rotaCriarInternacao(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char alaId[16];
+    char leitoId[16];
+    char dataEntrada[32];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "ala_id", alaId, sizeof(alaId));
+    extrairParam(consulta, "leito_id", leitoId, sizeof(leitoId));
+    extrairParam(consulta, "data_entrada", dataEntrada, sizeof(dataEntrada));
+
+    responderCriacao(cliente,
+        internacao_repo_criar(atoi(pacienteId), atoi(alaId), atoi(leitoId),
+                              dataEntrada) == 1,
+        "{\"erro\":\"dados invalidos para internacao\"}");
+}
+
+static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
+{
+    char data[32];
+
+    extrairParam(consulta, "data", data, sizeof(data));
+
+    if (internacao_repo_dar_alta(id, data) == 1)
+    {
+        responder(cliente, "200 OK", "{\"status\":\"alta registrada\"}");
+    }
+    else
+    {
+        responder(cliente, "409 Conflict",
+                  "{\"erro\":\"internacao nao encontrada ou ja com alta\"}");
+    }
+}
+
 /* ----------------------------------------------------------------------- */
 /* Roteamento                                                               */
 /* ----------------------------------------------------------------------- */
@@ -505,6 +709,119 @@ static void rotear(int cliente, const char *metodo, char *caminho)
             responder(cliente, "404 Not Found",
                       "{\"erro\":\"rota de triagem nao encontrada\"}");
         }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/alas") == 0)
+    {
+        responderLista(cliente, ala_repo_listar_json, "{\"erro\":\"falha ao listar alas\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/alas/contar") == 0)
+    {
+        responderContagem(cliente, ala_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/alas") == 0)
+    {
+        rotaCriarAla(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/alas/%d", &id) == 1)
+    {
+        responderRemocao(cliente, ala_repo_desativar(id) == 1, "{\"erro\":\"ala nao encontrada\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/leitos") == 0)
+    {
+        responderLista(cliente, leito_repo_listar_json, "{\"erro\":\"falha ao listar leitos\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/leitos/contar") == 0)
+    {
+        responderContagem(cliente, leito_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/leitos") == 0)
+    {
+        rotaCriarLeito(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/leitos/%d", &id) == 1)
+    {
+        responderRemocao(cliente, leito_repo_desativar(id) == 1, "{\"erro\":\"leito nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagens") == 0)
+    {
+        responderLista(cliente, triagem_repo_listar_json, "{\"erro\":\"falha ao listar triagens\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagens/contar") == 0)
+    {
+        responderContagem(cliente, triagem_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/triagens") == 0)
+    {
+        rotaCriarTriagem(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/triagens/%d", &id) == 1)
+    {
+        responderRemocao(cliente, triagem_repo_desativar(id) == 1, "{\"erro\":\"triagem nao encontrada\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/agendamentos") == 0)
+    {
+        responderLista(cliente, agendamento_repo_listar_json, "{\"erro\":\"falha ao listar agendamentos\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/agendamentos/contar") == 0)
+    {
+        responderContagem(cliente, agendamento_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/agendamentos") == 0)
+    {
+        rotaCriarAgendamento(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/agendamentos/%d", &id) == 1)
+    {
+        responderRemocao(cliente, agendamento_repo_cancelar(id) == 1, "{\"erro\":\"agendamento nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios") == 0)
+    {
+        responderLista(cliente, prontuario_repo_listar_json, "{\"erro\":\"falha ao listar prontuarios\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios/contar") == 0)
+    {
+        responderContagem(cliente, prontuario_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/prontuarios") == 0)
+    {
+        rotaCriarProntuario(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prontuarios/%d", &id) == 1)
+    {
+        responderRemocao(cliente, prontuario_repo_desativar(id) == 1, "{\"erro\":\"prontuario nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames") == 0)
+    {
+        responderLista(cliente, exame_repo_listar_json, "{\"erro\":\"falha ao listar exames\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames/contar") == 0)
+    {
+        responderContagem(cliente, exame_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/exames") == 0)
+    {
+        rotaCriarExame(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/exames/%d", &id) == 1)
+    {
+        responderRemocao(cliente, exame_repo_desativar(id) == 1, "{\"erro\":\"exame nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/internacoes") == 0)
+    {
+        responderLista(cliente, internacao_repo_listar_json, "{\"erro\":\"falha ao listar internacoes\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/internacoes/contar") == 0)
+    {
+        responderContagem(cliente, internacao_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/internacoes") == 0)
+    {
+        rotaCriarInternacao(cliente, consulta);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/internacoes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "alta") == 0)
+    {
+        rotaInternacaoAlta(cliente, id, consulta);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {

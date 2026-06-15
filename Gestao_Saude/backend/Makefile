@@ -45,8 +45,9 @@ database.o: $(DB_SRC)
 	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
 
 # Compila o servidor HTTP (health, pacientes, medicos e triagem inteligente).
-API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) \
-	$(TRIAGEM_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
+	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
+	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS)
 	$(CC) $(CFLAGS) $(API_DEPS) -o api/sigeh_api $(LDLIBS)
