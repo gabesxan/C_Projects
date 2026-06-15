@@ -20,4 +20,7 @@ int paciente_repo_desativar(int id);
 
 int paciente_repo_contar_ativos(void);
 
+/* Regiao administrativa do paciente ativo, ou -1 se nao existir. */
+int paciente_repo_regiao(int id);
+
 #endif

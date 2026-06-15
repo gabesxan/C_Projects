@@ -1,5 +1,7 @@
 #include "triagem_service.h"
 #include "triagem_repository.h"
+#include "paciente_repository.h"
+#include "medico_repository.h"
 #include "repo_json.h"
 
 #include <stdio.h>
@@ -96,6 +98,60 @@ int triagem_service_avaliar_json(int paciente_id, char *buffer, int tamanho)
         "{\"pacienteId\":%d,\"classificacao\":%s,\"prioridade\":%d,"
         "\"especialidadeProvavel\":%s}",
         paciente_id, classificacaoJson, prioridade, especialidadeJson);
+
+    if (escrito < 0 || escrito >= tamanho)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+int triagem_service_sugerir_medicos_json(int paciente_id, char *buffer, int tamanho)
+{
+    int tipo = 0;
+    int regiao;
+    char classificacao[64];
+    char especialidadeJson[64];
+    char medicosJson[4096];
+    const char *especialidade;
+    int escrito;
+
+    if (buffer == NULL || tamanho <= 0 || paciente_id <= 0)
+    {
+        return 0;
+    }
+
+    if (triagem_repo_ultima_por_paciente(paciente_id, &tipo, NULL,
+                                         classificacao, sizeof(classificacao)) == 0)
+    {
+        return 0;
+    }
+
+    regiao = paciente_repo_regiao(paciente_id);
+
+    if (regiao < 0)
+    {
+        return 0;
+    }
+
+    especialidade = especialidade_provavel(tipo);
+
+    if (medico_repo_listar_por_especialidade_regiao_json(
+            especialidade, regiao, medicosJson, sizeof(medicosJson)) == 0)
+    {
+        return 0;
+    }
+
+    if (repo_json_escapar(especialidadeJson, sizeof(especialidadeJson), especialidade) == 0)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(buffer, (size_t)tamanho,
+        "{\"pacienteId\":%d,\"especialidadeProvavel\":%s,\"regiao\":%d,"
+        "\"medicosSugeridos\":%s}",
+        paciente_id, especialidadeJson, regiao, medicosJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {

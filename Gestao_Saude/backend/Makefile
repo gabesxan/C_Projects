@@ -34,7 +34,7 @@ TEST_AGEND = tests/test_agendamento_repository.c $(AGEND_SRC) $(JSON_SRC) $(DB_S
 TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(JSON_SRC) $(DB_SRC)
-TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e a API de health.
 all: database.o api

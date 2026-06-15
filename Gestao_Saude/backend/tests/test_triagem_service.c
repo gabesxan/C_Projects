@@ -1,5 +1,7 @@
 #include "triagem_service.h"
 #include "triagem_repository.h"
+#include "paciente_repository.h"
+#include "medico_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -11,7 +13,7 @@ static const char *SCHEMA = "data/schema_v2.sql";
 
 int main(void)
 {
-    char json[512];
+    char json[2048];
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
@@ -40,6 +42,29 @@ int main(void)
 
     /* Parametros invalidos -> 0. */
     assert(triagem_service_avaliar_json(0, json, sizeof(json)) == 0);
+
+    /* --- Sugestao de medicos por especialidade + regiao --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+
+    /* Paciente da regiao 7 (recebe id 1). */
+    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    /* Triagem cardiologica para o paciente 1. */
+    assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1);
+
+    /* Medicos: so o cardiologista da regiao 7 deve casar. */
+    assert(medico_repo_criar("Dr Cardio Local", "CRM1", "Cardiologia", 7) == 1);
+    assert(medico_repo_criar("Dr Cardio Longe", "CRM2", "Cardiologia", 3) == 1);
+    assert(medico_repo_criar("Dr Orto Local", "CRM3", "Ortopedia", 7) == 1);
+
+    assert(triagem_service_sugerir_medicos_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"especialidadeProvavel\":\"Cardiologia\"") != NULL);
+    assert(strstr(json, "\"regiao\":7") != NULL);
+    assert(strstr(json, "Dr Cardio Local") != NULL);
+    assert(strstr(json, "Dr Cardio Longe") == NULL); /* regiao diferente */
+    assert(strstr(json, "Dr Orto Local") == NULL);   /* especialidade diferente */
+
+    /* Paciente sem triagem -> 0. */
+    assert(triagem_service_sugerir_medicos_json(999, json, sizeof(json)) == 0);
 
     printf("test_triagem_service: OK\n");
     return 0;

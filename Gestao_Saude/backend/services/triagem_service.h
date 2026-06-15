@@ -12,4 +12,10 @@
  * Retorna 1 em sucesso; 0 se o paciente nao tem triagem ativa ou em erro. */
 int triagem_service_avaliar_json(int paciente_id, char *buffer, int tamanho);
 
+/* A partir da triagem do paciente, escreve em 'buffer' um JSON com a
+ * especialidade provavel, a regiao do paciente e os medicos ativos sugeridos
+ * (mesma especialidade e regiao). Retorna 1 em sucesso; 0 se nao ha triagem
+ * ativa ou em erro. */
+int triagem_service_sugerir_medicos_json(int paciente_id, char *buffer, int tamanho);
+
 #endif
