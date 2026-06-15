@@ -362,11 +362,29 @@ static void rotaHealth(int cliente)
     }
 }
 
-static void rotaListarPacientes(int cliente)
+static void rotaListarPacientes(int cliente, const char *papel, int medico_id)
 {
     char *json = malloc(TAM_JSON);
+    int ok;
 
-    if (json != NULL && paciente_repo_listar_json(json, TAM_JSON) == 1)
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas os proprios pacientes (escopo por identidade). */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        ok = paciente_repo_listar_por_medico_json(medico_id, json, TAM_JSON);
+    }
+    else
+    {
+        ok = paciente_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
     {
         responder(cliente, "200 OK", json);
     }
@@ -696,6 +714,41 @@ static void rotaRelatorioAgendamentos(int cliente, const char *consulta)
     free(json);
 }
 
+static void rotaListarAgendamentos(int cliente, const char *papel, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas a propria agenda (escopo por identidade). */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        ok = agendamento_repo_listar_por_medico_json(medico_id, json, TAM_JSON);
+    }
+    else
+    {
+        ok = agendamento_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar agendamentos\"}");
+    }
+
+    free(json);
+}
+
 static void rotaCriarAla(int cliente, const char *consulta)
 {
     char nome[128];
@@ -983,7 +1036,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
 
     if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)
     {
-        rotaListarPacientes(cliente);
+        rotaListarPacientes(cliente, papel, authMedicoId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes/contar") == 0)
     {
@@ -1095,7 +1148,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/agendamentos") == 0)
     {
-        responderLista(cliente, agendamento_repo_listar_json, "{\"erro\":\"falha ao listar agendamentos\"}");
+        rotaListarAgendamentos(cliente, papel, authMedicoId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/agendamentos/contar") == 0)
     {

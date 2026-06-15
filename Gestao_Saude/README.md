@@ -301,7 +301,7 @@ Toda rota exige autenticação, **exceto** `GET /health`. A política de acesso 
 |---|---|
 | **ADMIN** | Acesso total, incluindo o cadastro de usuários (`/usuarios`). |
 | **CADASTRO** | CRUD completo dos cadastros: `pacientes`, `medicos`, `alas`, `leitos`. |
-| **MEDICO** | Leitura dos cadastros **+** todo o clínico (triagens, agendamentos, prontuários, exames, internações, triagem inteligente, relatórios) **+** suas rotas `/me`. |
+| **MEDICO** | Leitura dos cadastros **+** todo o clínico (triagens, agendamentos, prontuários, exames, internações, triagem inteligente, relatórios) **+** suas rotas `/me`. Nas listas amplas, vê **apenas os próprios dados** (escopo por identidade — veja abaixo). |
 | **ENFERMAGEM** | Visão de enfermaria: **leitura** de internações, leitos e alas. |
 | **PACIENTE** | Apenas os próprios dados, via `/me` (exames e prontuários). |
 
@@ -318,6 +318,17 @@ Toda rota exige autenticação, **exceto** `GET /health`. A política de acesso 
 | `/me` e `/me/...` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 <sub>\* CADASTRO acessa alas/leitos como parte dos cadastros; internações são clínicas.</sub>
+
+#### Escopo de dados por identidade (MEDICO)
+
+Além da autorização por papel, as **listagens amplas são filtradas pela identidade** quando quem chama é um `MEDICO`: a mesma URL devolve só os dados dele.
+
+| Rota | ADMIN / CADASTRO | MEDICO |
+|---|---|---|
+| `GET /pacientes` | todos | apenas pacientes com agendamento com o médico |
+| `GET /agendamentos` | todos | apenas a própria agenda |
+
+As contagens (`/...../contar`) permanecem **globais** (indicadores). As rotas `/me/...` seguem como o caminho explícito do "só o seu".
 
 Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 

@@ -316,5 +316,34 @@ request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "
 # Testa que o relatorio por periodo sem datas retorna 400.
 request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_AUTH}"
 
+# --- Escopo de dados por papel: o MEDICO ve apenas os proprios dados ---
+# Endereco base reutilizado nas criacoes via POST (parametros vao na query string).
+BASE="http://localhost:8080"
+# Informa o inicio da preparacao do cenario de escopo.
+echo "[INFO] Preparando cenario de escopo por papel (MEDICO)"
+# Cria um medico (sera o id 1 no banco recem-resetado).
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/medicos?nome=DrSmoke&crm=CRM-SMOKE&especialidade=Cardiologia&regiao=1" >/dev/null
+# Cria dois pacientes: o primeiro sera vinculado ao medico, o segundo nao.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=AnaSmoke&cpf=900900&idade=20&telefone=61&sexo=F&regiao=1" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=BiaSmoke&cpf=900901&idade=30&telefone=61&sexo=F&regiao=2" >/dev/null
+# Agenda a paciente 1 (Ana) com o medico 1, criando o vinculo de escopo.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/agendamentos?paciente_id=1&medico_id=1&data=2026-06-14&horario=09:00" >/dev/null
+# Cria um usuario MEDICO ligado ao medico 1 para autenticar com escopo.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=medsmoke&senha=med123&papel=MEDICO&medico_id=1" >/dev/null
+# Credencial do medico recem-criado.
+MED_AUTH="medsmoke:med123"
+
+# O MEDICO deve ver a propria paciente (Ana) na listagem ampla de pacientes.
+request_and_assert "/pacientes" "200" "/pacientes (MEDICO escopado)" "${MED_AUTH}" contains 'AnaSmoke'
+# Valida que a paciente fora do escopo (Bia) NAO aparece para o medico.
+rm -f "${RESP_FILE}"
+curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/pacientes" >/dev/null
+if grep -Fq 'BiaSmoke' "${RESP_FILE}"; then
+    fail "/pacientes (MEDICO) vazou paciente fora do escopo"
+fi
+echo "[OK] /pacientes escopado por papel (MEDICO nao ve paciente de fora)"
+# O MEDICO deve ver o proprio agendamento na listagem ampla de agendamentos.
+request_and_assert "/agendamentos" "200" "/agendamentos (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
+
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"
