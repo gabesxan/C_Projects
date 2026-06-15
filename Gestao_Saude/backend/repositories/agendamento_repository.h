@@ -18,4 +18,8 @@ int agendamento_repo_contar_ativos(void);
 int agendamento_repo_medico_ocupado(int medico_id, const char *data,
                                     const char *horario);
 
+/* 1 se o horario "HH:MM" cai num slot valido da agenda: dentro do expediente
+ * e alinhado a grade de slots. 0 caso contrario. */
+int agendamento_repo_horario_valido(const char *horario);
+
 #endif

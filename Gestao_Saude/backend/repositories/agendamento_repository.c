@@ -5,6 +5,52 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Politica de agenda (grade de slots fixos + janela de expediente). */
+#define AGENDA_MIN_INICIO (8 * 60)   /* 08:00, inclusivo */
+#define AGENDA_MIN_FIM (18 * 60)     /* 18:00, exclusivo */
+#define AGENDA_SLOT_MIN 30           /* passo da grade, em minutos */
+
+/* Converte "HH:MM" em minutos do dia; -1 se invalido. */
+static int minutosDoHorario(const char *horario)
+{
+    int horas;
+    int minutos;
+
+    if (horario == NULL || sscanf(horario, "%d:%d", &horas, &minutos) != 2)
+    {
+        return -1;
+    }
+
+    if (horas < 0 || horas > 23 || minutos < 0 || minutos > 59)
+    {
+        return -1;
+    }
+
+    return horas * 60 + minutos;
+}
+
+int agendamento_repo_horario_valido(const char *horario)
+{
+    int minutos = minutosDoHorario(horario);
+
+    if (minutos < 0)
+    {
+        return 0;
+    }
+
+    if (minutos % AGENDA_SLOT_MIN != 0)
+    {
+        return 0;
+    }
+
+    if (minutos < AGENDA_MIN_INICIO || minutos >= AGENDA_MIN_FIM)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int agendamento_repo_criar(int paciente_id, int medico_id,
                            const char *data, const char *horario)
 {
@@ -21,6 +67,11 @@ int agendamento_repo_criar(int paciente_id, int medico_id,
     }
 
     if (data == NULL || data[0] == '\0' || horario == NULL || horario[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (agendamento_repo_horario_valido(horario) == 0)
     {
         return 0;
     }

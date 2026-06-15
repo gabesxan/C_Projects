@@ -120,6 +120,11 @@ int main(void)
     assert(triagem_service_agendar_json(1, "2026-06-20", "10:00", json, sizeof(json)) == 1);
     assert(agendamento_repo_contar_ativos() == 2);
 
+    /* Horario fora da grade/expediente -> nao agenda. */
+    assert(triagem_service_agendar_json(1, "2026-06-20", "09:15", json, sizeof(json)) == 0);
+    assert(strstr(json, "\"agendado\":false") != NULL);
+    assert(agendamento_repo_contar_ativos() == 2);
+
     /* --- Encaminhamento para outra especialidade --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
     assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);

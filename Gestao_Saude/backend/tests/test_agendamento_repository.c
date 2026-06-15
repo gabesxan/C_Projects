@@ -36,6 +36,17 @@ int main(void)
     assert(agendamento_repo_criar(1, 1, "2026-06-14", "") == 0);
     assert(agendamento_repo_contar_ativos() == 1);
 
+    /* Agenda: grade de slots fixos + janela de expediente. */
+    assert(agendamento_repo_horario_valido("08:00") == 1);
+    assert(agendamento_repo_horario_valido("17:30") == 1);
+    assert(agendamento_repo_horario_valido("08:15") == 0); /* fora da grade */
+    assert(agendamento_repo_horario_valido("07:30") == 0); /* antes do expediente */
+    assert(agendamento_repo_horario_valido("18:00") == 0); /* fim exclusivo */
+    assert(agendamento_repo_horario_valido("xx:yy") == 0); /* invalido */
+    /* Criacao recusa horario fora da grade. */
+    assert(agendamento_repo_criar(1, 1, "2026-06-14", "08:15") == 0);
+    assert(agendamento_repo_contar_ativos() == 1);
+
     assert(agendamento_repo_listar_json(json, sizeof(json)) == 1);
     assert(json[0] == '[');
     assert(strstr(json, "2026-06-14") != NULL);

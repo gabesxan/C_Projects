@@ -272,6 +272,13 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
         return 0;
     }
 
+    if (agendamento_repo_horario_valido(horario) == 0)
+    {
+        snprintf(buffer, (size_t)tamanho,
+            "{\"agendado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
+        return 0;
+    }
+
     if (triagem_repo_ultima_por_paciente(paciente_id, &tipo, NULL, NULL, 0) == 0)
     {
         return 0;
@@ -353,6 +360,13 @@ int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
         data == NULL || data[0] == '\0' ||
         horario == NULL || horario[0] == '\0')
     {
+        return 0;
+    }
+
+    if (agendamento_repo_horario_valido(horario) == 0)
+    {
+        snprintf(buffer, (size_t)tamanho,
+            "{\"encaminhado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
         return 0;
     }
 
