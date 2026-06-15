@@ -2,7 +2,8 @@ CC = gcc
 
 CFLAGS = -Wall -Wextra -pedantic \
 	-Idatabase \
-	-Irepositories
+	-Irepositories \
+	-Iservices
 
 LDLIBS = -lsqlite3
 
@@ -19,6 +20,8 @@ PRONT_SRC = repositories/prontuario_repository.c
 EXAME_SRC = repositories/exame_repository.c
 INTERN_SRC = repositories/internacao_repository.c
 
+TRIAGEM_SVC_SRC = services/triagem_service.c
+
 API_SRC = api/health.c
 
 # Repositories que usam o utilitario de JSON precisam linkar JSON_SRC.
@@ -31,6 +34,7 @@ TEST_AGEND = tests/test_agendamento_repository.c $(AGEND_SRC) $(JSON_SRC) $(DB_S
 TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e a API de health.
 all: database.o api
@@ -48,7 +52,8 @@ run: api
 
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
-	test_prontuario_repository test_exame_repository test_internacao_repository
+	test_prontuario_repository test_exame_repository test_internacao_repository \
+	test_triagem_service
 
 test_paciente_repository:
 	$(CC) $(CFLAGS) $(TEST_PAC) -o tests/test_paciente_repository $(LDLIBS)
@@ -86,6 +91,10 @@ test_internacao_repository:
 	$(CC) $(CFLAGS) $(TEST_INTERN) -o tests/test_internacao_repository $(LDLIBS)
 	./tests/test_internacao_repository
 
+test_triagem_service:
+	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o tests/test_triagem_service $(LDLIBS)
+	./tests/test_triagem_service
+
 clean:
 	rm -f database.o \
 		api/sigeh_api \
@@ -98,9 +107,11 @@ clean:
 		tests/test_prontuario_repository \
 		tests/test_exame_repository \
 		tests/test_internacao_repository \
+		tests/test_triagem_service \
 		tests/test_sigeh_repository.db
 
 .PHONY: all api run test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
-	test_prontuario_repository test_exame_repository test_internacao_repository
+	test_prontuario_repository test_exame_repository test_internacao_repository \
+	test_triagem_service

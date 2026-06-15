@@ -175,6 +175,71 @@ int triagem_repo_desativar(int id)
     return alteradas > 0 ? 1 : 0;
 }
 
+int triagem_repo_ultima_por_paciente(int paciente_id, int *tipo_triagem,
+                                     int *pontuacao, char *classificacao,
+                                     int classificacao_tam)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT tipo_triagem, pontuacao, classificacao "
+        "FROM triagens WHERE paciente_id = ? AND ativo = 1 "
+        "ORDER BY id DESC LIMIT 1;";
+    int encontrou = 0;
+
+    if (paciente_id <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, paciente_id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        if (tipo_triagem != NULL)
+        {
+            *tipo_triagem = sqlite3_column_int(stmt, 0);
+        }
+
+        if (pontuacao != NULL)
+        {
+            *pontuacao = sqlite3_column_int(stmt, 1);
+        }
+
+        if (classificacao != NULL && classificacao_tam > 0)
+        {
+            const char *texto = (const char *)sqlite3_column_text(stmt, 2);
+
+            if (texto != NULL)
+            {
+                strncpy(classificacao, texto, (size_t)classificacao_tam - 1);
+                classificacao[classificacao_tam - 1] = '\0';
+            }
+            else
+            {
+                classificacao[0] = '\0';
+            }
+        }
+
+        encontrou = 1;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return encontrou;
+}
+
 int triagem_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;
