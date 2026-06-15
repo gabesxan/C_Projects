@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
-static const char *BANCO_TESTE = "tests/test_sigeh_repository.db";
-static const char *SCHEMA = "data/schema_v2.sql";
+static const char *BANCO_TESTE = "build/test_sigeh_repository.db";
+static const char *SCHEMA = "../data/schema_v2.sql";
 
 int main(void)
 {

@@ -6,27 +6,10 @@
 .DS_Store
 
 # Build outputs (compilados)
-/main
-sigeh
 *.out
 *.o
 *.exe
 
-# V1 terminal: binarios de teste
-test_agendamento
-test_leito
-test_triagem
-test_paciente
-test_medico
-test_ala
-test_internacao
-test_relatorio
-test_prontuario
-test_exame
-test_sqlite_db
-
-# Backend web: binarios e bancos gerados
-backend/api/sigeh_api
-backend/tests/test_*_repository
+# Backend web: saida de build (binarios + bancos de teste) e banco gerado
+backend/web/build/
 backend/data/*.db
-backend/tests/*.db

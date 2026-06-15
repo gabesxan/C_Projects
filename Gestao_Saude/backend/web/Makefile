@@ -7,14 +7,18 @@ CFLAGS = -Wall -Wextra -pedantic \
 	-Idatabase \
 	-Irepositories \
 	-Iservices \
+	-Iutil \
 	-I$(OPENSSL_DIR)/include
 
 LDLIBS = -lsqlite3
 CRYPTO_LIBS = -L$(OPENSSL_DIR)/lib -lcrypto
 
+# Diretorio de saida para binarios e bancos de teste (gerado, ignorado no git).
+BUILD = build
+
 DB_SRC = database/database.c
-JSON_SRC = repositories/repo_json.c
-SENHA_SRC = repositories/senha_util.c
+JSON_SRC = util/repo_json.c
+SENHA_SRC = util/senha_util.c
 USUARIO_SRC = repositories/usuario_repository.c
 
 PAC_SRC = repositories/paciente_repository.c
@@ -30,7 +34,7 @@ INTERN_SRC = repositories/internacao_repository.c
 TRIAGEM_SVC_SRC = services/triagem_service.c
 RELAT_SVC_SRC = services/relatorio_service.c
 
-API_SRC = api/health.c
+API_SRC = api/server.c
 
 # Repositories que usam o utilitario de JSON precisam linkar JSON_SRC.
 TEST_PAC = tests/test_paciente_repository.c $(PAC_SRC) $(DB_SRC)
@@ -46,27 +50,34 @@ TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC
 TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 
-# Alvo padrao: compila a camada de banco e a API de health.
-all: database.o api
+# Alvo padrao: compila a camada de banco e o servidor HTTP.
+all: $(BUILD)/database.o api
 
-database.o: $(DB_SRC)
-	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
+# Cria o diretorio de saida sob demanda (usado como prerequisito de ordem).
+$(BUILD):
+	mkdir -p $(BUILD)
 
-# Compila o servidor HTTP (health, pacientes, medicos e triagem inteligente).
+$(BUILD)/database.o: $(DB_SRC) | $(BUILD)
+	$(CC) $(CFLAGS) -c $(DB_SRC) -o $(BUILD)/database.o
+
+# Compila o servidor HTTP (health, cadastros, triagem inteligente e usuarios).
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
 	$(USUARIO_SRC) $(SENHA_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
-api: $(API_DEPS)
-	$(CC) $(CFLAGS) $(API_DEPS) -o api/sigeh_api $(LDLIBS) $(CRYPTO_LIBS)
+api: $(API_DEPS) | $(BUILD)
+	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS)
 
-# Sobe o servidor (precisa rodar de dentro de backend/ para achar data/).
+# Sobe o servidor (precisa rodar de dentro de backend/web/ para achar ../data/).
 run: api
-	./api/sigeh_api
+	./$(BUILD)/sigeh_api
 
+# Alvo separado para o smoke test HTTP, sem misturar com o make test unitario.
 api-smoke-test:
+	# Garante permissao de execucao no script antes de rodar o teste.
 	chmod +x tests/api_smoke_test.sh
+	# Executa o smoke test que sobe a API, valida rotas e encerra ao final.
 	./tests/api_smoke_test.sh
 
 test: test_paciente_repository test_medico_repository test_ala_repository \
@@ -74,70 +85,56 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository
 
-test_paciente_repository:
-	$(CC) $(CFLAGS) $(TEST_PAC) -o tests/test_paciente_repository $(LDLIBS)
-	./tests/test_paciente_repository
+test_paciente_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
+	./$(BUILD)/test_paciente_repository
 
-test_medico_repository:
-	$(CC) $(CFLAGS) $(TEST_MED) -o tests/test_medico_repository $(LDLIBS)
-	./tests/test_medico_repository
+test_medico_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_MED) -o $(BUILD)/test_medico_repository $(LDLIBS)
+	./$(BUILD)/test_medico_repository
 
-test_ala_repository:
-	$(CC) $(CFLAGS) $(TEST_ALA) -o tests/test_ala_repository $(LDLIBS)
-	./tests/test_ala_repository
+test_ala_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_ALA) -o $(BUILD)/test_ala_repository $(LDLIBS)
+	./$(BUILD)/test_ala_repository
 
-test_leito_repository:
-	$(CC) $(CFLAGS) $(TEST_LEITO) -o tests/test_leito_repository $(LDLIBS)
-	./tests/test_leito_repository
+test_leito_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_LEITO) -o $(BUILD)/test_leito_repository $(LDLIBS)
+	./$(BUILD)/test_leito_repository
 
-test_triagem_repository:
-	$(CC) $(CFLAGS) $(TEST_TRIAGEM) -o tests/test_triagem_repository $(LDLIBS)
-	./tests/test_triagem_repository
+test_triagem_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_TRIAGEM) -o $(BUILD)/test_triagem_repository $(LDLIBS)
+	./$(BUILD)/test_triagem_repository
 
-test_agendamento_repository:
-	$(CC) $(CFLAGS) $(TEST_AGEND) -o tests/test_agendamento_repository $(LDLIBS)
-	./tests/test_agendamento_repository
+test_agendamento_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_AGEND) -o $(BUILD)/test_agendamento_repository $(LDLIBS)
+	./$(BUILD)/test_agendamento_repository
 
-test_prontuario_repository:
-	$(CC) $(CFLAGS) $(TEST_PRONT) -o tests/test_prontuario_repository $(LDLIBS)
-	./tests/test_prontuario_repository
+test_prontuario_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_PRONT) -o $(BUILD)/test_prontuario_repository $(LDLIBS)
+	./$(BUILD)/test_prontuario_repository
 
-test_exame_repository:
-	$(CC) $(CFLAGS) $(TEST_EXAME) -o tests/test_exame_repository $(LDLIBS)
-	./tests/test_exame_repository
+test_exame_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_EXAME) -o $(BUILD)/test_exame_repository $(LDLIBS)
+	./$(BUILD)/test_exame_repository
 
-test_internacao_repository:
-	$(CC) $(CFLAGS) $(TEST_INTERN) -o tests/test_internacao_repository $(LDLIBS)
-	./tests/test_internacao_repository
+test_internacao_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_INTERN) -o $(BUILD)/test_internacao_repository $(LDLIBS)
+	./$(BUILD)/test_internacao_repository
 
-test_triagem_service:
-	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o tests/test_triagem_service $(LDLIBS)
-	./tests/test_triagem_service
+test_triagem_service: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o $(BUILD)/test_triagem_service $(LDLIBS)
+	./$(BUILD)/test_triagem_service
 
-test_relatorio_service:
-	$(CC) $(CFLAGS) $(TEST_RELAT_SVC) -o tests/test_relatorio_service $(LDLIBS)
-	./tests/test_relatorio_service
+test_relatorio_service: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_RELAT_SVC) -o $(BUILD)/test_relatorio_service $(LDLIBS)
+	./$(BUILD)/test_relatorio_service
 
-test_usuario_repository:
-	$(CC) $(CFLAGS) $(TEST_USUARIO) -o tests/test_usuario_repository $(LDLIBS) $(CRYPTO_LIBS)
-	./tests/test_usuario_repository
+test_usuario_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_USUARIO) -o $(BUILD)/test_usuario_repository $(LDLIBS) $(CRYPTO_LIBS)
+	./$(BUILD)/test_usuario_repository
 
 clean:
-	rm -f database.o \
-		api/sigeh_api \
-		tests/test_paciente_repository \
-		tests/test_medico_repository \
-		tests/test_ala_repository \
-		tests/test_leito_repository \
-		tests/test_triagem_repository \
-		tests/test_agendamento_repository \
-		tests/test_prontuario_repository \
-		tests/test_exame_repository \
-		tests/test_internacao_repository \
-		tests/test_triagem_service \
-		tests/test_relatorio_service \
-		tests/test_usuario_repository \
-		tests/test_sigeh_repository.db
+	rm -rf $(BUILD)
 
 .PHONY: all api run api-smoke-test test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
