@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -235,13 +236,41 @@ static int base64Decodificar(const char *entrada, char *saida, int tam)
     return 1;
 }
 
+/* Busca 'prefixo' em 'texto' ignorando maiusculas/minusculas e devolve o
+ * ponteiro logo apos o prefixo, ou NULL. Necessario porque proxies e HTTP/2
+ * normalizam o nome do cabecalho (ex.: "authorization:" em minusculas). */
+static const char *aposCabecalho(const char *texto, const char *prefixo)
+{
+    size_t plen = strlen(prefixo);
+    size_t i;
+
+    for (i = 0; texto[i] != '\0'; i++)
+    {
+        size_t j = 0;
+
+        while (j < plen && texto[i + j] != '\0' &&
+               tolower((unsigned char)texto[i + j]) ==
+                   tolower((unsigned char)prefixo[j]))
+        {
+            j++;
+        }
+
+        if (j == plen)
+        {
+            return texto + i + plen;
+        }
+    }
+
+    return NULL;
+}
+
 /* Autentica o request pelo cabecalho 'Authorization: Basic'. Em sucesso
  * preenche papel/vinculos e retorna 1; caso contrario 0. */
 static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
                              int *paciente_id, int *medico_id)
 {
     const char *prefixo = "Authorization: Basic ";
-    const char *inicio = strstr(requisicao, prefixo);
+    const char *inicio = aposCabecalho(requisicao, prefixo);
     char b64[512];
     char credenciais[512];
     char *separador;
@@ -251,8 +280,6 @@ static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
     {
         return 0;
     }
-
-    inicio += strlen(prefixo);
 
     while (inicio[n] != '\0' && inicio[n] != '\r' && inicio[n] != '\n' &&
            inicio[n] != ' ' && n < (int)sizeof(b64) - 1)
