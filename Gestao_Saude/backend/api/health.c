@@ -280,25 +280,69 @@ static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
                                    paciente_id, medico_id);
 }
 
-/* Garante que o request esta autenticado com 'papelExigido'. Em falha,
- * responde 401/403 e retorna 0. */
-static int exigirPapel(int cliente, const char *requisicao, const char *papelExigido)
+static int comecaCom(const char *texto, const char *prefixo)
 {
-    char papel[32];
+    return strncmp(texto, prefixo, strlen(prefixo)) == 0;
+}
 
-    if (autenticarRequest(requisicao, papel, sizeof(papel), NULL, NULL) == 0)
+static int ehRotaMe(const char *caminho)
+{
+    return strcmp(caminho, "/me") == 0 || comecaCom(caminho, "/me/");
+}
+
+static int ehCadastro(const char *caminho)
+{
+    return comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
+           comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos");
+}
+
+static int ehClinico(const char *caminho)
+{
+    return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
+           comecaCom(caminho, "/prontuarios") || comecaCom(caminho, "/exames") ||
+           comecaCom(caminho, "/internacoes") || comecaCom(caminho, "/triagem/") ||
+           comecaCom(caminho, "/relatorios");
+}
+
+/* Politica central de acesso por papel. 1 = permitido, 0 = negado.
+ * Escopo "ver so o seu" (paciente/medico) e tratado pelas rotas sob /me. */
+static int autorizado(const char *metodo, const char *caminho, const char *papel)
+{
+    if (strcmp(papel, "ADMIN") == 0)
     {
-        responder(cliente, "401 Unauthorized", "{\"erro\":\"credenciais invalidas\"}");
-        return 0;
+        return 1;
     }
 
-    if (strcmp(papel, papelExigido) != 0)
+    /* Qualquer usuario autenticado acessa o proprio perfil e seus dados. */
+    if (ehRotaMe(caminho))
     {
-        responder(cliente, "403 Forbidden", "{\"erro\":\"acesso negado\"}");
-        return 0;
+        return 1;
     }
 
-    return 1;
+    if (strcmp(papel, "CADASTRO") == 0)
+    {
+        return ehCadastro(caminho);
+    }
+
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        if (strcmp(metodo, "GET") == 0 && ehCadastro(caminho))
+        {
+            return 1;
+        }
+        return ehClinico(caminho);
+    }
+
+    if (strcmp(papel, "ENFERMAGEM") == 0)
+    {
+        return strcmp(metodo, "GET") == 0 &&
+               (comecaCom(caminho, "/internacoes") ||
+                comecaCom(caminho, "/leitos") ||
+                comecaCom(caminho, "/alas"));
+    }
+
+    /* PACIENTE: somente as rotas sob /me (ja liberadas acima). */
+    return 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -767,23 +811,82 @@ static void rotaCriarUsuario(int cliente, const char *consulta)
         "{\"erro\":\"dados invalidos para usuario\"}");
 }
 
-static void rotaMe(int cliente, const char *requisicao)
+static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_id)
 {
-    char papel[32];
     char corpo[160];
-    int pacienteId = 0;
-    int medicoId = 0;
-
-    if (autenticarRequest(requisicao, papel, sizeof(papel), &pacienteId, &medicoId) == 0)
-    {
-        responder(cliente, "401 Unauthorized", "{\"erro\":\"credenciais invalidas\"}");
-        return;
-    }
 
     snprintf(corpo, sizeof(corpo),
         "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
-        papel, pacienteId, medicoId);
+        papel, paciente_id, medico_id);
     responder(cliente, "200 OK", corpo);
+}
+
+static void rotaMeExames(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && exame_repo_listar_por_paciente_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar exames\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMeProntuarios(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && prontuario_repo_listar_por_paciente_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar prontuarios\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMeAgenda(int cliente, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && agendamento_repo_listar_por_medico_json(medico_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar agenda\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMePacientes(int cliente, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && paciente_repo_listar_por_medico_json(medico_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar pacientes\"}");
+    }
+
+    free(json);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -795,6 +898,9 @@ static void rotear(int cliente, const char *metodo, char *caminho,
 {
     char *consulta = strchr(caminho, '?');
     char acao[32];
+    char papel[32];
+    int authPacienteId = 0;
+    int authMedicoId = 0;
     int id;
 
     if (consulta != NULL)
@@ -803,11 +909,30 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         consulta++;
     }
 
+    /* /health e publico (liveness). */
     if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/health") == 0)
     {
         rotaHealth(cliente);
+        return;
     }
-    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)
+
+    /* Todas as demais rotas exigem autenticacao (HTTP Basic). */
+    if (autenticarRequest(requisicao, papel, sizeof(papel),
+                          &authPacienteId, &authMedicoId) == 0)
+    {
+        responder(cliente, "401 Unauthorized",
+                  "{\"erro\":\"credenciais invalidas\"}");
+        return;
+    }
+
+    /* Politica de acesso por papel. */
+    if (autorizado(metodo, caminho, papel) == 0)
+    {
+        responder(cliente, "403 Forbidden", "{\"erro\":\"acesso negado\"}");
+        return;
+    }
+
+    if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)
     {
         rotaListarPacientes(cliente);
     }
@@ -990,35 +1115,39 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {
-        rotaMe(cliente, requisicao);
+        rotaMe(cliente, papel, authPacienteId, authMedicoId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/exames") == 0)
+    {
+        rotaMeExames(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/prontuarios") == 0)
+    {
+        rotaMeProntuarios(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agenda") == 0)
+    {
+        rotaMeAgenda(cliente, authMedicoId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/pacientes") == 0)
+    {
+        rotaMePacientes(cliente, authMedicoId);
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/usuarios") == 0)
     {
-        if (exigirPapel(cliente, requisicao, "ADMIN"))
-        {
-            rotaCriarUsuario(cliente, consulta);
-        }
+        rotaCriarUsuario(cliente, consulta);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/usuarios") == 0)
     {
-        if (exigirPapel(cliente, requisicao, "ADMIN"))
-        {
-            responderLista(cliente, usuario_repo_listar_json, "{\"erro\":\"falha ao listar usuarios\"}");
-        }
+        responderLista(cliente, usuario_repo_listar_json, "{\"erro\":\"falha ao listar usuarios\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/usuarios/contar") == 0)
     {
-        if (exigirPapel(cliente, requisicao, "ADMIN"))
-        {
-            responderContagem(cliente, usuario_repo_contar_ativos);
-        }
+        responderContagem(cliente, usuario_repo_contar_ativos);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/usuarios/%d", &id) == 1)
     {
-        if (exigirPapel(cliente, requisicao, "ADMIN"))
-        {
-            responderRemocao(cliente, usuario_repo_desativar(id) == 1, "{\"erro\":\"usuario nao encontrado\"}");
-        }
+        responderRemocao(cliente, usuario_repo_desativar(id) == 1, "{\"erro\":\"usuario nao encontrado\"}");
     }
     else
     {

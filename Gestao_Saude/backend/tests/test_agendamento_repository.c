@@ -3,6 +3,8 @@
 #include "medico_repository.h"
 #include "database.h"
 
+#include <string.h>
+
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +57,17 @@ int main(void)
     assert(agendamento_repo_criar(2, 2, "2026-06-15", "10:30") == 1);
     antes = agendamento_repo_contar_ativos();
     assert(antes == 2);
+
+    /* Escopo por medico: agenda e pacientes do medico 1 (paciente Ana). */
+    assert(agendamento_repo_listar_por_medico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"medicoId\":1") != NULL);
+    assert(strstr(json, "\"medicoId\":2") == NULL);
+    assert(paciente_repo_listar_por_medico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "Ana") != NULL);
+    assert(strstr(json, "Bia") == NULL);
+    assert(paciente_repo_listar_por_medico_json(2, json, sizeof(json)) == 1);
+    assert(strstr(json, "Bia") != NULL);
+    assert(strstr(json, "Ana") == NULL);
 
     /* Cancelar diminui os ativos (status passa a CANCELADO). */
     assert(agendamento_repo_cancelar(1) == 1);

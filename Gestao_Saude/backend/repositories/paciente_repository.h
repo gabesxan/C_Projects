@@ -16,6 +16,9 @@ int paciente_repo_criar(const char *nome,
 
 int paciente_repo_listar_json(char *buffer, int tamanho);
 
+/* Lista (JSON) os pacientes ativos que tem agendamento com o medico. */
+int paciente_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho);
+
 int paciente_repo_desativar(int id);
 
 int paciente_repo_contar_ativos(void);

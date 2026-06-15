@@ -10,6 +10,7 @@
 int agendamento_repo_criar(int paciente_id, int medico_id,
                            const char *data, const char *horario);
 int agendamento_repo_listar_json(char *buffer, int tamanho);
+int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho);
 int agendamento_repo_cancelar(int id);
 int agendamento_repo_contar_ativos(void);
 
