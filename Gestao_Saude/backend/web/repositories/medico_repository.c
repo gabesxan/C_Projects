@@ -347,6 +347,89 @@ int medico_repo_ids_por_especialidade_regiao(const char *especialidade,
     return total;
 }
 
+int medico_repo_distribuicao_por_especialidade_json(char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT especialidade, COUNT(*) FROM medicos "
+        "WHERE ativo = 1 GROUP BY especialidade ORDER BY especialidade;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    buffer[0] = '\0';
+
+    if (anexarTexto(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char especialidadeJson[128];
+        char objeto[200];
+        const char *especialidade = (const char *)sqlite3_column_text(stmt, 0);
+        int total = sqlite3_column_int(stmt, 1);
+        int escrito;
+
+        if (escaparJson(especialidadeJson, sizeof(especialidadeJson),
+                        especialidade) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"especialidade\":%s,\"total\":%d}",
+            primeiro ? "" : ",", especialidadeJson, total);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto))
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        if (anexarTexto(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (anexarTexto(buffer, tamanho, &usado, "]") == 0)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int medico_repo_desativar(int id)
 {
     sqlite3 *db = NULL;

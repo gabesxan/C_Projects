@@ -3,6 +3,7 @@
 #include "medico_repository.h"
 #include "triagem_repository.h"
 #include "agendamento_repository.h"
+#include "repo_json.h"
 
 #include <stdio.h>
 
@@ -52,6 +53,88 @@ int relatorio_service_indicadores_json(char *buffer, int tamanho)
         pacientes, medicos, triagens, agendamentos,
         emergencia, muitoPrioritario, prioritario, comum, orientacaoBasica,
         casosGraves);
+
+    if (escrito < 0 || escrito >= tamanho)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+int relatorio_service_distribuicao_json(char *buffer, int tamanho)
+{
+    char porRegiao[2048];
+    char porEspecialidade[2048];
+    int escrito;
+
+    if (buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    if (paciente_repo_distribuicao_por_regiao_json(
+            porRegiao, sizeof(porRegiao)) != 1)
+    {
+        return 0;
+    }
+
+    if (medico_repo_distribuicao_por_especialidade_json(
+            porEspecialidade, sizeof(porEspecialidade)) != 1)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(buffer, (size_t)tamanho,
+        "{\"pacientesPorRegiao\":%s,\"medicosPorEspecialidade\":%s}",
+        porRegiao, porEspecialidade);
+
+    if (escrito < 0 || escrito >= tamanho)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+int relatorio_service_agendamentos_periodo_json(const char *inicio,
+                                                const char *fim,
+                                                char *buffer, int tamanho)
+{
+    char porDia[2048];
+    char inicioJson[32];
+    char fimJson[32];
+    int total;
+    int escrito;
+
+    if (buffer == NULL || tamanho <= 0 ||
+        inicio == NULL || inicio[0] == '\0' || fim == NULL || fim[0] == '\0')
+    {
+        return 0;
+    }
+
+    total = agendamento_repo_contar_por_periodo(inicio, fim);
+
+    if (total < 0)
+    {
+        return 0;
+    }
+
+    if (agendamento_repo_distribuicao_por_dia_json(
+            inicio, fim, porDia, sizeof(porDia)) != 1)
+    {
+        return 0;
+    }
+
+    if (repo_json_escapar(inicioJson, sizeof(inicioJson), inicio) == 0 ||
+        repo_json_escapar(fimJson, sizeof(fimJson), fim) == 0)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(buffer, (size_t)tamanho,
+        "{\"inicio\":%s,\"fim\":%s,\"total\":%d,\"porDia\":%s}",
+        inicioJson, fimJson, total, porDia);
 
     if (escrito < 0 || escrito >= tamanho)
     {

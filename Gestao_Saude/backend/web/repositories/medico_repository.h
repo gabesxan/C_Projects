@@ -28,4 +28,8 @@ int medico_repo_listar_por_especialidade_regiao_json(const char *especialidade,
 int medico_repo_ids_por_especialidade_regiao(const char *especialidade,
                                              int regiao, int *ids, int max);
 
+/* Escreve (JSON) a distribuicao de medicos ativos por especialidade, no
+ * formato [{"especialidade":"Cardiologia","total":2},...]. 1 = ok, 0 = erro. */
+int medico_repo_distribuicao_por_especialidade_json(char *buffer, int tamanho);
+
 #endif

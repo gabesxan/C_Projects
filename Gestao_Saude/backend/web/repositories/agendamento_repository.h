@@ -23,4 +23,15 @@ int agendamento_repo_medico_ocupado(int medico_id, const char *data,
  * e alinhado a grade de slots. 0 caso contrario. */
 int agendamento_repo_horario_valido(const char *horario);
 
+/* Conta agendamentos nao-cancelados com data no intervalo [inicio, fim]
+ * (datas "YYYY-MM-DD", limites inclusivos). Retorna o total, ou -1 em erro. */
+int agendamento_repo_contar_por_periodo(const char *inicio, const char *fim);
+
+/* Escreve (JSON) a distribuicao de agendamentos nao-cancelados por dia no
+ * intervalo [inicio, fim], no formato [{"data":"2026-06-14","total":2},...].
+ * Retorna 1 em sucesso, 0 em erro. */
+int agendamento_repo_distribuicao_por_dia_json(const char *inicio,
+                                               const char *fim,
+                                               char *buffer, int tamanho);
+
 #endif

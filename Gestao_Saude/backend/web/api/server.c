@@ -647,6 +647,55 @@ static void rotaRelatorioIndicadores(int cliente)
     free(json);
 }
 
+static void rotaRelatorioDistribuicao(int cliente)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && relatorio_service_distribuicao_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao gerar distribuicao\"}");
+    }
+
+    free(json);
+}
+
+static void rotaRelatorioAgendamentos(int cliente, const char *consulta)
+{
+    char inicio[16];
+    char fim[16];
+    char *json;
+
+    extrairParam(consulta, "inicio", inicio, sizeof(inicio));
+    extrairParam(consulta, "fim", fim, sizeof(fim));
+
+    if (inicio[0] == '\0' || fim[0] == '\0')
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"informe inicio e fim (YYYY-MM-DD)\"}");
+        return;
+    }
+
+    json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        relatorio_service_agendamentos_periodo_json(inicio, fim, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao gerar relatorio por periodo\"}");
+    }
+
+    free(json);
+}
+
 static void rotaCriarAla(int cliente, const char *consulta)
 {
     char nome[128];
@@ -1112,6 +1161,14 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {
         rotaRelatorioIndicadores(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/distribuicao") == 0)
+    {
+        rotaRelatorioDistribuicao(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/agendamentos") == 0)
+    {
+        rotaRelatorioAgendamentos(cliente, consulta);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {

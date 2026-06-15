@@ -26,4 +26,8 @@ int paciente_repo_contar_ativos(void);
 /* Regiao administrativa do paciente ativo, ou -1 se nao existir. */
 int paciente_repo_regiao(int id);
 
+/* Escreve (JSON) a distribuicao de pacientes ativos por regiao administrativa,
+ * no formato [{"regiao":1,"total":3},...]. Retorna 1 em sucesso, 0 em erro. */
+int paciente_repo_distribuicao_por_regiao_json(char *buffer, int tamanho);
+
 #endif

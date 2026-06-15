@@ -388,6 +388,81 @@ int paciente_repo_regiao(int id)
     return regiao;
 }
 
+int paciente_repo_distribuicao_por_regiao_json(char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT regiao_administrativa, COUNT(*) FROM pacientes "
+        "WHERE ativo = 1 GROUP BY regiao_administrativa "
+        "ORDER BY regiao_administrativa;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    buffer[0] = '\0';
+
+    if (anexarTexto(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char objeto[64];
+        int regiao = sqlite3_column_int(stmt, 0);
+        int total = sqlite3_column_int(stmt, 1);
+        int escrito;
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"regiao\":%d,\"total\":%d}",
+            primeiro ? "" : ",", regiao, total);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto))
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        if (anexarTexto(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (anexarTexto(buffer, tamanho, &usado, "]") == 0)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int paciente_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;

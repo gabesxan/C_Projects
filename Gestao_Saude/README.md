@@ -383,6 +383,28 @@ Disponível para `triagens`, `agendamentos`, `prontuarios`, `exames`, `internaco
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/relatorios/indicadores` | Totais, triagens por classificação e casos graves |
+| `GET` | `/relatorios/distribuicao` | Pacientes por região administrativa e médicos por especialidade |
+| `GET` | `/relatorios/agendamentos?inicio=AAAA-MM-DD&fim=AAAA-MM-DD` | Agendamentos não-cancelados no período: total e distribuição por dia (`400` se faltar `inicio`/`fim`) |
+
+Exemplo de resposta de `/relatorios/distribuicao`:
+
+```json
+{
+  "pacientesPorRegiao": [{ "regiao": 1, "total": 3 }, { "regiao": 7, "total": 1 }],
+  "medicosPorEspecialidade": [{ "especialidade": "Cardiologia", "total": 2 }]
+}
+```
+
+Exemplo de resposta de `/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30`:
+
+```json
+{
+  "inicio": "2026-06-01",
+  "fim": "2026-06-30",
+  "total": 2,
+  "porDia": [{ "data": "2026-06-14", "total": 2 }]
+}
+```
 
 ---
 

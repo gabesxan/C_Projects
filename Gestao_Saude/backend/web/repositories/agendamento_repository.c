@@ -367,6 +367,133 @@ int agendamento_repo_medico_ocupado(int medico_id, const char *data,
     return ocupado;
 }
 
+int agendamento_repo_contar_por_periodo(const char *inicio, const char *fim)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT COUNT(*) FROM agendamentos "
+        "WHERE status != 'CANCELADO' AND data BETWEEN ? AND ?;";
+    int total = -1;
+
+    if (inicio == NULL || inicio[0] == '\0' || fim == NULL || fim[0] == '\0')
+    {
+        return -1;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, inicio, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, fim, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        total = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return total;
+}
+
+int agendamento_repo_distribuicao_por_dia_json(const char *inicio,
+                                               const char *fim,
+                                               char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT data, COUNT(*) FROM agendamentos "
+        "WHERE status != 'CANCELADO' AND data BETWEEN ? AND ? "
+        "GROUP BY data ORDER BY data;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0 ||
+        inicio == NULL || inicio[0] == '\0' || fim == NULL || fim[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, inicio, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, fim, -1, SQLITE_STATIC);
+
+    buffer[0] = '\0';
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char dataJson[32];
+        char objeto[80];
+        const char *data = (const char *)sqlite3_column_text(stmt, 0);
+        int total = sqlite3_column_int(stmt, 1);
+        int escrito;
+
+        if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"data\":%s,\"total\":%d}",
+            primeiro ? "" : ",", dataJson, total);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto))
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        if (repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "]") == 0)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int agendamento_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;

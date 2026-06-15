@@ -309,6 +309,12 @@ request_and_assert "/pacientes" "200" "/pacientes" "${ADMIN_AUTH}" matches '^\[[
 request_and_assert "/medicos" "200" "/medicos" "${ADMIN_AUTH}" matches '^\[[^[:cntrl:]]*\]$'
 # Testa o relatorio de indicadores e exige um campo chave do JSON retornado.
 request_and_assert "/relatorios/indicadores" "200" "/relatorios/indicadores" "${ADMIN_AUTH}" contains '"pacientesAtivos"'
+# Testa o relatorio de distribuicao e exige um campo chave do JSON retornado.
+request_and_assert "/relatorios/distribuicao" "200" "/relatorios/distribuicao" "${ADMIN_AUTH}" contains '"pacientesPorRegiao"'
+# Testa o relatorio por periodo com datas e exige o total no JSON retornado.
+request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "200" "/relatorios/agendamentos" "${ADMIN_AUTH}" contains '"total"'
+# Testa que o relatorio por periodo sem datas retorna 400.
+request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_AUTH}"
 
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"
