@@ -8,6 +8,7 @@
 #include "prontuario_repository.h"
 #include "exame_repository.h"
 #include "internacao_repository.h"
+#include "usuario_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 
@@ -177,6 +178,127 @@ static int extrairParam(const char *consulta, const char *chave,
     }
 
     return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Autenticacao (HTTP Basic)                                                */
+/* ----------------------------------------------------------------------- */
+
+static int base64Valor(char c)
+{
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+
+static int base64Decodificar(const char *entrada, char *saida, int tam)
+{
+    int acumulador = 0;
+    int bits = 0;
+    int n = 0;
+    int i;
+
+    for (i = 0; entrada[i] != '\0'; i++)
+    {
+        int v;
+
+        if (entrada[i] == '=')
+        {
+            break;
+        }
+
+        v = base64Valor(entrada[i]);
+
+        if (v < 0)
+        {
+            continue;
+        }
+
+        acumulador = (acumulador << 6) | v;
+        bits += 6;
+
+        if (bits >= 8)
+        {
+            bits -= 8;
+            if (n >= tam - 1)
+            {
+                return 0;
+            }
+            saida[n++] = (char)((acumulador >> bits) & 0xFF);
+        }
+    }
+
+    saida[n] = '\0';
+    return 1;
+}
+
+/* Autentica o request pelo cabecalho 'Authorization: Basic'. Em sucesso
+ * preenche papel/vinculos e retorna 1; caso contrario 0. */
+static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
+                             int *paciente_id, int *medico_id)
+{
+    const char *prefixo = "Authorization: Basic ";
+    const char *inicio = strstr(requisicao, prefixo);
+    char b64[512];
+    char credenciais[512];
+    char *separador;
+    int n = 0;
+
+    if (inicio == NULL)
+    {
+        return 0;
+    }
+
+    inicio += strlen(prefixo);
+
+    while (inicio[n] != '\0' && inicio[n] != '\r' && inicio[n] != '\n' &&
+           inicio[n] != ' ' && n < (int)sizeof(b64) - 1)
+    {
+        b64[n] = inicio[n];
+        n++;
+    }
+    b64[n] = '\0';
+
+    if (base64Decodificar(b64, credenciais, sizeof(credenciais)) == 0)
+    {
+        return 0;
+    }
+
+    separador = strchr(credenciais, ':');
+
+    if (separador == NULL)
+    {
+        return 0;
+    }
+
+    *separador = '\0';
+
+    return usuario_repo_autenticar(credenciais, separador + 1, papel, papel_tam,
+                                   paciente_id, medico_id);
+}
+
+/* Garante que o request esta autenticado com 'papelExigido'. Em falha,
+ * responde 401/403 e retorna 0. */
+static int exigirPapel(int cliente, const char *requisicao, const char *papelExigido)
+{
+    char papel[32];
+
+    if (autenticarRequest(requisicao, papel, sizeof(papel), NULL, NULL) == 0)
+    {
+        responder(cliente, "401 Unauthorized", "{\"erro\":\"credenciais invalidas\"}");
+        return 0;
+    }
+
+    if (strcmp(papel, papelExigido) != 0)
+    {
+        responder(cliente, "403 Forbidden", "{\"erro\":\"acesso negado\"}");
+        return 0;
+    }
+
+    return 1;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -626,11 +748,50 @@ static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
     }
 }
 
+static void rotaCriarUsuario(int cliente, const char *consulta)
+{
+    char login[128];
+    char senha[128];
+    char papel[32];
+    char pacienteId[16];
+    char medicoId[16];
+
+    extrairParam(consulta, "login", login, sizeof(login));
+    extrairParam(consulta, "senha", senha, sizeof(senha));
+    extrairParam(consulta, "papel", papel, sizeof(papel));
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
+
+    responderCriacao(cliente,
+        usuario_repo_criar(login, senha, papel, atoi(pacienteId), atoi(medicoId)) == 1,
+        "{\"erro\":\"dados invalidos para usuario\"}");
+}
+
+static void rotaMe(int cliente, const char *requisicao)
+{
+    char papel[32];
+    char corpo[160];
+    int pacienteId = 0;
+    int medicoId = 0;
+
+    if (autenticarRequest(requisicao, papel, sizeof(papel), &pacienteId, &medicoId) == 0)
+    {
+        responder(cliente, "401 Unauthorized", "{\"erro\":\"credenciais invalidas\"}");
+        return;
+    }
+
+    snprintf(corpo, sizeof(corpo),
+        "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
+        papel, pacienteId, medicoId);
+    responder(cliente, "200 OK", corpo);
+}
+
 /* ----------------------------------------------------------------------- */
 /* Roteamento                                                               */
 /* ----------------------------------------------------------------------- */
 
-static void rotear(int cliente, const char *metodo, char *caminho)
+static void rotear(int cliente, const char *metodo, char *caminho,
+                   const char *requisicao)
 {
     char *consulta = strchr(caminho, '?');
     char acao[32];
@@ -827,6 +988,38 @@ static void rotear(int cliente, const char *metodo, char *caminho)
     {
         rotaRelatorioIndicadores(cliente);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
+    {
+        rotaMe(cliente, requisicao);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/usuarios") == 0)
+    {
+        if (exigirPapel(cliente, requisicao, "ADMIN"))
+        {
+            rotaCriarUsuario(cliente, consulta);
+        }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/usuarios") == 0)
+    {
+        if (exigirPapel(cliente, requisicao, "ADMIN"))
+        {
+            responderLista(cliente, usuario_repo_listar_json, "{\"erro\":\"falha ao listar usuarios\"}");
+        }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/usuarios/contar") == 0)
+    {
+        if (exigirPapel(cliente, requisicao, "ADMIN"))
+        {
+            responderContagem(cliente, usuario_repo_contar_ativos);
+        }
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/usuarios/%d", &id) == 1)
+    {
+        if (exigirPapel(cliente, requisicao, "ADMIN"))
+        {
+            responderRemocao(cliente, usuario_repo_desativar(id) == 1, "{\"erro\":\"usuario nao encontrado\"}");
+        }
+    }
     else
     {
         responder(cliente, "404 Not Found",
@@ -915,7 +1108,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        rotear(cliente, metodo, caminho);
+        rotear(cliente, metodo, caminho, requisicao);
         close(cliente);
     }
 
