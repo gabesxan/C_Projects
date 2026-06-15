@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 -header ../data/sigeh_v2.db \"SELECT id,login,length\\(senha_hash\\) hlen,length\\(salt\\) slen,papel FROM usuarios;\")",
+      "Bash(sqlite3 ../data/sigeh_v2.db \".schema usuarios\")",
+      "Bash(rm -rf .claude && echo \"removido\" && ls -la .claude 2>&1 | head -1)",
+      "Bash(sed -n '/^int prontuario_repo_contar_ativos/,/^}/p' repositories/prontuario_repository.c)",
+      "Bash(sed -n '/^int exame_repo_contar_ativos/,/^}/p' repositories/exame_repository.c)"
+    ],
+    "additionalDirectories": [
+      "/Users/gabriel/Desktop/Codigos_C/Gestao_Saude/.claude"
+    ]
+  }
+}

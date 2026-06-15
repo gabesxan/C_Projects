@@ -331,7 +331,7 @@ Além da autorização por papel, as **listagens amplas são filtradas pela iden
 | `GET /exames` | todos | apenas os exames que ele solicitou |
 | `GET /triagens` | todas | apenas as triagens cuja especialidade provável (pelo `tipo`) é a dele |
 
-As contagens (`/...../contar`) permanecem **globais** (indicadores). As rotas `/me/...` seguem como o caminho explícito do "só o seu".
+As contagens `/.../contar` permanecem **globais** (indicadores do sistema); para os totais do próprio médico há o endpoint dedicado **`GET /me/resumo`**. As demais rotas `/me/...` seguem como o caminho explícito do "só o seu".
 
 Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 
@@ -351,6 +351,7 @@ Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 | `GET` | `/me/prontuarios` | PACIENTE | Prontuários do próprio paciente |
 | `GET` | `/me/agenda` | MEDICO | Agenda do próprio médico |
 | `GET` | `/me/pacientes` | MEDICO | Pacientes do próprio médico |
+| `GET` | `/me/resumo` | MEDICO | Totais do próprio médico: pacientes, agendamentos, prontuários e exames |
 
 ### Usuários · ADMIN
 

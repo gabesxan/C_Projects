@@ -21,4 +21,8 @@ int relatorio_service_agendamentos_periodo_json(const char *inicio,
                                                 const char *fim,
                                                 char *buffer, int tamanho);
 
+/* Escreve em 'buffer' um JSON com os totais do proprio medico: pacientes,
+ * agendamentos, prontuarios e exames. Retorna 1 em sucesso, 0 em erro. */
+int relatorio_service_resumo_medico_json(int medico_id, char *buffer, int tamanho);
+
 #endif

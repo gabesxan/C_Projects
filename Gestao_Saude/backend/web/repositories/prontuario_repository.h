@@ -15,4 +15,7 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
 int prontuario_repo_desativar(int id);
 int prontuario_repo_contar_ativos(void);
 
+/* Conta prontuarios ativos assinados pelo medico. Retorna o total, ou -1 em erro. */
+int prontuario_repo_contar_por_medico(int medico_id);
+
 #endif

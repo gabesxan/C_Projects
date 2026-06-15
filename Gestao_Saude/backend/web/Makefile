@@ -47,7 +47,7 @@ TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(PAC_SRC) $(MED_SR
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(PAC_SRC) $(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
-TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.

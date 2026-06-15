@@ -386,5 +386,10 @@ if grep -Fq '"tipoTriagem":2' "${RESP_FILE}"; then
 fi
 echo "[OK] /triagens escopado por especialidade (MEDICO nao ve fora da sua area)"
 
+# Resumo do proprio medico: contagens escopadas (1 paciente, 1 prontuario, etc.).
+request_and_assert "/me/resumo" "200" "/me/resumo (contagens do MEDICO)" "${MED_AUTH}" contains '"medicoId":1'
+# Reforca que o resumo traz os totais do medico (prontuarios assinados por ele).
+request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_AUTH}" contains '"prontuarios":1'
+
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

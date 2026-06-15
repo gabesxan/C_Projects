@@ -3,6 +3,8 @@
 #include "medico_repository.h"
 #include "triagem_repository.h"
 #include "agendamento_repository.h"
+#include "prontuario_repository.h"
+#include "exame_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -66,6 +68,30 @@ int main(void)
     /* Datas ausentes sao recusadas. */
     assert(relatorio_service_agendamentos_periodo_json(
                "", "2026-06-15", json, sizeof(json)) == 0);
+
+    /* --- Resumo do proprio medico (contagens escopadas) --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
+    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(medico_repo_criar("Dr X", "CRM1", "Cardiologia", 1) == 1); /* id 1 */
+    assert(medico_repo_criar("Dr Y", "CRM2", "Ortopedia", 2) == 1);   /* id 2 */
+    /* Medico 1: 1 paciente (via agendamento), 1 agendamento, 1 prontuario, 1 exame. */
+    assert(agendamento_repo_criar(1, 1, "2026-06-14", "09:00") == 1);
+    assert(prontuario_repo_criar(1, 1, "2026-06-14", "o", "d", "c", 0) == 1);
+    assert(exame_repo_criar(1, 1, 1, 1, "2026-06-14", 0) == 1);
+    /* Registros do medico 2 nao podem entrar no resumo do medico 1. */
+    assert(agendamento_repo_criar(2, 2, "2026-06-15", "10:00") == 1);
+    assert(prontuario_repo_criar(2, 2, "2026-06-15", "o", "d", "c", 0) == 1);
+
+    assert(relatorio_service_resumo_medico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"medicoId\":1") != NULL);
+    assert(strstr(json, "\"pacientes\":1") != NULL);
+    assert(strstr(json, "\"agendamentos\":1") != NULL);
+    assert(strstr(json, "\"prontuarios\":1") != NULL);
+    assert(strstr(json, "\"exames\":1") != NULL);
+
+    /* medico_id invalido -> erro. */
+    assert(relatorio_service_resumo_medico_json(0, json, sizeof(json)) == 0);
 
     printf("test_relatorio_service: OK\n");
     return 0;

@@ -14,6 +14,9 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
 int agendamento_repo_cancelar(int id);
 int agendamento_repo_contar_ativos(void);
 
+/* Conta agendamentos nao-cancelados do medico. Retorna o total, ou -1 em erro. */
+int agendamento_repo_contar_por_medico(int medico_id);
+
 /* 1 se o medico tem agendamento nao-cancelado na data/horario; 0 se livre;
  * -1 em erro de banco. */
 int agendamento_repo_medico_ocupado(int medico_id, const char *data,

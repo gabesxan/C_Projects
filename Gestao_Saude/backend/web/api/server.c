@@ -1091,6 +1091,23 @@ static void rotaMeAgenda(int cliente, int medico_id)
     free(json);
 }
 
+static void rotaMeResumo(int cliente, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && relatorio_service_resumo_medico_json(medico_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao gerar resumo do medico\"}");
+    }
+
+    free(json);
+}
+
 static void rotaMePacientes(int cliente, int medico_id)
 {
     char *json = malloc(TAM_JSON);
@@ -1359,6 +1376,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/pacientes") == 0)
     {
         rotaMePacientes(cliente, authMedicoId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/resumo") == 0)
+    {
+        rotaMeResumo(cliente, authMedicoId);
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/usuarios") == 0)
     {

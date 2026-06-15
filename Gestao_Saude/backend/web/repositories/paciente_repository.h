@@ -23,6 +23,10 @@ int paciente_repo_desativar(int id);
 
 int paciente_repo_contar_ativos(void);
 
+/* Conta pacientes ativos com agendamento nao-cancelado com o medico.
+ * Retorna o total, ou -1 em erro. */
+int paciente_repo_contar_por_medico(int medico_id);
+
 /* Regiao administrativa do paciente ativo, ou -1 se nao existir. */
 int paciente_repo_regiao(int id);
 
