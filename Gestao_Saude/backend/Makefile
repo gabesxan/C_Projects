@@ -1,14 +1,21 @@
 CC = gcc
 
+# OpenSSL (hashing de senha). Sobrescreva OPENSSL_DIR se estiver noutro caminho.
+OPENSSL_DIR ?= /opt/homebrew/opt/openssl@3
+
 CFLAGS = -Wall -Wextra -pedantic \
 	-Idatabase \
 	-Irepositories \
-	-Iservices
+	-Iservices \
+	-I$(OPENSSL_DIR)/include
 
 LDLIBS = -lsqlite3
+CRYPTO_LIBS = -L$(OPENSSL_DIR)/lib -lcrypto
 
 DB_SRC = database/database.c
 JSON_SRC = repositories/repo_json.c
+SENHA_SRC = repositories/senha_util.c
+USUARIO_SRC = repositories/usuario_repository.c
 
 PAC_SRC = repositories/paciente_repository.c
 MED_SRC = repositories/medico_repository.c
@@ -37,6 +44,7 @@ TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(PAC_SRC) $(MED_SRC) $(
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(PAC_SRC) $(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e a API de health.
 all: database.o api
@@ -59,7 +67,7 @@ run: api
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
-	test_triagem_service test_relatorio_service
+	test_triagem_service test_relatorio_service test_usuario_repository
 
 test_paciente_repository:
 	$(CC) $(CFLAGS) $(TEST_PAC) -o tests/test_paciente_repository $(LDLIBS)
@@ -105,6 +113,10 @@ test_relatorio_service:
 	$(CC) $(CFLAGS) $(TEST_RELAT_SVC) -o tests/test_relatorio_service $(LDLIBS)
 	./tests/test_relatorio_service
 
+test_usuario_repository:
+	$(CC) $(CFLAGS) $(TEST_USUARIO) -o tests/test_usuario_repository $(LDLIBS) $(CRYPTO_LIBS)
+	./tests/test_usuario_repository
+
 clean:
 	rm -f database.o \
 		api/sigeh_api \
@@ -119,10 +131,11 @@ clean:
 		tests/test_internacao_repository \
 		tests/test_triagem_service \
 		tests/test_relatorio_service \
+		tests/test_usuario_repository \
 		tests/test_sigeh_repository.db
 
 .PHONY: all api run test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
-	test_triagem_service test_relatorio_service
+	test_triagem_service test_relatorio_service test_usuario_repository

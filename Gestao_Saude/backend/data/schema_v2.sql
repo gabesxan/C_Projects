@@ -103,3 +103,18 @@ CREATE TABLE exames (
     FOREIGN KEY (medico_id) REFERENCES medicos(id),
     FOREIGN KEY (prontuario_id) REFERENCES prontuarios(id)
 );
+
+-- Usuarios de acesso ao sistema (login criado pelo administrador).
+-- papel: ADMIN, CADASTRO, MEDICO, ENFERMAGEM, PACIENTE.
+-- paciente_id / medico_id vinculam o usuario a uma entidade (0 = nenhum).
+-- Sem FK nesses vinculos: 0 representa "nenhum" e nao existiria como chave.
+CREATE TABLE usuarios (
+    id INTEGER PRIMARY KEY,
+    login TEXT NOT NULL UNIQUE,
+    senha_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    papel TEXT NOT NULL,
+    paciente_id INTEGER NOT NULL,
+    medico_id INTEGER NOT NULL,
+    ativo INTEGER NOT NULL
+);
