@@ -47,6 +47,10 @@ int db_abrir(sqlite3 **db)
         return 0;
     }
 
+    /* Integridade referencial e por conexao no SQLite e precisa ser ligada
+     * explicitamente a cada abertura. */
+    sqlite3_exec(*db, "PRAGMA foreign_keys = ON;", NULL, NULL, NULL);
+
     return 1;
 }
 

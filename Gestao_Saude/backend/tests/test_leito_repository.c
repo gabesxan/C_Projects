@@ -1,4 +1,5 @@
 #include "leito_repository.h"
+#include "ala_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -15,6 +16,9 @@ int main(void)
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
+
+    /* Ala pai (id 1) exigida pela FK de leitos. */
+    assert(ala_repo_criar("Ala A", 1, 10) == 1);
 
     assert(leito_repo_contar_ativos() == 0);
 

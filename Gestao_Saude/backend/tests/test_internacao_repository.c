@@ -1,4 +1,7 @@
 #include "internacao_repository.h"
+#include "paciente_repository.h"
+#include "ala_repository.h"
+#include "leito_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -15,6 +18,13 @@ int main(void)
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
+
+    /* Pais exigidos pelas FKs de internacoes: pacientes, ala e leitos. */
+    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
+    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(ala_repo_criar("Ala A", 1, 10) == 1);
+    assert(leito_repo_criar(1, 101) == 1);
+    assert(leito_repo_criar(1, 102) == 1);
 
     assert(internacao_repo_contar_ativos() == 0);
 

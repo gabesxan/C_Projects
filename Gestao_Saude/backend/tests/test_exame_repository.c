@@ -1,4 +1,7 @@
 #include "exame_repository.h"
+#include "paciente_repository.h"
+#include "medico_repository.h"
+#include "prontuario_repository.h"
 #include "database.h"
 
 #include <assert.h>
@@ -15,6 +18,14 @@ int main(void)
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
+
+    /* Pais (pacientes, medicos e prontuarios ids 1 e 2) exigidos pelas FKs. */
+    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
+    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(medico_repo_criar("Dr X", "CRM1", "Cardiologia", 1) == 1);
+    assert(medico_repo_criar("Dr Y", "CRM2", "Ortopedia", 2) == 1);
+    assert(prontuario_repo_criar(1, 1, "2026-06-01", "o", "d", "c", 0) == 1);
+    assert(prontuario_repo_criar(2, 2, "2026-06-01", "o", "d", "c", 0) == 1);
 
     assert(exame_repo_contar_ativos() == 0);
 

@@ -21,6 +21,10 @@ int main(void)
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
 
+    /* Pacientes pais (ids 1 e 2) exigidos pela FK de triagens. */
+    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
+    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+
     /* Paciente sem triagem ativa -> 0. */
     assert(triagem_service_avaliar_json(1, json, sizeof(json)) == 0);
 
@@ -71,6 +75,8 @@ int main(void)
 
     /* --- Historico clinico (prontuarios + exames anteriores) --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(medico_repo_criar("Dr Cardio", "CRM1", "Cardiologia", 7) == 1);
     assert(prontuario_repo_criar(1, 1, "2026-06-01", "Estavel", "Gripe",
                                  "Repouso", 0) == 1);
     assert(exame_repo_criar(1, 1, 1, 1, "2026-06-01", 0) == 1);
@@ -87,6 +93,7 @@ int main(void)
 
     /* --- Sugestao de exames iniciais por tipo de triagem --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1); /* Cardiologia */
     assert(triagem_service_sugerir_exames_json(1, json, sizeof(json)) == 1);
     assert(strstr(json, "Eletrocardiograma") != NULL);
