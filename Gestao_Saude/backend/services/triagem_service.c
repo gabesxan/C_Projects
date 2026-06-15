@@ -329,3 +329,82 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
 
     return 1;
 }
+
+int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
+                                    const char *data, const char *horario,
+                                    char *buffer, int tamanho)
+{
+    int regiao;
+    int ids[SVC_MAX_MEDICOS];
+    int total;
+    int i;
+    int escolhido = 0;
+    char especialidadeJson[64];
+    char dataJson[32];
+    char horarioJson[24];
+    int escrito;
+
+    if (buffer == NULL || tamanho <= 0 || paciente_id <= 0)
+    {
+        return 0;
+    }
+
+    if (especialidade == NULL || especialidade[0] == '\0' ||
+        data == NULL || data[0] == '\0' ||
+        horario == NULL || horario[0] == '\0')
+    {
+        return 0;
+    }
+
+    regiao = paciente_repo_regiao(paciente_id);
+
+    if (regiao < 0)
+    {
+        return 0;
+    }
+
+    total = medico_repo_ids_por_especialidade_regiao(especialidade, regiao,
+                                                     ids, SVC_MAX_MEDICOS);
+
+    for (i = 0; i < total; i++)
+    {
+        if (agendamento_repo_medico_ocupado(ids[i], data, horario) == 0)
+        {
+            escolhido = ids[i];
+            break;
+        }
+    }
+
+    if (escolhido == 0)
+    {
+        snprintf(buffer, (size_t)tamanho,
+            "{\"encaminhado\":false,\"motivo\":\"sem medico disponivel\"}");
+        return 0;
+    }
+
+    if (agendamento_repo_criar(paciente_id, escolhido, data, horario) == 0)
+    {
+        snprintf(buffer, (size_t)tamanho,
+            "{\"encaminhado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
+        return 0;
+    }
+
+    if (repo_json_escapar(especialidadeJson, sizeof(especialidadeJson), especialidade) == 0 ||
+        repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
+        repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(buffer, (size_t)tamanho,
+        "{\"encaminhado\":true,\"pacienteId\":%d,\"especialidade\":%s,"
+        "\"medicoId\":%d,\"data\":%s,\"horario\":%s}",
+        paciente_id, especialidadeJson, escolhido, dataJson, horarioJson);
+
+    if (escrito < 0 || escrito >= tamanho)
+    {
+        return 0;
+    }
+
+    return 1;
+}

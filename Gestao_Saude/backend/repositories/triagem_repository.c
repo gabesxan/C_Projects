@@ -240,6 +240,43 @@ int triagem_repo_ultima_por_paciente(int paciente_id, int *tipo_triagem,
     return encontrou;
 }
 
+int triagem_repo_contar_por_classificacao(const char *classificacao)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT COUNT(*) FROM triagens "
+        "WHERE ativo = 1 AND classificacao = ?;";
+    int total = -1;
+
+    if (classificacao == NULL)
+    {
+        return -1;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return -1;
+    }
+
+    sqlite3_bind_text(stmt, 1, classificacao, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        total = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return total;
+}
+
 int triagem_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;

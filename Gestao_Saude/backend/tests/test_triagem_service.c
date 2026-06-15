@@ -113,6 +113,24 @@ int main(void)
     assert(triagem_service_agendar_json(1, "2026-06-20", "10:00", json, sizeof(json)) == 1);
     assert(agendamento_repo_contar_ativos() == 2);
 
+    /* --- Encaminhamento para outra especialidade --- */
+    assert(db_resetar_com_schema(SCHEMA) == 1);
+    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(medico_repo_criar("Dr Orto", "CRM9", "Ortopedia", 7) == 1); /* id 1 */
+
+    /* Encaminha para Ortopedia (independe da triagem) -> agenda. */
+    assert(triagem_service_encaminhar_json(1, "Ortopedia", "2026-06-22", "08:00",
+                                           json, sizeof(json)) == 1);
+    assert(strstr(json, "\"encaminhado\":true") != NULL);
+    assert(strstr(json, "\"especialidade\":\"Ortopedia\"") != NULL);
+    assert(strstr(json, "\"medicoId\":1") != NULL);
+    assert(agendamento_repo_contar_ativos() == 1);
+
+    /* Especialidade sem medico na regiao -> nao encaminha. */
+    assert(triagem_service_encaminhar_json(1, "Neurologia", "2026-06-22", "08:00",
+                                           json, sizeof(json)) == 0);
+    assert(strstr(json, "\"encaminhado\":false") != NULL);
+
     printf("test_triagem_service: OK\n");
     return 0;
 }

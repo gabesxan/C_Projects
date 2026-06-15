@@ -12,6 +12,9 @@ int triagem_repo_listar_json(char *buffer, int tamanho);
 int triagem_repo_desativar(int id);
 int triagem_repo_contar_ativos(void);
 
+/* Conta triagens ativas com a classificacao informada. -1 em erro. */
+int triagem_repo_contar_por_classificacao(const char *classificacao);
+
 /* Carrega a triagem ativa mais recente do paciente nos ponteiros de saida
  * (qualquer um pode ser NULL). Retorna 1 se encontrou, 0 caso contrario. */
 int triagem_repo_ultima_por_paciente(int paciente_id, int *tipo_triagem,

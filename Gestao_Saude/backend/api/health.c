@@ -2,6 +2,7 @@
 #include "paciente_repository.h"
 #include "medico_repository.h"
 #include "triagem_service.h"
+#include "relatorio_service.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -367,6 +368,60 @@ static void rotaTriagemAgendar(int cliente, int paciente_id, const char *consult
     free(json);
 }
 
+static void rotaTriagemEncaminhar(int cliente, int paciente_id, const char *consulta)
+{
+    char especialidade[64];
+    char data[32];
+    char horario[16];
+    char *json = malloc(TAM_JSON);
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    json[0] = '\0';
+    extrairParam(consulta, "especialidade", especialidade, sizeof(especialidade));
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "horario", horario, sizeof(horario));
+
+    if (triagem_service_encaminhar_json(paciente_id, especialidade, data, horario,
+                                        json, TAM_JSON) == 1)
+    {
+        responder(cliente, "201 Created", json);
+    }
+    else if (json[0] != '\0')
+    {
+        responder(cliente, "409 Conflict", json);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"especialidade/data/horario invalidos\"}");
+    }
+
+    free(json);
+}
+
+static void rotaRelatorioIndicadores(int cliente)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && relatorio_service_indicadores_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao gerar indicadores\"}");
+    }
+
+    free(json);
+}
+
 /* ----------------------------------------------------------------------- */
 /* Roteamento                                                               */
 /* ----------------------------------------------------------------------- */
@@ -441,11 +496,19 @@ static void rotear(int cliente, const char *metodo, char *caminho)
         {
             rotaTriagemAgendar(cliente, id, consulta);
         }
+        else if (strcmp(metodo, "POST") == 0 && strcmp(acao, "encaminhar") == 0)
+        {
+            rotaTriagemEncaminhar(cliente, id, consulta);
+        }
         else
         {
             responder(cliente, "404 Not Found",
                       "{\"erro\":\"rota de triagem nao encontrada\"}");
         }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
+    {
+        rotaRelatorioIndicadores(cliente);
     }
     else
     {

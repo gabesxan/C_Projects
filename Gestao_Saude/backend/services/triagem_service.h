@@ -32,4 +32,11 @@ int triagem_service_sugerir_exames_json(int paciente_id, char *buffer, int taman
 int triagem_service_agendar_json(int paciente_id, const char *data,
                                  const char *horario, char *buffer, int tamanho);
 
+/* Encaminha o paciente para uma especialidade informada: agenda com um medico
+ * disponivel dessa especialidade na regiao do paciente. Escreve o resultado em
+ * 'buffer' (JSON). Retorna 1 se encaminhou; 0 caso contrario. */
+int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
+                                    const char *data, const char *horario,
+                                    char *buffer, int tamanho);
+
 #endif

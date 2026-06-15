@@ -21,6 +21,7 @@ EXAME_SRC = repositories/exame_repository.c
 INTERN_SRC = repositories/internacao_repository.c
 
 TRIAGEM_SVC_SRC = services/triagem_service.c
+RELAT_SVC_SRC = services/relatorio_service.c
 
 API_SRC = api/health.c
 
@@ -35,6 +36,7 @@ TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(JSON_SRC) $(DB_SR
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e a API de health.
 all: database.o api
@@ -43,8 +45,8 @@ database.o: $(DB_SRC)
 	$(CC) $(CFLAGS) -c $(DB_SRC) -o database.o
 
 # Compila o servidor HTTP (health, pacientes, medicos e triagem inteligente).
-API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) \
-	$(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) \
+	$(TRIAGEM_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS)
 	$(CC) $(CFLAGS) $(API_DEPS) -o api/sigeh_api $(LDLIBS)
@@ -56,7 +58,7 @@ run: api
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
-	test_triagem_service
+	test_triagem_service test_relatorio_service
 
 test_paciente_repository:
 	$(CC) $(CFLAGS) $(TEST_PAC) -o tests/test_paciente_repository $(LDLIBS)
@@ -98,6 +100,10 @@ test_triagem_service:
 	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o tests/test_triagem_service $(LDLIBS)
 	./tests/test_triagem_service
 
+test_relatorio_service:
+	$(CC) $(CFLAGS) $(TEST_RELAT_SVC) -o tests/test_relatorio_service $(LDLIBS)
+	./tests/test_relatorio_service
+
 clean:
 	rm -f database.o \
 		api/sigeh_api \
@@ -111,10 +117,11 @@ clean:
 		tests/test_exame_repository \
 		tests/test_internacao_repository \
 		tests/test_triagem_service \
+		tests/test_relatorio_service \
 		tests/test_sigeh_repository.db
 
 .PHONY: all api run test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
-	test_triagem_service
+	test_triagem_service test_relatorio_service
