@@ -13,3 +13,4 @@
 # Backend web: saida de build (binarios + bancos de teste) e banco gerado
 backend/web/build/
 backend/data/*.db
+.claude/
