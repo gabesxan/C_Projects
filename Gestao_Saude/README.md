@@ -1,978 +1,342 @@
-# SIGEH-DF
+<div align="center">
 
-## Sistema Integrado de Gestao Hospitalar em C
+# 🏥 SIGEH-DF
 
-O **SIGEH-DF** e um projeto academico em linguagem C, executado no terminal, desenvolvido para a disciplina de **Algoritmos e Logica de Programacao**. A proposta do sistema e simular, de forma modular e didatica, o funcionamento basico de um ambiente hospitalar, com foco em organizacao de codigo, regras de negocio e manipulacao de estruturas em memoria.
+### Sistema Integrado de Gestão Hospitalar
 
-> Estado atual do projeto:
->
-> - execucao em terminal
-> - dados mantidos em memoria durante a execucao
-> - modularizacao em `.h` e `.c`
-> - compilacao com `Makefile`
-> - testes simples com `assert.h`
-> - sem banco de dados
-> - sem persistencia em arquivo
-> - sem interface grafica
-> - sem API externa
+Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória para um **backend web full-stack** com banco SQLite, camadas bem definidas, triagem inteligente, API HTTP e autenticação por papéis.
 
----
+![C](https://img.shields.io/badge/Linguagem-C-00599C?logo=c&logoColor=white)
+![SQLite](https://img.shields.io/badge/Banco-SQLite-003B57?logo=sqlite&logoColor=white)
+![OpenSSL](https://img.shields.io/badge/Hash-OpenSSL%20SHA--256-721412?logo=openssl&logoColor=white)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Testes](https://img.shields.io/badge/testes-12%2F12-brightgreen)
+![Licença](https://img.shields.io/badge/uso-acadêmico-blue)
 
-## Indice
-
-1. [Visao Geral](#visao-geral)
-2. [Objetivos Didaticos](#objetivos-didaticos)
-3. [Funcionalidades Atuais](#funcionalidades-atuais)
-4. [Arquitetura do Projeto](#arquitetura-do-projeto)
-5. [Estrutura de Pastas](#estrutura-de-pastas)
-6. [Como Compilar e Executar](#como-compilar-e-executar)
-7. [Como Rodar os Testes](#como-rodar-os-testes)
-8. [Mapa de Arquivos](#mapa-de-arquivos)
-9. [Explicacao Detalhada Arquivo por Arquivo](#explicacao-detalhada-arquivo-por-arquivo)
-10. [Regras de Modelagem e Estados](#regras-de-modelagem-e-estados)
-11. [Observacoes Importantes](#observacoes-importantes)
-12. [Proximos Passos Naturais do Projeto](#proximos-passos-naturais-do-projeto)
+</div>
 
 ---
 
-## Visao Geral
+## 📑 Índice
 
-O SIGEH-DF foi estruturado para representar rotinas centrais de um sistema hospitalar simplificado. O projeto foi dividido em modulos pequenos, cada um com responsabilidade bem definida, para facilitar manutencao, leitura e avaliacao academica.
-
-A aplicacao permite trabalhar com:
-
-- pacientes
-- medicos
-- agendamentos
-- alas
-- leitos
-- internacoes
-- triagens
-- prontuarios
-- exames
-- relatorios gerenciais
-
-A ideia central do projeto nao e reproduzir um hospital real com toda a sua complexidade, mas sim construir uma base didatica capaz de demonstrar:
-
-- uso de `structs`
-- vetores globais
-- funcoes com responsabilidades separadas
-- menus em terminal com `switch`
-- estados logicos como `ativo`, `AGENDADO`, `INTERNADO`, `REMANEJADO`, `Solicitado` e `Realizado`
-- relacionamento entre modulos
-- validacoes de regras de negocio
-- testes automatizados simples
+- [Visão geral](#-visão-geral)
+- [As duas versões](#-as-duas-versões)
+- [Arquitetura](#-arquitetura)
+- [Estrutura de pastas](#-estrutura-de-pastas)
+- [Pré-requisitos](#-pré-requisitos)
+- [Como compilar e executar](#-como-compilar-e-executar)
+- [Como rodar os testes](#-como-rodar-os-testes)
+- [Autenticação e papéis](#-autenticação-e-papéis)
+- [Referência da API](#-referência-da-api)
+- [Triagem inteligente](#-triagem-inteligente)
+- [Modelo de domínio](#-modelo-de-domínio)
+- [Próximos passos](#-próximos-passos)
+- [Notas acadêmicas](#-notas-acadêmicas)
 
 ---
 
-## Objetivos Didaticos
+## 🎯 Visão geral
 
-Este projeto foi construido para praticar, em C:
+O **SIGEH-DF** simula, de forma modular e didática, o funcionamento de um ambiente hospitalar: pacientes, médicos, agendamentos, alas, leitos, internações, triagens, prontuários, exames e relatórios.
 
-- modelagem de entidades com `struct`
-- compartilhamento de dados via `extern`
-- separacao entre declaracao e implementacao
-- organizacao por modulos
-- leitura e exibicao de dados em terminal
-- validacoes de fluxo
-- testes com `assert.h`
-- evolucao incremental de funcionalidades sem trocar a arquitetura
+O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma classificação de risco e virou o **primeiro motor de decisão** do sistema — a partir de uma triagem, o sistema calcula prioridade e especialidade provável, consulta o histórico clínico, sugere exames iniciais, encontra médicos disponíveis por especialidade e região, e agenda ou encaminha o paciente.
 
 ---
 
-## Funcionalidades Atuais
+## 🧬 As duas versões
 
-Atualmente, o sistema oferece:
+| Versão | Onde | O que é |
+|---|---|---|
+| **V1 — Terminal** | [`backend/terminal/`](backend/terminal/) | Aplicação CLI original, dados em memória + persistência SQLite, menus interativos. Preservada e funcional. |
+| **V2 — Backend Web** | [`backend/`](backend/) (`database`, `repositories`, `services`, `api`) | Backend HTTP em camadas sobre SQLite, com triagem inteligente, API REST e login por papéis. Foco do desenvolvimento atual. |
 
-- cadastro, listagem, edicao e exclusao logica de pacientes
-- cadastro, listagem, edicao e exclusao logica de medicos
-- agendamento orientado por triagem, especialidade, disponibilidade e regiao
-- cancelamento, conclusao e remanejamento de agendamentos
-- cadastro e gerenciamento de alas por tipo numerico
-- cadastro e gerenciamento de leitos
-- internacao e alta hospitalar
-- triagem geral e especializada
-- painel de relatorios com indicadores do sistema
-- prontuario automatico, de urgencia e complementar
-- listagem de prontuarios por paciente, medico e especialidade
-- criacao automatica de prontuario ao concluir agendamento
-- solicitacao, resultado, cancelamento, exclusao logica e listagens de exames
-- urgencia de exame herdada da triagem atual do paciente
+As duas versões compartilham o mesmo schema ([`backend/data/schema_v2.sql`](backend/data/schema_v2.sql)) mas são **independentes**: a V2 não depende do código da V1.
 
 ---
 
-## Arquitetura do Projeto
+## 🏗️ Arquitetura
 
-A arquitetura atual do SIGEH-DF segue o padrao:
+O backend web segue uma arquitetura em camadas, de baixo para cima:
 
 ```text
-app / model / headers / modules / test
+┌─────────────────────────────────────────────────────────┐
+│  api/         Servidor HTTP (sockets POSIX) + roteamento  │
+│               + autenticação HTTP Basic + autorização      │
+├─────────────────────────────────────────────────────────┤
+│  services/    Regras de negócio (triagem inteligente,      │
+│               relatórios) — orquestram os repositories     │
+├─────────────────────────────────────────────────────────┤
+│  repositories/  Acesso a dados (1 por entidade), apenas    │
+│                 SQL com prepared statements                │
+├─────────────────────────────────────────────────────────┤
+│  database/    Camada fina sobre o SQLite (abrir/fechar,    │
+│               executar, resetar com schema)                │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### `src/main/c/app`
-Contem o ponto de entrada do programa.
+**Princípios aplicados:**
 
-### `src/main/c/model`
-Contem a modelagem central do sistema:
-
-- `#define`
-- `structs`
-- vetores globais
-- contadores globais
-- constantes compartilhadas
-
-### `src/main/c/headers`
-Contem os arquivos `.h` dos modulos, com as assinaturas publicas das funcoes.
-
-### `src/main/c/modules`
-Contem a implementacao de cada modulo em arquivos `.c`.
-
-### `src/test/c/modules`
-Contem testes automatizados simples com `assert.h`, voltados para as regras principais de cada modulo.
+- 🔒 **Prepared statements** em toda entrada externa (sem `sprintf` em SQL) → sem SQL injection.
+- 🧱 **Separação de responsabilidades**: a API roteia, os services decidem, os repositories persistem.
+- 🔗 **Integridade referencial** garantida pelo banco (`PRAGMA foreign_keys = ON`).
+- 🔑 **Senhas com hash** SHA-256 + salt (OpenSSL) — nunca em texto puro.
+- ✅ **Convenção de retorno**: escrita devolve `1` (sucesso) / `0` (falha); listagens devolvem JSON.
 
 ---
 
-## Estrutura de Pastas
+## 📁 Estrutura de pastas
 
 ```text
 Gestao_Saude/
-├── .gitignore
-├── Makefile
 ├── README.md
-├── data/
-├── sigeh
-├── test_agendamento
-├── test_ala
-├── test_internacao
-├── test_leito
-├── test_medico
-├── test_paciente
-├── test_prontuario
-├── test_exame
-├── test_relatorio
-├── test_triagem
-└── src/
-    ├── main/
-    │   └── c/
-    │       ├── app/
-    │       │   └── main.c
-    │       ├── headers/
-    │       │   ├── agendamento.h
-    │       │   ├── ala.h
-    │       │   ├── internacao.h
-    │       │   ├── leito.h
-    │       │   ├── medico.h
-    │       │   ├── paciente.h
-    │       │   ├── prontuario.h
-    │       │   ├── exame.h
-    │       │   ├── relatorio.h
-    │       │   └── triagem.h
-    │       ├── model/
-    │       │   └── hospital.h
-    │       └── modules/
-    │           ├── agendamento.c
-    │           ├── ala.c
-    │           ├── internacao.c
-    │           ├── leito.c
-    │           ├── medico.c
-    │           ├── paciente.c
-    │           ├── prontuario.c
-    │           ├── exame.c
-    │           ├── relatorio.c
-    │           └── triagem.c
-    └── test/
-        └── c/
-            └── modules/
-                ├── test_agendamento.c
-                ├── test_ala.c
-                ├── test_internacao.c
-                ├── test_leito.c
-                ├── test_medico.c
-                ├── test_paciente.c
-                ├── test_prontuario.c
-                ├── test_exame.c
-                ├── test_relatorio.c
-                └── test_triagem.c
+├── .gitignore
+└── backend/
+    ├── Makefile                  # build/test do backend web
+    ├── data/
+    │   ├── schema_v2.sql         # schema único (fonte da verdade)
+    │   └── sigeh_v2.db           # banco (gerado, ignorado pelo git)
+    ├── database/
+    │   ├── database.h / .c        # camada fina SQLite
+    ├── repositories/             # 1 repository por entidade
+    │   ├── repo_json.*            # util de montagem de JSON
+    │   ├── senha_util.*           # hashing SHA-256 + salt (OpenSSL)
+    │   ├── paciente_repository.*
+    │   ├── medico_repository.*
+    │   ├── ala_repository.*
+    │   ├── leito_repository.*
+    │   ├── triagem_repository.*
+    │   ├── agendamento_repository.*
+    │   ├── prontuario_repository.*
+    │   ├── exame_repository.*
+    │   ├── internacao_repository.*
+    │   └── usuario_repository.*
+    ├── services/
+    │   ├── triagem_service.*      # motor de decisão da triagem
+    │   └── relatorio_service.*    # indicadores
+    ├── api/
+    │   └── health.c              # servidor HTTP + rotas + auth
+    ├── tests/                    # testes com assert.h (banco isolado)
+    └── terminal/                 # V1 CLI preservada (app/model/headers/modules/test)
 ```
 
 ---
 
-## Como Compilar e Executar
+## ⚙️ Pré-requisitos
 
-Na raiz do projeto:
+- **GCC** (ou clang) com suporte a C padrão
+- **make**
+- **SQLite 3** (`-lsqlite3`)
+- **OpenSSL** (`libcrypto`) — usado no hash de senhas
+
+> 💡 No macOS via Homebrew, o OpenSSL costuma ficar em `/opt/homebrew/opt/openssl@3`. O `Makefile` já aponta para lá por padrão. Em outro caminho, sobrescreva: `make OPENSSL_DIR=/seu/openssl`.
+
+---
+
+## 🚀 Como compilar e executar
+
+### Backend Web (V2)
 
 ```sh
-make clean
+cd backend
+make            # compila a camada de banco e o servidor da API
+make run        # sobe o servidor HTTP na porta 8080
+```
+
+Com o servidor no ar, em outro terminal:
+
+```sh
+# rota pública de saúde
+curl -i http://localhost:8080/health
+
+# rota autenticada (HTTP Basic)
+curl -u admin:secreta http://localhost:8080/me
+```
+
+> O servidor lê o banco em `backend/data/sigeh_v2.db` (caminho relativo) — **rode sempre de dentro de `backend/`**.
+> Para recriar o banco do zero a partir do schema, use a função `db_resetar_com_schema` (chamada nos testes e em scripts de seed).
+
+### Terminal (V1)
+
+```sh
+cd backend/terminal
 make
 make run
 ```
 
-### O que cada comando faz
-
-- `make clean`: remove executavel principal e executaveis de teste
-- `make`: compila o sistema principal e gera o binario `sigeh`
-- `make run`: compila e executa o sistema
-
 ---
 
-## Como Rodar os Testes
+## 🧪 Como rodar os testes
 
 ```sh
+cd backend
 make test
 ```
 
-Esse alvo compila e executa os testes modulares:
+São **12 suítes** com `assert.h`, cada uma recriando um **banco de teste isolado** (`tests/test_sigeh_repository.db`) a partir do schema — sem depender de dados antigos:
 
-- `test_agendamento`
-- `test_ala`
-- `test_internacao`
-- `test_leito`
-- `test_medico`
-- `test_paciente`
-- `test_prontuario`
-- `test_exame`
-- `test_relatorio`
-- `test_triagem`
+| Repositories | Services |
+|---|---|
+| paciente, medico, ala, leito | triagem_service |
+| triagem, agendamento, prontuario | relatorio_service |
+| exame, internacao, usuario | |
 
-Observacao importante:
-
-- os testes cobrem principalmente funcoes de regra de negocio
-- menus interativos e mensagens impressas no terminal ainda dependem de validacao manual
+O build usa `-Wall -Wextra -pedantic` e fecha **sem warnings**.
 
 ---
 
-## Mapa de Arquivos
+## 🔐 Autenticação e papéis
 
-### Arquivos centrais
+A API usa **HTTP Basic** (`Authorization: Basic base64(login:senha)`), validado **a cada requisição** contra a tabela `usuarios` (stateless). Os **logins são criados pelo administrador**.
 
-- `Makefile`: compilacao, limpeza e execucao dos testes
-- `README.md`: documentacao do projeto
-- `src/main/c/app/main.c`: menu principal e definicoes globais
-- `src/main/c/model/hospital.h`: modelagem compartilhada do sistema
+| Papel | Pode acessar |
+|---|---|
+| **ADMIN** | Tudo, incluindo cadastro de usuários (`/usuarios`). |
+| **CADASTRO** | CRUD dos cadastros: pacientes, médicos, alas, leitos. |
+| **MEDICO** | Leitura dos cadastros + todo o clínico (triagens, agendamentos, prontuários, exames, internações, triagem inteligente, relatórios) + suas rotas `/me`. |
+| **ENFERMAGEM** | Visão de enfermaria: leitura de internações, leitos e alas. |
+| **PACIENTE** | Apenas as próprias informações via `/me` (exames, prontuários). |
 
-### Headers publicos
+Respostas de acesso: **`401`** sem credencial válida · **`403`** papel sem permissão.
 
-- `agendamento.h`
-- `ala.h`
-- `internacao.h`
-- `leito.h`
-- `medico.h`
-- `paciente.h`
-- `prontuario.h`
-- `exame.h`
-- `relatorio.h`
-- `triagem.h`
-
-### Modulos de implementacao
-
-- `agendamento.c`
-- `ala.c`
-- `internacao.c`
-- `leito.c`
-- `medico.c`
-- `paciente.c`
-- `prontuario.c`
-- `exame.c`
-- `relatorio.c`
-- `triagem.c`
-
-### Testes
-
-- `test_agendamento.c`
-- `test_ala.c`
-- `test_internacao.c`
-- `test_leito.c`
-- `test_medico.c`
-- `test_paciente.c`
-- `test_prontuario.c`
-- `test_exame.c`
-- `test_relatorio.c`
-- `test_triagem.c`
-
-### Arquivos e pastas auxiliares
-
-- `.gitignore`: define arquivos ignorados pelo Git
-- `.vscode/settings.json`: preferencias locais do ambiente VS Code
-- `data/`: pasta reservada para dados auxiliares do projeto
-- `sigeh`: executavel principal gerado pelo `make`
-- `test_*`: executaveis de teste gerados pelo `make test`
+> A política de autorização é **centralizada** em uma única função (`autorizado()`) aplicada no topo do roteador — fácil de auditar e manter.
 
 ---
 
-## Explicacao Detalhada Arquivo por Arquivo
+## 🌐 Referência da API
 
-### Arquivos da raiz
+> Todas as rotas exigem autenticação, **exceto** `GET /health`. Parâmetros de criação vão na query string.
 
-#### `Makefile`
-Responsavel por toda a orquestracao de compilacao.
+### Saúde e sessão
 
-O `Makefile`:
+| Método | Rota | Papel | Descrição |
+|---|---|---|---|
+| `GET` | `/health` | público | Status do serviço + banco |
+| `GET` | `/me` | autenticado | Papel e vínculos do usuário logado |
+| `GET` | `/me/exames` | PACIENTE | Exames do próprio paciente |
+| `GET` | `/me/prontuarios` | PACIENTE | Prontuários do próprio paciente |
+| `GET` | `/me/agenda` | MEDICO | Agenda do próprio médico |
+| `GET` | `/me/pacientes` | MEDICO | Pacientes do próprio médico |
 
-- define o compilador (`gcc`)
-- aplica `-Wall -Wextra -pedantic`
-- configura os `-I` para `model`, `headers` e `modules`
-- define os arquivos do executavel principal
-- define os arquivos de cada teste modular
-- possui os alvos `all`, `run`, `clean`, `test` e `tree`
+### Usuários (ADMIN)
 
-Em termos praticos, ele e o arquivo que transforma a estrutura modular do projeto em um executavel utilizavel e em testes isolados.
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/usuarios` · `/usuarios/contar` | Listar / contar |
+| `POST` | `/usuarios?login=&senha=&papel=&paciente_id=&medico_id=` | Criar usuário |
+| `DELETE` | `/usuarios/{id}` | Desativar |
 
-#### `README.md`
-Arquivo de documentacao principal do projeto.
+### Cadastros (ADMIN, CADASTRO · MEDICO só leitura)
 
-Sua funcao e explicar:
+Para `pacientes`, `medicos`, `alas`, `leitos`:
 
-- a proposta do sistema
-- a arquitetura adotada
-- a organizacao das pastas
-- a funcao de cada arquivo
-- os comandos de compilacao e teste
-- as regras principais do dominio
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/{entidade}` · `/{entidade}/contar` | Listar / contar |
+| `POST` | `/{entidade}?...` | Criar |
+| `DELETE` | `/{entidade}/{id}` | Exclusão lógica |
 
-#### `.gitignore`
-Arquivo que informa ao Git quais arquivos nao devem ser versionados.
+### Clínico (ADMIN, MEDICO · ENFERMAGEM lê internações/leitos/alas)
 
-Normalmente ele serve para evitar que binarios e artefatos temporarios sejam enviados para o repositorio.
+Para `triagens`, `agendamentos`, `prontuarios`, `exames`, `internacoes`:
 
-#### `.vscode/settings.json`
-Arquivo de configuracao local do editor VS Code.
+| Método | Rota | Observação |
+|---|---|---|
+| `GET` | `/{entidade}` · `/{entidade}/contar` | Listar / contar |
+| `POST` | `/{entidade}?...` | Criar |
+| `DELETE` | `/{entidade}/{id}` | Exclusão lógica · em `agendamentos` = **cancelar** |
+| `POST` | `/internacoes/{id}/alta?data=` | Dar alta (internações não têm DELETE) |
 
-Ele nao faz parte da logica do sistema, mas ajuda a manter uma experiencia de edicao mais estavel no ambiente do desenvolvedor.
+### Triagem inteligente (ADMIN, MEDICO)
 
-#### `data/`
-Pasta de apoio para dados ou estruturas auxiliares do projeto.
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/triagem/{pacienteId}/avaliacao` | Risco, prioridade e especialidade provável |
+| `GET` | `/triagem/{pacienteId}/medicos` | Médicos sugeridos (especialidade + região) |
+| `GET` | `/triagem/{pacienteId}/historico` | Prontuários + exames anteriores |
+| `GET` | `/triagem/{pacienteId}/exames` | Exames iniciais sugeridos |
+| `POST` | `/triagem/{pacienteId}/agendar?data=&horario=` | Agenda com médico disponível |
+| `POST` | `/triagem/{pacienteId}/encaminhar?especialidade=&data=&horario=` | Encaminha para outra especialidade |
 
-Mesmo quando nao estiver sendo usada diretamente por todos os modulos, ela serve como espaco reservado para evolucoes futuras ou suporte ao projeto.
+### Relatórios (ADMIN, MEDICO)
 
-#### `sigeh`
-Executavel principal gerado pelo `make`.
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/relatorios/indicadores` | Totais + triagens por classificação + casos graves |
 
-Nao e codigo-fonte, mas sim o resultado compilado do projeto.
+#### Exemplos
 
-#### `test_agendamento`, `test_ala`, `test_internacao`, `test_leito`, `test_medico`, `test_paciente`, `test_prontuario`, `test_relatorio`, `test_triagem`
-Executaveis de teste gerados pelo alvo `make test`.
+```sh
+# Admin cria um médico e um usuário médico vinculado a ele
+curl -u admin:secreta -X POST \
+  "http://localhost:8080/medicos?nome=Dra+Helena&crm=CRM123&especialidade=Cardiologia&regiao=7"
+curl -u admin:secreta -X POST \
+  "http://localhost:8080/usuarios?login=helena&senha=h123&papel=MEDICO&medico_id=1"
 
-Eles representam binarios temporarios usados para validar cada modulo individualmente.
+# Avaliação inteligente da triagem de um paciente
+curl -u helena:h123 http://localhost:8080/triagem/1/avaliacao
+# -> {"pacienteId":1,"classificacao":"Emergencia","prioridade":5,"especialidadeProvavel":"Cardiologia"}
 
----
-
-### `src/main/c/app/main.c`
-Ponto de entrada do sistema.
-
-Este arquivo cumpre dois papeis fundamentais:
-
-1. definir os vetores globais e contadores globais do sistema
-2. controlar o menu principal da aplicacao
-
-Funcoes principais:
-
-- `exibirMenu()`: imprime o menu principal
-- `executarOpcao(int opcao)`: despacha a opcao escolhida para o modulo correspondente
-- `main()`: controla o loop principal do sistema
-
-Tambem e neste arquivo que ficam definidas as instancias globais de:
-
-- `pacientes`
-- `medicos`
-- `agendamentos`
-- `alas`
-- `leitos`
-- `internacoes`
-- `triagens`
-- `prontuarios`
-- `exames`
-
-Sem esse arquivo, os `extern` declarados em `hospital.h` nao teriam definicao real no programa principal.
+# Agendamento automático
+curl -u helena:h123 -X POST \
+  "http://localhost:8080/triagem/1/agendar?data=2026-07-01&horario=09:00"
+```
 
 ---
 
-### `src/main/c/model/hospital.h`
-Nucleo de modelagem do SIGEH-DF.
+## 🧠 Triagem inteligente
 
-Este e o arquivo mais importante do projeto em nivel estrutural, porque centraliza:
+O fluxo que o motor de decisão cobre hoje:
 
-- bibliotecas padrao (`stdio.h`, `stdlib.h`, `string.h`)
-- limites dos vetores (`MAX_*`)
-- codigos de tipos de triagem
-- codigos de tipos de ala
-- definicao das structs principais
-- declaracoes `extern` dos vetores globais
-- declaracoes `extern` dos contadores globais
+```text
+Paciente passa pela triagem
+   └─▶ calcula risco, prioridade e especialidade provável     (/triagem/{id}/avaliacao)
+       └─▶ consulta histórico: prontuários e exames anteriores (/triagem/{id}/historico)
+           └─▶ sugere exames iniciais conforme o tipo          (/triagem/{id}/exames)
+               └─▶ encontra médicos por especialidade + região (/triagem/{id}/medicos)
+                   └─▶ agenda com médico disponível            (POST /triagem/{id}/agendar)
+                       └─▶ ou encaminha para outra especialidade (POST /triagem/{id}/encaminhar)
+```
 
-Constantes relevantes:
-
-- `MAX_PACIENTES`
-- `MAX_MEDICOS`
-- `MAX_AGENDAMENTOS`
-- `MAX_ALAS`
-- `MAX_LEITOS`
-- `MAX_INTERNACOES`
-- `MAX_TRIAGENS`
-- `MAX_PRONTUARIOS`
-- `MAX_EXAMES`
-
-Tipos de triagem:
-
-- `TRIAGEM_GERAL`
-- `TRIAGEM_ORTOPEDIA`
-- `TRIAGEM_CARDIOLOGIA`
-- `TRIAGEM_PNEUMOLOGIA`
-- `TRIAGEM_PEDIATRIA`
-
-Tipos de ala:
-
-- `ALA_INTERNACAO`
-- `ALA_UTI`
-- `ALA_OBSERVACAO`
-- `ALA_PEDIATRIA`
-- `ALA_CIRURGICA`
-
-Structs definidas:
-
-- `Paciente`
-- `Medico`
-- `Agendamento`
-- `Ala`
-- `Leito`
-- `Internacao`
-- `Triagem`
-- `Prontuario`
-- `Exame`
-
-Esse arquivo funciona como contrato central da aplicacao inteira.
+**Regra de agenda:** janela de expediente **08:00–18:00** e **grade de 30 min** (08:00, 08:30, …, 17:30). Horários fora da grade ou do expediente são recusados, em todos os caminhos de escrita.
 
 ---
 
-### Headers de modulos
+## 🗃️ Modelo de domínio
 
-#### `src/main/c/headers/paciente.h`
-Declara a interface publica do modulo de pacientes.
+Entidades persistidas (tabelas em [`schema_v2.sql`](backend/data/schema_v2.sql)):
 
-Funcoes expostas:
+`pacientes` · `medicos` · `alas` · `leitos` · `triagens` · `agendamentos` · `prontuarios` · `exames` · `internacoes` · `usuarios`
 
-- `menuPacientes()`
-- `cadastrarPaciente(...)`
-- `excluirPaciente(int id)`
+**Estados e exclusão lógica:**
 
-Ele permite que outros arquivos conhecam o modulo de pacientes sem acessar sua implementacao interna.
+- Entidades com `ativo` (0/1): paciente, médico, ala, leito, triagem, prontuário, exame, usuário → exclusão lógica.
+- Baseadas em `status`: `agendamentos` (`AGENDADO` → `CANCELADO`) e `internacoes` (`INTERNADO` → `ALTA`).
 
-#### `src/main/c/headers/medico.h`
-Declara a interface publica do modulo de medicos.
-
-Funcoes expostas:
-
-- `menuMedicos()`
-- `cadastrarMedico(...)`
-- `excluirMedico(int id)`
-
-#### `src/main/c/headers/agendamento.h`
-Declara a interface publica do modulo de agendamento.
-
-Funcoes expostas:
-
-- `menuAgendamentos()`
-- `buscarAgenda(...)`
-- `medicoOcupado(...)`
-- `cancelarAgendamento(int id)`
-- `concluirAgendamento(int id)`
-- `trocaHorario(...)`
-- `agendarMedico(...)`
-- `obterEspecialidade(...)`
-- `buscarMedicoRegiao(...)`
-- `buscarMedico(...)`
-- `agendarTriagem(...)`
-
-Esse header concentra a parte mais rica de regras operacionais entre triagem, medicos, horario e remanejamento.
-
-#### `src/main/c/headers/ala.h`
-Declara a interface do modulo de alas.
-
-Funcoes expostas:
-
-- `menuAlas()`
-- `cadastrarAla(...)`
-- `excluirAla(int id)`
-- `contarAlasPorTipo(int tipo)`
-- `listarAlasPorTipo(int tipo)`
-
-#### `src/main/c/headers/leito.h`
-Declara a interface do modulo de leitos.
-
-Funcoes expostas:
-
-- `menuLeitos()`
-- `cadastrarLeito(...)`
-- `excluirLeito(int id)`
-
-#### `src/main/c/headers/internacao.h`
-Declara a interface do modulo de internacao.
-
-Funcoes expostas:
-
-- `menuInternacoes()`
-- `internarPaciente(...)`
-- `darAltaInternacao(...)`
-
-#### `src/main/c/headers/triagem.h`
-Declara a interface do modulo de triagem.
-
-Funcoes expostas:
-
-- `menuTriagem()`
-- `classificarTriagem(...)`
-- `nivelPrioridade(...)`
-- `ehUrgente(...)`
-- `triagemAtual(...)`
-- `excluirTriagem(...)`
-- `escolherTriagem()`
-- `triagemGeral(...)`
-- `triagemOrtopedia(...)`
-- `triagemCardiologia(...)`
-- `triagemPneumologia(...)`
-- `triagemPediatria(...)`
-- `exibirTipo(...)`
-
-#### `src/main/c/headers/relatorio.h`
-Declara a interface publica do modulo de relatorios.
-
-Funcoes expostas:
-
-- `menuRelatorios()`
-- `contarPacientesAtivos()`
-- `contarMedicosAtivos()`
-- `contarProntuariosAtivos()`
-- `contarExamesAtivos()`
-- `contarLeitosOcupados()`
-- `contarLivres()`
-- `taxaAla(int alaId)`
-- `contarTriagens(...)`
-- `contarMedRegiao(...)`
-- `relMedRegiao()`
-- `contarPacRegiao(...)`
-- `relPacRegiao()`
-- `contarEsp(...)`
-- `espDemandada(...)`
-- `contarCasosGravesRegiao(...)`
-- `regiaoMaisCasosGraves()`
-
-#### `src/main/c/headers/prontuario.h`
-Declara a interface do modulo de prontuario.
-
-Funcoes expostas:
-
-- `menuProntuarios()`
-- `criarProntuarioAutomatico(...)`
-- `complementarProntuario(...)`
-- `registrarProntuario(...)`
-- `listarProntuarioPorPaciente(...)`
-- `listarProntuarioPorMedico(...)`
-- `listarProntuarioPorEspecialidade(...)`
-- `contarProntuariosPorPaciente(...)`
-- `contarProntuariosPorMedico(...)`
-- `contarProntuariosPorEspecialidade(...)`
-
-#### `src/main/c/headers/exame.h`
-Declara a interface publica do modulo de exames.
-
-Funcoes expostas:
-
-- `menuExames()`
-- `solicitarExame(...)`
-- `registrarResultadoExame(...)`
-- `cancelarExame(...)`
-- `excluirExame(...)`
-- `listarExames()`
-- `listarExamesPorPaciente(...)`
-- `listarExamesPorMedico(...)`
-- `listarExamesPorProntuario(...)`
-- `listarExamesUrgentes()`
-- `escolherTipoExame()`
-- `exibirNomeTipoExame(...)`
-- `contarExamesPorStatus(...)`
-- `contarExamesPorTipo(...)`
-- `contarExamesUrgentes()`
+**Classificações de triagem:** `Emergencia` (5) · `Muito prioritario` (4) · `Prioritario` (3) · `Comum` (2) · `Orientacao basica` (1).
 
 ---
 
-### Modulos de implementacao
+## 🧭 Próximos passos
 
-#### `src/main/c/modules/paciente.c`
-Responsavel por toda a gestao de pacientes.
-
-Operacoes principais:
-
-- cadastro
-- listagem
-- edicao
-- exclusao logica
-- exibicao das regioes administrativas no fluxo do menu
-
-Dados tratados pelo modulo:
-
-- nome
-- CPF
-- idade
-- telefone
-- sexo
-- regiao administrativa
-- estado `ativo`
-
-Importancia:
-
-Esse modulo e base de varios outros. Sem pacientes validos e ativos, o sistema nao consegue realizar triagem, agendamento, internacao ou prontuario.
-
-#### `src/main/c/modules/medico.c`
-Responsavel pela gestao de medicos.
-
-Operacoes principais:
-
-- cadastro
-- listagem
-- edicao
-- exclusao logica
-- controle de especialidade
-- controle de regiao administrativa
-
-Importancia:
-
-Esse modulo influencia diretamente agendamento, regionalizacao e prontuario.
-
-#### `src/main/c/modules/agendamento.c`
-Modulo central do fluxo ambulatorial.
-
-Responsabilidades:
-
-- localizar conflitos de horario
-- verificar se um medico esta ocupado
-- cancelar agendamento
-- concluir agendamento
-- descobrir a especialidade correta a partir da triagem
-- buscar medico na mesma regiao
-- buscar medico em outra regiao quando necessario
-- decidir se um paciente mais urgente pode remanejar outro
-- registrar agendamento novo
-- marcar agendamento antigo como `REMANEJADO`
-
-Regras importantes:
-
-- o conflito relevante considera agendamentos com status `AGENDADO`
-- a urgencia depende da classificacao da triagem
-- `Emergencia` e `Muito prioritario` sao tratados como urgentes
-- um paciente so remaneja outro se tiver prioridade maior
-- em caso de empate, o agendamento ja existente e mantido
-
-#### `src/main/c/modules/ala.c`
-Modulo que representa a organizacao fisica das alas.
-
-Responsabilidades:
-
-- cadastrar alas
-- excluir alas logicamente
-- listar alas
-- contar alas por tipo
-- listar alas filtradas por tipo
-- receber o tipo da ala via numeracao de menu
-
-Tipos de ala suportados:
-
-- Internacao
-- UTI
-- Observacao
-- Pediatria
-- Cirurgica
-
-Esse modulo ajuda a estruturar o ambiente hospitalar em categorias padronizadas e evita erro de digitacao ao selecionar tipos.
-
-#### `src/main/c/modules/leito.c`
-Responsavel pelo gerenciamento de leitos.
-
-Operacoes principais:
-
-- cadastro de leito
-- exclusao logica
-- vinculacao a ala
-- controle de ocupacao
-
-Papel no sistema:
-
-Ele funciona como ponte entre a estrutura fisica da ala e a internacao do paciente.
-
-#### `src/main/c/modules/internacao.c`
-Responsavel pelo fluxo de internacao e alta.
-
-Operacoes principais:
-
-- internar paciente em leito disponivel
-- registrar data de entrada
-- dar alta
-- registrar data de alta
-- liberar leito
-- reduzir `leitosOcupados` da ala correspondente
-
-Regras importantes:
-
-- o paciente precisa existir e estar ativo
-- o leito precisa existir e estar livre
-- a internacao recebe status `INTERNADO`
-- a alta altera o status da internacao e libera o leito
-
-#### `src/main/c/modules/triagem.c`
-Modulo responsavel por classificacao de risco.
-
-Responsabilidades:
-
-- escolher o tipo de triagem
-- aplicar perguntas por especialidade
-- calcular pontuacao
-- converter pontuacao em classificacao
-- informar prioridade numerica
-- dizer se uma classificacao e urgente
-- localizar a triagem ativa mais recente de um paciente
-
-Tipos implementados:
-
-- triagem geral
-- triagem ortopedica
-- triagem cardiologica
-- triagem pneumologica
-- triagem pediatrica
-
-Esse modulo alimenta diretamente as decisoes de agendamento e prioridade.
-
-#### `src/main/c/modules/relatorio.c`
-Modulo de indicadores gerenciais.
-
-Responsabilidades:
-
-- contar pacientes ativos, medicos ativos, prontuarios ativos e exames ativos
-- contar leitos ocupados e livres
-- calcular taxa de ocupacao por ala
-- contar triagens por classificacao
-- contar medicos por regiao
-- contar pacientes por regiao
-- identificar especialidade mais demandada
-- identificar regiao com mais casos graves
-- consolidar indicadores de exames por status e urgencia
-- exibir painel consolidado de relatorios
-
-Esse modulo transforma os dados operacionais em visao gerencial do sistema.
-
-#### `src/main/c/modules/prontuario.c`
-Modulo de prontuario integrado.
-
-Responsabilidades:
-
-- validar paciente e medico ativos antes do registro
-- criar prontuario base automaticamente
-- registrar atendimento clinico de urgencia
-- complementar prontuario existente
-- armazenar observacoes, diagnostico, conduta e alerta importante
-- listar prontuarios por paciente
-- listar prontuarios por medico
-- listar prontuarios por especialidade
-- exibir pacientes e medicos ativos para facilitar o cadastro no menu
-
-Ponto forte do modulo:
-
-Ele nao duplica nome de paciente ou medico dentro da struct. O prontuario guarda os ids e consulta os dados reais do sistema na hora de listar, preservando coerencia.
-
-Integracao atual:
-
-- cria prontuario automatico ao concluir agendamento
-- permite evolucao clinica posterior sem mudar paciente, medico ou data
-
-#### `src/main/c/modules/exame.c`
-Modulo de exames integrado ao fluxo clinico.
-
-Responsabilidades:
-
-- solicitar exame para paciente, medico e prontuario compativeis
-- marcar urgencia com base na triagem atual
-- registrar resultado
-- cancelar exame
-- excluir logicamente
-- listar exames por paciente, medico, prontuario e urgencia
-- contar exames por status, tipo e urgencia
-
-Regras importantes:
-
-- o paciente precisa existir e estar ativo
-- o medico precisa existir e estar ativo
-- o prontuario precisa existir, estar ativo e pertencer ao mesmo paciente e medico
-- o exame novo nasce com status `Solicitado`
-- o resultado muda o status para `Realizado`
-- o cancelamento muda o status para `Cancelado`
-- a exclusao logica usa `ativo`
+- 💊 **Módulo de prescrição/medicação** — necessário para a enfermagem ver "remédios a aplicar" e o paciente ver receitas (entidade ainda inexistente).
+- 🖥️ **Frontend web** consumindo a API (o `GET /me` já entrega o papel para a UI decidir o que exibir).
+- 🔎 **Escopo de dados nas listas globais** — hoje quem tem permissão de leitura vê listas amplas; o escopo "só o seu" vive nas rotas `/me`.
+- 📈 **Relatórios mais ricos** (por período, por especialidade, por região).
+- 🧪 **Testes de integração da API** (hoje validada por smoke tests com `curl`).
 
 ---
 
-### Testes modulares
+## 🎓 Notas acadêmicas
 
-#### `src/test/c/modules/test_paciente.c`
-Valida as operacoes principais do modulo de pacientes, como cadastro e exclusao.
+- Projeto construído para **clareza didática**, priorizando legibilidade e regras de negócio sobre performance.
+- O servidor HTTP é **single-thread e bloqueante** — adequado para fins acadêmicos, não para produção.
+- A criação de registros pela API usa **query string** (inclusive senha) por simplicidade; num cenário real, dados sensíveis iriam no corpo da requisição sobre HTTPS.
+- Artefatos gerados (binários, `*.db`, `*.o`) ficam fora do versionamento (`.gitignore`); o **schema** é a fonte da verdade e o banco é sempre reconstruível.
 
-#### `src/test/c/modules/test_medico.c`
-Valida cadastro e exclusao logica de medicos.
-
-#### `src/test/c/modules/test_agendamento.c`
-Valida o modulo mais rico em regra de negocio.
-
-Cenarios cobertos:
-
-- busca de agenda
-- ocupacao de medico
-- cancelamento publico
-- agendamento por triagem
-- remanejamento
-- prioridade
-- empate de prioridade
-- escolha de medico por disponibilidade e regiao
-
-#### `src/test/c/modules/test_ala.c`
-Valida cadastro de ala, tipo numerico, contagem por tipo e exclusao.
-
-#### `src/test/c/modules/test_leito.c`
-Valida cadastro e operacoes basicas do modulo de leitos.
-
-#### `src/test/c/modules/test_internacao.c`
-Valida internacao, alta, liberacao de leito e reducao de ocupacao.
-
-#### `src/test/c/modules/test_triagem.c`
-Valida classificacao, prioridade, urgencia e obtencao da triagem atual.
-
-#### `src/test/c/modules/test_relatorio.c`
-Valida indicadores do painel de relatorios.
-
-Cenarios cobertos:
-
-- pacientes ativos
-- medicos ativos
-- prontuarios ativos
-- exames ativos
-- exames por status
-- exames urgentes
-- ocupacao de leitos
-- taxa por ala
-- contagem por classificacao
-- medicos por regiao
-- pacientes por regiao
-- especialidade mais demandada
-- casos graves por regiao
-
-#### `src/test/c/modules/test_prontuario.c`
-Valida o modulo de prontuario.
-
-Cenarios cobertos:
-
-- criacao automatica
-- complemento de prontuario
-- registro de urgencia
-- associacao correta entre paciente e medico
-- armazenamento correto dos campos
-- falha com paciente invalido
-- falha com medico invalido
-- falha com campos obrigatorios vazios
-
-#### `src/test/c/modules/test_exame.c`
-Valida o modulo de exames.
-
-Cenarios cobertos:
-
-- solicitacao valida de exame
-- vinculo com paciente, medico e prontuario
-- urgencia herdada da triagem
-- registro de resultado
-- cancelamento
-- exclusao logica
-- contagem por status
-- contagem por tipo
-- contagem de exames urgentes
+<div align="center">
 
 ---
 
-## Regras de Modelagem e Estados
+Feito com `gcc -Wall -Wextra -pedantic` e muito cuidado com cada `free()`. 🩺
 
-### Exclusao logica
-
-O projeto usa exclusao logica em varias entidades.
-
-Campos comuns:
-
-- `Paciente.ativo`
-- `Medico.ativo`
-- `Ala.ativo`
-- `Leito.ativo`
-- `Triagem.ativo`
-- `Prontuario.ativo`
-
-Isso significa que o registro nao e apagado do vetor, apenas deixa de ser considerado ativo.
-
-### Status usados no sistema
-
-#### Agendamento
-
-- `AGENDADO`
-- `CANCELADO`
-- `CONCLUIDO`
-- `REMANEJADO`
-
-#### Internacao
-
-- `INTERNADO`
-- `ALTA`
-
-#### Exame
-
-- `Solicitado`
-- `Realizado`
-- `Cancelado`
-
-### Classificacoes de triagem
-
-- `Emergencia`
-- `Muito prioritario`
-- `Prioritario`
-- `Comum`
-- `Orientacao basica`
-
-### Tipos de ala
-
-- `ALA_INTERNACAO`
-- `ALA_UTI`
-- `ALA_OBSERVACAO`
-- `ALA_PEDIATRIA`
-- `ALA_CIRURGICA`
-
----
-
-## Observacoes Importantes
-
-- Os dados continuam em memoria durante a execucao.
-- O sistema ainda nao possui persistencia em arquivo.
-- O sistema ainda nao utiliza banco relacional.
-- Os testes automatizados cobrem bem regras centrais, mas nao substituem testes manuais dos menus.
-- As opcoes de menu principais e varios submenus tratam melhor entradas numericas invalidas para evitar loop com letras.
-- O projeto foi construido para clareza didatica, nao para alta performance ou concorrencia.
-- O uso de vetores globais faz parte da proposta academica atual do sistema.
-
----
-
-## Proximos Passos Naturais do Projeto
-
-A base atual permite evolucoes como:
-
-- revisar casos de borda de agendamento e remanejamento
-- integrar indicadores de exames a relatorios mais especificos por tipo
-- ampliar consultas de exame e prontuario
-- adicionar persistencia em `.txt`
-- depois avaliar migracao futura para SQLite
-- ampliar cobertura de testes manuais e automatizados
-
----
-
-## Fechamento
-
-O SIGEH-DF e um projeto academico simples na superficie, mas com uma base modular bem rica para estudo. Ele ja demonstra integracao entre entidades, validacao de regras, menus operacionais, indicadores gerenciais e evolucao incremental de arquitetura sem abandonar a simplicidade do C basico.
-
-A leitura do codigo fica muito mais proveitosa quando feita junto desta documentacao, porque cada arquivo tem uma responsabilidade clara dentro do sistema.
-
+</div>
