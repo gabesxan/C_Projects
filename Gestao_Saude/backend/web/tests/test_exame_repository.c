@@ -46,6 +46,14 @@ int main(void)
     antes = exame_repo_contar_ativos();
     assert(antes == 2);
 
+    /* Escopo por medico: cada medico ve apenas os exames que solicitou. */
+    assert(exame_repo_listar_por_medico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"medicoId\":1") != NULL);
+    assert(strstr(json, "\"medicoId\":2") == NULL);
+    assert(exame_repo_listar_por_medico_json(2, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"medicoId\":2") != NULL);
+    assert(strstr(json, "\"medicoId\":1") == NULL);
+
     assert(exame_repo_desativar(1) == 1);
     assert(exame_repo_contar_ativos() == antes - 1);
     assert(exame_repo_desativar(9999) == 0);

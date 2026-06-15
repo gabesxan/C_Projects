@@ -749,6 +749,76 @@ static void rotaListarAgendamentos(int cliente, const char *papel, int medico_id
     free(json);
 }
 
+static void rotaListarProntuarios(int cliente, const char *papel, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas os prontuarios que ele assinou (escopo por identidade). */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        ok = prontuario_repo_listar_por_medico_json(medico_id, json, TAM_JSON);
+    }
+    else
+    {
+        ok = prontuario_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar prontuarios\"}");
+    }
+
+    free(json);
+}
+
+static void rotaListarExames(int cliente, const char *papel, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas os exames que ele solicitou (escopo por identidade). */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        ok = exame_repo_listar_por_medico_json(medico_id, json, TAM_JSON);
+    }
+    else
+    {
+        ok = exame_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar exames\"}");
+    }
+
+    free(json);
+}
+
 static void rotaCriarAla(int cliente, const char *consulta)
 {
     char nome[128];
@@ -1164,7 +1234,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios") == 0)
     {
-        responderLista(cliente, prontuario_repo_listar_json, "{\"erro\":\"falha ao listar prontuarios\"}");
+        rotaListarProntuarios(cliente, papel, authMedicoId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios/contar") == 0)
     {
@@ -1180,7 +1250,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames") == 0)
     {
-        responderLista(cliente, exame_repo_listar_json, "{\"erro\":\"falha ao listar exames\"}");
+        rotaListarExames(cliente, papel, authMedicoId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames/contar") == 0)
     {

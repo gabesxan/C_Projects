@@ -345,5 +345,32 @@ echo "[OK] /pacientes escopado por papel (MEDICO nao ve paciente de fora)"
 # O MEDICO deve ver o proprio agendamento na listagem ampla de agendamentos.
 request_and_assert "/agendamentos" "200" "/agendamentos (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
 
+# Cria um segundo medico (id 2) para gerar registros fora do escopo do primeiro.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/medicos?nome=DrOutro&crm=CRM-OUTRO&especialidade=Ortopedia&regiao=2" >/dev/null
+# Prontuario do medico 1 (escopo do MEDICO logado) e do medico 2 (fora do escopo).
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prontuarios?paciente_id=1&medico_id=1&data=2026-06-14&observacoes=obs&diagnostico=DiagMed1&conduta=c&alerta_importante=0" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prontuarios?paciente_id=2&medico_id=2&data=2026-06-14&observacoes=obs&diagnostico=DiagMed2&conduta=c&alerta_importante=0" >/dev/null
+# Exame do medico 1 e do medico 2 (vinculados aos prontuarios 1 e 2).
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/exames?paciente_id=1&medico_id=1&prontuario_id=1&tipo=1&data_solicitacao=2026-06-14&urgente=0" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/exames?paciente_id=2&medico_id=2&prontuario_id=2&tipo=5&data_solicitacao=2026-06-14&urgente=1" >/dev/null
+
+# O MEDICO ve o proprio prontuario (DiagMed1) e nao o do outro medico (DiagMed2).
+request_and_assert "/prontuarios" "200" "/prontuarios (MEDICO escopado)" "${MED_AUTH}" contains 'DiagMed1'
+rm -f "${RESP_FILE}"
+curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/prontuarios" >/dev/null
+if grep -Fq 'DiagMed2' "${RESP_FILE}"; then
+    fail "/prontuarios (MEDICO) vazou prontuario de outro medico"
+fi
+echo "[OK] /prontuarios escopado por papel (MEDICO nao ve prontuario de outro)"
+
+# O MEDICO ve o proprio exame (medicoId 1) e nao o do outro medico (medicoId 2).
+request_and_assert "/exames" "200" "/exames (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
+rm -f "${RESP_FILE}"
+curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/exames" >/dev/null
+if grep -Fq '"medicoId":2' "${RESP_FILE}"; then
+    fail "/exames (MEDICO) vazou exame de outro medico"
+fi
+echo "[OK] /exames escopado por papel (MEDICO nao ve exame de outro)"
+
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

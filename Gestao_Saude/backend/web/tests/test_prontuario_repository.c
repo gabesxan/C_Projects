@@ -45,6 +45,14 @@ int main(void)
     antes = prontuario_repo_contar_ativos();
     assert(antes == 2);
 
+    /* Escopo por medico: cada medico ve apenas os proprios prontuarios. */
+    assert(prontuario_repo_listar_por_medico_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "Gripe") != NULL);
+    assert(strstr(json, "Dor toracica") == NULL);
+    assert(prontuario_repo_listar_por_medico_json(2, json, sizeof(json)) == 1);
+    assert(strstr(json, "Dor toracica") != NULL);
+    assert(strstr(json, "Gripe") == NULL);
+
     assert(prontuario_repo_desativar(1) == 1);
     assert(prontuario_repo_contar_ativos() == antes - 1);
     assert(prontuario_repo_desativar(9999) == 0);

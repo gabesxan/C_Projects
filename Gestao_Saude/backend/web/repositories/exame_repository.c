@@ -158,6 +158,110 @@ int exame_repo_listar_json(char *buffer, int tamanho)
     return 1;
 }
 
+int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
+        "data_solicitacao, data_resultado, resultado, status, urgente "
+        "FROM exames WHERE medico_id = ? AND ativo = 1 ORDER BY id;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0 || medico_id <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, medico_id);
+
+    buffer[0] = '\0';
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char dataSolicitacaoJson[32];
+        char dataResultadoJson[32];
+        char resultadoJson[640];
+        char statusJson[48];
+        char objeto[1024];
+        int id = sqlite3_column_int(stmt, 0);
+        int pacienteId = sqlite3_column_int(stmt, 1);
+        int medicoId = sqlite3_column_int(stmt, 2);
+        int prontuarioId = sqlite3_column_int(stmt, 3);
+        int tipoExame = sqlite3_column_int(stmt, 4);
+        const char *dataSolic = (const char *)sqlite3_column_text(stmt, 5);
+        const char *dataResul = (const char *)sqlite3_column_text(stmt, 6);
+        const char *resultado = (const char *)sqlite3_column_text(stmt, 7);
+        const char *status = (const char *)sqlite3_column_text(stmt, 8);
+        int urgente = sqlite3_column_int(stmt, 9);
+        int escrito;
+
+        if (repo_json_escapar(dataSolicitacaoJson, sizeof(dataSolicitacaoJson), dataSolic) == 0 ||
+            repo_json_escapar(dataResultadoJson, sizeof(dataResultadoJson), dataResul) == 0 ||
+            repo_json_escapar(resultadoJson, sizeof(resultadoJson), resultado) == 0 ||
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
+            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
+            primeiro ? "" : ",",
+            id, pacienteId, medicoId, prontuarioId, tipoExame,
+            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
+            urgente);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto))
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        if (repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "]") == 0)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
