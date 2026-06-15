@@ -65,6 +65,10 @@ api: $(API_DEPS)
 run: api
 	./api/sigeh_api
 
+api-smoke-test:
+	chmod +x tests/api_smoke_test.sh
+	./tests/api_smoke_test.sh
+
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
@@ -135,7 +139,7 @@ clean:
 		tests/test_usuario_repository \
 		tests/test_sigeh_repository.db
 
-.PHONY: all api run test clean \
+.PHONY: all api run api-smoke-test test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
