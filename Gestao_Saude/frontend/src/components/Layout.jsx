@@ -45,6 +45,11 @@ export default function Layout() {
               {r.label}
             </NavLink>
           ))}
+          {(user.papel === 'ADMIN' || user.papel === 'MEDICO') && (
+            <NavLink to="/relatorios" className={navClass}>
+              Relatorios
+            </NavLink>
+          )}
         </nav>
 
         <main className="flex-1 p-6">
