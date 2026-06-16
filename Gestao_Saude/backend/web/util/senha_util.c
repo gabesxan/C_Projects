@@ -7,6 +7,13 @@
 
 #define SENHA_SALT_BYTES 8
 
+/* Numero de iteracoes do PBKDF2. Quanto maior, mais caro um ataque de forca
+ * bruta. 210000 segue a recomendacao do OWASP para PBKDF2-HMAC-SHA256. */
+#define SENHA_PBKDF2_ITERACOES 210000
+
+/* Tamanho da chave derivada em bytes (32 -> 64 caracteres hex). */
+#define SENHA_HASH_BYTES 32
+
 int senha_gerar_salt(char *salt, int tam)
 {
     unsigned char bytes[SENHA_SALT_BYTES];
@@ -33,44 +40,30 @@ int senha_gerar_salt(char *salt, int tam)
 
 int senha_hash(const char *salt, const char *senha, char *hash, int tam)
 {
-    unsigned char digest[EVP_MAX_MD_SIZE];
-    unsigned int dlen = 0;
-    char entrada[512];
-    EVP_MD_CTX *ctx;
-    unsigned int i;
+    unsigned char derivada[SENHA_HASH_BYTES];
+    int i;
 
-    if (salt == NULL || senha == NULL || hash == NULL || tam < 65)
+    if (salt == NULL || senha == NULL || hash == NULL ||
+        tam < SENHA_HASH_BYTES * 2 + 1)
     {
         return 0;
     }
 
-    if (snprintf(entrada, sizeof(entrada), "%s%s", salt, senha) >= (int)sizeof(entrada))
+    /* PBKDF2-HMAC-SHA256 sobre a senha, usando o salt (em hex) como sal.
+     * Derivacao lenta e proposital: encarece ataques de dicionario. */
+    if (PKCS5_PBKDF2_HMAC(senha, (int)strlen(senha),
+                          (const unsigned char *)salt, (int)strlen(salt),
+                          SENHA_PBKDF2_ITERACOES, EVP_sha256(),
+                          SENHA_HASH_BYTES, derivada) != 1)
     {
         return 0;
     }
 
-    ctx = EVP_MD_CTX_new();
-
-    if (ctx == NULL)
+    for (i = 0; i < SENHA_HASH_BYTES; i++)
     {
-        return 0;
+        sprintf(hash + i * 2, "%02x", derivada[i]);
     }
 
-    if (EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) != 1 ||
-        EVP_DigestUpdate(ctx, entrada, strlen(entrada)) != 1 ||
-        EVP_DigestFinal_ex(ctx, digest, &dlen) != 1)
-    {
-        EVP_MD_CTX_free(ctx);
-        return 0;
-    }
-
-    EVP_MD_CTX_free(ctx);
-
-    for (i = 0; i < dlen; i++)
-    {
-        sprintf(hash + i * 2, "%02x", digest[i]);
-    }
-
-    hash[dlen * 2] = '\0';
+    hash[SENHA_HASH_BYTES * 2] = '\0';
     return 1;
 }

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import {
   apiGet,
+  apiSend,
   setCredentials,
   clearCredentials,
   loadCredentials,
@@ -29,7 +30,9 @@ export function AuthProvider({ children }) {
   async function login(loginName, senha) {
     setCredentials(loginName, senha)
     try {
-      const me = await apiGet('/me')
+      // POST /login valida a sessao e registra o evento na auditoria.
+      // O retorno e um superconjunto do /me (papel + vinculos).
+      const me = await apiSend('POST', '/login')
       setUser(me)
       return me
     } catch (err) {

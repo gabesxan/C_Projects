@@ -2,8 +2,8 @@
 #define SENHA_UTIL_H
 
 /*
- * Utilitario de hashing de senhas (SHA-256 + salt, via OpenSSL).
- * Nunca guarda/transporta a senha em texto: armazena salt + hash.
+ * Utilitario de hashing de senhas (PBKDF2-HMAC-SHA256 + salt, via OpenSSL).
+ * Nunca guarda/transporta a senha em texto: armazena salt + hash derivado.
  */
 
 /* Gera um salt aleatorio em hex (NUL-terminado). 'tam' deve ser >= 17.

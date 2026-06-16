@@ -78,12 +78,13 @@ int usuario_repo_criar(const char *nome, const char *login, const char *senha,
 
 int usuario_repo_autenticar(const char *login, const char *senha,
                             char *papel, int papel_tam,
-                            int *paciente_id, int *medico_id)
+                            int *paciente_id, int *medico_id,
+                            int *usuario_id)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT senha_hash, salt, papel, paciente_id, medico_id "
+        "SELECT senha_hash, salt, papel, paciente_id, medico_id, id "
         "FROM usuarios WHERE login = ? AND ativo = 1;";
     int autenticado = 0;
 
@@ -130,6 +131,11 @@ int usuario_repo_autenticar(const char *login, const char *senha,
             if (medico_id != NULL)
             {
                 *medico_id = sqlite3_column_int(stmt, 4);
+            }
+
+            if (usuario_id != NULL)
+            {
+                *usuario_id = sqlite3_column_int(stmt, 5);
             }
 
             autenticado = 1;
@@ -243,6 +249,40 @@ int usuario_repo_desativar(int id)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql = "UPDATE usuarios SET ativo = 0 WHERE id = ? AND ativo = 1;";
+    int alteradas;
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    alteradas = sqlite3_changes(db);
+    db_fechar(db);
+
+    return alteradas > 0 ? 1 : 0;
+}
+
+int usuario_repo_reativar(int id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "UPDATE usuarios SET ativo = 1 WHERE id = ? AND ativo = 0;";
     int alteradas;
 
     if (db_abrir(&db) == 0)

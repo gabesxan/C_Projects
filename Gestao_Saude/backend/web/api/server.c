@@ -270,9 +270,11 @@ static const char *aposCabecalho(const char *texto, const char *prefixo)
 }
 
 /* Autentica o request pelo cabecalho 'Authorization: Basic'. Em sucesso
- * preenche papel/vinculos e retorna 1; caso contrario 0. */
+ * preenche papel/vinculos, o login e o id do usuario e retorna 1; senao 0.
+ * login_out/usuario_id podem ser NULL quando o chamador nao precisa deles. */
 static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
-                             int *paciente_id, int *medico_id)
+                             int *paciente_id, int *medico_id,
+                             char *login_out, int login_tam, int *usuario_id)
 {
     const char *prefixo = "Authorization: Basic ";
     const char *inicio = aposCabecalho(requisicao, prefixo);
@@ -308,8 +310,14 @@ static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
 
     *separador = '\0';
 
+    if (login_out != NULL && login_tam > 0)
+    {
+        strncpy(login_out, credenciais, (size_t)login_tam - 1);
+        login_out[login_tam - 1] = '\0';
+    }
+
     return usuario_repo_autenticar(credenciais, separador + 1, papel, papel_tam,
-                                   paciente_id, medico_id);
+                                   paciente_id, medico_id, usuario_id);
 }
 
 static int comecaCom(const char *texto, const char *prefixo)
@@ -345,8 +353,8 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         return 1;
     }
 
-    /* Qualquer usuario autenticado acessa o proprio perfil e seus dados. */
-    if (ehRotaMe(caminho))
+    /* Qualquer usuario autenticado acessa o proprio perfil/sessao e seus dados. */
+    if (ehRotaMe(caminho) || strcmp(caminho, "/login") == 0)
     {
         return 1;
     }
@@ -367,15 +375,68 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "ENFERMAGEM") == 0)
     {
+        /* Triagem e o fluxo principal da enfermagem: classificar risco e
+         * registrar triagem (buscar/cadastrar paciente faz parte do fluxo). */
+        if (comecaCom(caminho, "/triagens") || comecaCom(caminho, "/triagem/"))
+        {
+            return strcmp(metodo, "GET") == 0 || strcmp(metodo, "POST") == 0;
+        }
+
+        /* Pacientes: buscar (GET) e cadastrar (POST) dentro da triagem. */
+        if (comecaCom(caminho, "/pacientes"))
+        {
+            return strcmp(metodo, "GET") == 0 || strcmp(metodo, "POST") == 0;
+        }
+
+        /* Acompanhamento de internacao/leitos/prescricoes: somente leitura. */
         return strcmp(metodo, "GET") == 0 &&
                (comecaCom(caminho, "/internacoes") ||
                 comecaCom(caminho, "/leitos") ||
                 comecaCom(caminho, "/alas") ||
+                comecaCom(caminho, "/medicos") ||
                 comecaCom(caminho, "/prescricoes"));
     }
 
     /* PACIENTE: somente as rotas sob /me (ja liberadas acima). */
     return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Sessao do usuario autenticado e auditoria                                */
+/* ----------------------------------------------------------------------- */
+
+/* Identidade do usuario autenticado no request atual. Usada para auditar
+ * acoes sensiveis e para derivar o autor de registros clinicos (em vez de
+ * confiar num medico_id vindo do cliente). */
+typedef struct
+{
+    char papel[32];
+    char login[128];
+    int usuario_id;
+    int paciente_id;
+    int medico_id;
+} Sessao;
+
+/* Registra uma acao sensivel na trilha de auditoria. Falha de auditoria
+ * nunca interrompe a operacao principal (retorno ignorado de proposito). */
+static void auditar(const Sessao *s, const char *acao, const char *entidade,
+                    int entidade_id, const char *detalhe)
+{
+    auditoria_registrar(s->usuario_id, s->login, acao, entidade, entidade_id,
+                        detalhe);
+}
+
+/* Deriva o medico autor de um registro clinico: um MEDICO so registra em
+ * nome de si mesmo (ignora qualquer medico_id vindo do cliente); ADMIN pode
+ * informar o medico_id explicitamente. Retorna 0 quando indeterminado. */
+static int medicoAutor(const Sessao *s, const char *medicoIdCliente)
+{
+    if (strcmp(s->papel, "MEDICO") == 0)
+    {
+        return s->medico_id;
+    }
+
+    return atoi(medicoIdCliente);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -439,7 +500,7 @@ static void rotaContarPacientes(int cliente)
     responder(cliente, "200 OK", corpo);
 }
 
-static void rotaCriarPaciente(int cliente, const char *consulta)
+static void rotaCriarPaciente(int cliente, const char *consulta, const Sessao *s)
 {
     char nome[128];
     char cpf[32];
@@ -458,6 +519,7 @@ static void rotaCriarPaciente(int cliente, const char *consulta)
     if (paciente_repo_criar(nome, cpf, atoi(idadeStr), telefone, sexo,
                             atoi(regiaoStr)) == 1)
     {
+        auditar(s, "CRIAR", "paciente", 0, nome);
         responder(cliente, "201 Created", "{\"status\":\"criado\"}");
     }
     else
@@ -467,10 +529,11 @@ static void rotaCriarPaciente(int cliente, const char *consulta)
     }
 }
 
-static void rotaDesativarPaciente(int cliente, int id)
+static void rotaDesativarPaciente(int cliente, int id, const Sessao *s)
 {
     if (paciente_repo_desativar(id) == 1)
     {
+        auditar(s, "DESATIVAR", "paciente", id, "");
         responder(cliente, "200 OK", "{\"status\":\"desativado\"}");
     }
     else
@@ -935,7 +998,7 @@ static void rotaListarPrescricoes(int cliente, const char *papel, int medico_id)
     free(json);
 }
 
-static void rotaCriarPrescricao(int cliente, const char *consulta)
+static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char medicoId[16];
@@ -943,6 +1006,8 @@ static void rotaCriarPrescricao(int cliente, const char *consulta)
     char dosagem[64];
     char frequencia[64];
     char observacoes[512];
+    int medico;
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
@@ -951,9 +1016,24 @@ static void rotaCriarPrescricao(int cliente, const char *consulta)
     extrairParam(consulta, "frequencia", frequencia, sizeof(frequencia));
     extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
 
-    responderCriacao(cliente,
-        prescricao_repo_criar(atoi(pacienteId), atoi(medicoId), medicamento,
-                              dosagem, frequencia, observacoes) == 1,
+    medico = medicoAutor(s, medicoId);
+
+    if (medico <= 0)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"medico prescritor indefinido\"}");
+        return;
+    }
+
+    ok = prescricao_repo_criar(atoi(pacienteId), medico, medicamento,
+                               dosagem, frequencia, observacoes) == 1;
+
+    if (ok)
+    {
+        auditar(s, "PRESCREVER", "prescricao", atoi(pacienteId), medicamento);
+    }
+
+    responderCriacao(cliente, ok,
         "{\"erro\":\"dados invalidos para prescricao\"}");
 }
 
@@ -1020,7 +1100,7 @@ static void rotaCriarAgendamento(int cliente, const char *consulta)
         "{\"erro\":\"dados invalidos para agendamento\"}");
 }
 
-static void rotaCriarProntuario(int cliente, const char *consulta)
+static void rotaCriarProntuario(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char medicoId[16];
@@ -1029,6 +1109,8 @@ static void rotaCriarProntuario(int cliente, const char *consulta)
     char diagnostico[256];
     char conduta[256];
     char alerta[16];
+    int medico;
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
@@ -1038,14 +1120,29 @@ static void rotaCriarProntuario(int cliente, const char *consulta)
     extrairParam(consulta, "conduta", conduta, sizeof(conduta));
     extrairParam(consulta, "alerta_importante", alerta, sizeof(alerta));
 
-    responderCriacao(cliente,
-        prontuario_repo_criar(atoi(pacienteId), atoi(medicoId), data,
-                              observacoes, diagnostico, conduta,
-                              atoi(alerta)) == 1,
+    medico = medicoAutor(s, medicoId);
+
+    if (medico <= 0)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"medico autor do prontuario indefinido\"}");
+        return;
+    }
+
+    ok = prontuario_repo_criar(atoi(pacienteId), medico, data,
+                               observacoes, diagnostico, conduta,
+                               atoi(alerta)) == 1;
+
+    if (ok)
+    {
+        auditar(s, "CRIAR", "prontuario", atoi(pacienteId), diagnostico);
+    }
+
+    responderCriacao(cliente, ok,
         "{\"erro\":\"dados invalidos para prontuario\"}");
 }
 
-static void rotaCriarExame(int cliente, const char *consulta)
+static void rotaCriarExame(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char medicoId[16];
@@ -1053,6 +1150,8 @@ static void rotaCriarExame(int cliente, const char *consulta)
     char tipo[16];
     char dataSolicitacao[32];
     char urgente[16];
+    int medico;
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
@@ -1061,10 +1160,24 @@ static void rotaCriarExame(int cliente, const char *consulta)
     extrairParam(consulta, "data_solicitacao", dataSolicitacao, sizeof(dataSolicitacao));
     extrairParam(consulta, "urgente", urgente, sizeof(urgente));
 
-    responderCriacao(cliente,
-        exame_repo_criar(atoi(pacienteId), atoi(medicoId), atoi(prontuarioId),
-                         atoi(tipo), dataSolicitacao, atoi(urgente)) == 1,
-        "{\"erro\":\"dados invalidos para exame\"}");
+    medico = medicoAutor(s, medicoId);
+
+    if (medico <= 0)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"medico solicitante do exame indefinido\"}");
+        return;
+    }
+
+    ok = exame_repo_criar(atoi(pacienteId), medico, atoi(prontuarioId),
+                          atoi(tipo), dataSolicitacao, atoi(urgente)) == 1;
+
+    if (ok)
+    {
+        auditar(s, "CRIAR", "exame", atoi(pacienteId), tipo);
+    }
+
+    responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para exame\"}");
 }
 
 static void rotaCriarInternacao(int cliente, const char *consulta)
@@ -1085,7 +1198,8 @@ static void rotaCriarInternacao(int cliente, const char *consulta)
         "{\"erro\":\"dados invalidos para internacao\"}");
 }
 
-static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
+static void rotaInternacaoAlta(int cliente, int id, const char *consulta,
+                               const Sessao *s)
 {
     char data[32];
 
@@ -1093,6 +1207,7 @@ static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
 
     if (internacao_repo_dar_alta(id, data) == 1)
     {
+        auditar(s, "ALTA", "internacao", id, data);
         responder(cliente, "200 OK", "{\"status\":\"alta registrada\"}");
     }
     else
@@ -1102,7 +1217,7 @@ static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
     }
 }
 
-static void rotaCriarUsuario(int cliente, const char *consulta)
+static void rotaCriarUsuario(int cliente, const char *consulta, const Sessao *s)
 {
     char nome[128];
     char login[128];
@@ -1110,6 +1225,7 @@ static void rotaCriarUsuario(int cliente, const char *consulta)
     char papel[32];
     char pacienteId[16];
     char medicoId[16];
+    int ok;
 
     extrairParam(consulta, "nome", nome, sizeof(nome));
     extrairParam(consulta, "login", login, sizeof(login));
@@ -1118,10 +1234,17 @@ static void rotaCriarUsuario(int cliente, const char *consulta)
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
 
-    responderCriacao(cliente,
-        usuario_repo_criar(nome, login, senha, papel, atoi(pacienteId),
-                           atoi(medicoId)) == 1,
-        "{\"erro\":\"dados invalidos para usuario\"}");
+    ok = usuario_repo_criar(nome, login, senha, papel, atoi(pacienteId),
+                            atoi(medicoId)) == 1;
+
+    if (ok)
+    {
+        char detalhe[192];
+        snprintf(detalhe, sizeof(detalhe), "login=%s papel=%s", login, papel);
+        auditar(s, "CRIAR", "usuario", 0, detalhe);
+    }
+
+    responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para usuario\"}");
 }
 
 static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_id)
@@ -1131,6 +1254,19 @@ static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_i
     snprintf(corpo, sizeof(corpo),
         "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
         papel, paciente_id, medico_id);
+    responder(cliente, "200 OK", corpo);
+}
+
+/* Confirma a sessao e registra o evento de login na auditoria. O front chama
+ * esta rota uma vez no login (diferente de /me, usado a cada navegacao). */
+static void rotaLogin(int cliente, const Sessao *s)
+{
+    char corpo[200];
+
+    auditar(s, "LOGIN", "usuario", s->usuario_id, s->login);
+    snprintf(corpo, sizeof(corpo),
+        "{\"papel\":\"%s\",\"login\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
+        s->papel, s->login, s->paciente_id, s->medico_id);
     responder(cliente, "200 OK", corpo);
 }
 
@@ -1374,10 +1510,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
 {
     char *consulta = strchr(caminho, '?');
     char acao[32];
-    char papel[32];
-    int authPacienteId = 0;
-    int authMedicoId = 0;
+    Sessao s;
+    char *papel = s.papel;
+    int authPacienteId;
+    int authMedicoId;
     int id;
+
+    memset(&s, 0, sizeof(s));
 
     if (consulta != NULL)
     {
@@ -1401,13 +1540,17 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
 
     /* Todas as demais rotas exigem autenticacao (HTTP Basic). */
-    if (autenticarRequest(requisicao, papel, sizeof(papel),
-                          &authPacienteId, &authMedicoId) == 0)
+    if (autenticarRequest(requisicao, s.papel, sizeof(s.papel),
+                          &s.paciente_id, &s.medico_id,
+                          s.login, sizeof(s.login), &s.usuario_id) == 0)
     {
         responder(cliente, "401 Unauthorized",
                   "{\"erro\":\"credenciais invalidas\"}");
         return;
     }
+
+    authPacienteId = s.paciente_id;
+    authMedicoId = s.medico_id;
 
     /* Politica de acesso por papel. */
     if (autorizado(metodo, caminho, papel) == 0)
@@ -1426,11 +1569,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/pacientes") == 0)
     {
-        rotaCriarPaciente(cliente, consulta);
+        rotaCriarPaciente(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/pacientes/%d", &id) == 1)
     {
-        rotaDesativarPaciente(cliente, id);
+        rotaDesativarPaciente(cliente, id, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/medicos") == 0)
     {
@@ -1542,7 +1685,9 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/agendamentos/%d", &id) == 1)
     {
-        responderRemocao(cliente, agendamento_repo_cancelar(id) == 1, "{\"erro\":\"agendamento nao encontrado\"}");
+        int ok = agendamento_repo_cancelar(id) == 1;
+        if (ok) auditar(&s, "CANCELAR", "agendamento", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"agendamento nao encontrado\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios") == 0)
     {
@@ -1554,7 +1699,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/prontuarios") == 0)
     {
-        rotaCriarProntuario(cliente, consulta);
+        rotaCriarProntuario(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prontuarios/%d", &id) == 1)
     {
@@ -1570,11 +1715,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/exames") == 0)
     {
-        rotaCriarExame(cliente, consulta);
+        rotaCriarExame(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/exames/%d", &id) == 1)
     {
-        responderRemocao(cliente, exame_repo_desativar(id) == 1, "{\"erro\":\"exame nao encontrado\"}");
+        int ok = exame_repo_desativar(id) == 1;
+        if (ok) auditar(&s, "CANCELAR", "exame", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"exame nao encontrado\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/internacoes") == 0)
     {
@@ -1591,7 +1738,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/internacoes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "alta") == 0)
     {
-        rotaInternacaoAlta(cliente, id, consulta);
+        rotaInternacaoAlta(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prescricoes") == 0)
     {
@@ -1603,11 +1750,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/prescricoes") == 0)
     {
-        rotaCriarPrescricao(cliente, consulta);
+        rotaCriarPrescricao(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prescricoes/%d", &id) == 1)
     {
-        responderRemocao(cliente, prescricao_repo_desativar(id) == 1, "{\"erro\":\"prescricao nao encontrada\"}");
+        int ok = prescricao_repo_desativar(id) == 1;
+        if (ok) auditar(&s, "SUSPENDER", "prescricao", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"prescricao nao encontrada\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {
@@ -1620,6 +1769,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/agendamentos") == 0)
     {
         rotaRelatorioAgendamentos(cliente, consulta);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/login") == 0)
+    {
+        rotaLogin(cliente, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {
@@ -1651,7 +1804,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/usuarios") == 0)
     {
-        rotaCriarUsuario(cliente, consulta);
+        rotaCriarUsuario(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/usuarios") == 0)
     {
@@ -1663,7 +1816,16 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/usuarios/%d", &id) == 1)
     {
-        responderRemocao(cliente, usuario_repo_desativar(id) == 1, "{\"erro\":\"usuario nao encontrado\"}");
+        int ok = usuario_repo_desativar(id) == 1;
+        if (ok) auditar(&s, "DESATIVAR", "usuario", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"usuario nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/usuarios/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "reativar") == 0)
+    {
+        int ok = usuario_repo_reativar(id) == 1;
+        if (ok) auditar(&s, "REATIVAR", "usuario", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"usuario nao encontrado ou ja ativo\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria") == 0)
     {

@@ -14,6 +14,7 @@ int main(void)
     char papel[32];
     int pacienteId = -1;
     int medicoId = -1;
+    int usuarioId = -1;
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
@@ -34,23 +35,24 @@ int main(void)
     assert(usuario_repo_criar("Ana", "ana", "", "ADMIN", 0, 0) == 0);
     assert(usuario_repo_contar_ativos() == 1);
 
-    /* Autenticacao correta preenche papel/vinculos. */
+    /* Autenticacao correta preenche papel/vinculos/id. */
     assert(usuario_repo_autenticar("admin", "secreta", papel, sizeof(papel),
-                                   &pacienteId, &medicoId) == 1);
+                                   &pacienteId, &medicoId, &usuarioId) == 1);
     assert(strcmp(papel, "ADMIN") == 0);
     assert(pacienteId == 0 && medicoId == 0);
+    assert(usuarioId == 1);
 
     /* Senha errada -> falha. */
     assert(usuario_repo_autenticar("admin", "errada", papel, sizeof(papel),
-                                   NULL, NULL) == 0);
+                                   NULL, NULL, NULL) == 0);
     /* Login inexistente -> falha. */
     assert(usuario_repo_autenticar("ninguem", "secreta", papel, sizeof(papel),
-                                   NULL, NULL) == 0);
+                                   NULL, NULL, NULL) == 0);
 
     /* Usuario MEDICO vinculado a um medico. */
     assert(usuario_repo_criar("Dr House", "drhouse", "house123", "MEDICO", 0, 5) == 1);
     assert(usuario_repo_autenticar("drhouse", "house123", papel, sizeof(papel),
-                                   &pacienteId, &medicoId) == 1);
+                                   &pacienteId, &medicoId, NULL) == 1);
     assert(strcmp(papel, "MEDICO") == 0);
     assert(medicoId == 5);
 
@@ -64,8 +66,16 @@ int main(void)
     /* Desativacao bloqueia autenticacao. */
     assert(usuario_repo_desativar(1) == 1);
     assert(usuario_repo_autenticar("admin", "secreta", papel, sizeof(papel),
-                                   NULL, NULL) == 0);
+                                   NULL, NULL, NULL) == 0);
     assert(usuario_repo_contar_ativos() == 1);
+
+    /* Reativacao restaura o acesso; historico (id) permanece o mesmo. */
+    assert(usuario_repo_reativar(1) == 1);
+    assert(usuario_repo_autenticar("admin", "secreta", papel, sizeof(papel),
+                                   NULL, NULL, &usuarioId) == 1);
+    assert(usuarioId == 1);
+    /* Reativar quem ja esta ativo nao altera nada. */
+    assert(usuario_repo_reativar(1) == 0);
 
     printf("test_usuario_repository: OK\n");
     return 0;
