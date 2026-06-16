@@ -50,6 +50,11 @@ export default function Layout() {
               Relatorios
             </NavLink>
           )}
+          {user.papel === 'PACIENTE' && (
+            <NavLink to="/minha-saude" className={navClass}>
+              Meus dados
+            </NavLink>
+          )}
         </nav>
 
         <main className="flex-1 p-6">

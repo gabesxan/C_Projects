@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import ResourceList from './pages/ResourceList'
 import Relatorios from './pages/Relatorios'
+import MinhaSaude from './pages/MinhaSaude'
 
 // Protege rotas que exigem sessao; aguarda a revalidacao inicial do /me.
 function RequireAuth({ children }) {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/r/:key" element={<ResourceList />} />
         <Route path="/relatorios" element={<Relatorios />} />
+        <Route path="/minha-saude" element={<MinhaSaude />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
