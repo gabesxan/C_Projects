@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { apiGet } from '../api/client'
+import { apiGet, apiSend } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { resourceByKey } from '../resources'
 import DataTable from '../components/DataTable'
+import ResourceForm from '../components/ResourceForm'
 
 export default function ResourceList() {
   const { key } = useParams()
+  const { user } = useAuth()
   const recurso = resourceByKey(key)
   const [rows, setRows] = useState(null)
   const [erro, setErro] = useState('')
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
     if (!recurso) return
     setRows(null)
     setErro('')
@@ -22,18 +25,37 @@ export default function ResourceList() {
       })
   }, [recurso])
 
+  useEffect(() => {
+    carregar()
+  }, [carregar])
+
+  const podeEscrever = recurso?.writeRoles?.includes(user.papel)
+
+  async function remover(row) {
+    const ok = window.confirm(`Confirmar: ${recurso.deleteLabel} #${row.id}?`)
+    if (!ok) return
+    try {
+      await apiSend('DELETE', `${recurso.path}/${row.id}`)
+      carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
   if (!recurso) {
     return <p className="text-slate-500">Recurso desconhecido.</p>
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold text-slate-800">{recurso.label}</h2>
         {Array.isArray(rows) && (
           <span className="text-sm text-slate-500">{rows.length} registro(s)</span>
         )}
       </div>
+
+      {podeEscrever && <ResourceForm recurso={recurso} onCreated={carregar} />}
 
       {erro && (
         <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3">
@@ -50,7 +72,12 @@ export default function ResourceList() {
       )}
 
       {!erro && Array.isArray(rows) && rows.length > 0 && (
-        <DataTable columns={recurso.columns} rows={rows} />
+        <DataTable
+          columns={recurso.columns}
+          rows={rows}
+          onDelete={podeEscrever ? remover : undefined}
+          deleteLabel={recurso.deleteLabel}
+        />
       )}
     </div>
   )

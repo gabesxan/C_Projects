@@ -1,4 +1,5 @@
 // Tabela generica: recebe as colunas (config) e as linhas (JSON da API).
+// Se onDelete for fornecido, adiciona uma coluna de acao com o botao de remover.
 function formatCell(value) {
   if (value === true) return 'Sim'
   if (value === false) return 'Nao'
@@ -6,7 +7,7 @@ function formatCell(value) {
   return String(value)
 }
 
-export default function DataTable({ columns, rows }) {
+export default function DataTable({ columns, rows, onDelete, deleteLabel = 'Remover' }) {
   return (
     <div className="overflow-x-auto bg-white rounded-xl shadow">
       <table className="min-w-full text-sm">
@@ -17,6 +18,7 @@ export default function DataTable({ columns, rows }) {
                 {col.label}
               </th>
             ))}
+            {onDelete && <th className="px-4 py-3 font-medium">Acoes</th>}
           </tr>
         </thead>
         <tbody>
@@ -30,6 +32,16 @@ export default function DataTable({ columns, rows }) {
                   {formatCell(row[col.key])}
                 </td>
               ))}
+              {onDelete && (
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <button
+                    onClick={() => onDelete(row)}
+                    className="text-sm rounded-lg border border-red-200 text-red-700 px-3 py-1 hover:bg-red-50"
+                  >
+                    {deleteLabel}
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
