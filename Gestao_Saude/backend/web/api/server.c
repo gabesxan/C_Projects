@@ -9,6 +9,7 @@
 #include "exame_repository.h"
 #include "internacao_repository.h"
 #include "usuario_repository.h"
+#include "auditoria_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -1103,12 +1104,14 @@ static void rotaInternacaoAlta(int cliente, int id, const char *consulta)
 
 static void rotaCriarUsuario(int cliente, const char *consulta)
 {
+    char nome[128];
     char login[128];
     char senha[128];
     char papel[32];
     char pacienteId[16];
     char medicoId[16];
 
+    extrairParam(consulta, "nome", nome, sizeof(nome));
     extrairParam(consulta, "login", login, sizeof(login));
     extrairParam(consulta, "senha", senha, sizeof(senha));
     extrairParam(consulta, "papel", papel, sizeof(papel));
@@ -1116,7 +1119,8 @@ static void rotaCriarUsuario(int cliente, const char *consulta)
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
 
     responderCriacao(cliente,
-        usuario_repo_criar(login, senha, papel, atoi(pacienteId), atoi(medicoId)) == 1,
+        usuario_repo_criar(nome, login, senha, papel, atoi(pacienteId),
+                           atoi(medicoId)) == 1,
         "{\"erro\":\"dados invalidos para usuario\"}");
 }
 
@@ -1358,7 +1362,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/exames") || comecaCom(caminho, "/internacoes") ||
            comecaCom(caminho, "/prescricoes") ||
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
-           comecaCom(caminho, "/me");
+           comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/me");
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1660,6 +1664,14 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/usuarios/%d", &id) == 1)
     {
         responderRemocao(cliente, usuario_repo_desativar(id) == 1, "{\"erro\":\"usuario nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria") == 0)
+    {
+        responderLista(cliente, auditoria_listar_json, "{\"erro\":\"falha ao listar auditoria\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria/contar") == 0)
+    {
+        responderContagem(cliente, auditoria_contar);
     }
     else
     {

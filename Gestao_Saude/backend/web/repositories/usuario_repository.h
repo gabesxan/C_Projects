@@ -7,8 +7,8 @@
  * papel: ADMIN, CADASTRO, MEDICO, ENFERMAGEM, PACIENTE.
  */
 
-int usuario_repo_criar(const char *login, const char *senha, const char *papel,
-                       int paciente_id, int medico_id);
+int usuario_repo_criar(const char *nome, const char *login, const char *senha,
+                       const char *papel, int paciente_id, int medico_id);
 
 /* Valida credenciais; em sucesso preenche papel e vinculos (ponteiros podem
  * ser NULL) e retorna 1. Login inexistente/inativo ou senha errada -> 0. */

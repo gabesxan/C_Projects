@@ -6,7 +6,7 @@
 #include <errno.h>
 
 /* Caminho padrao relativo ao diretorio backend/web/ (sobrescrito nos testes). */
-static char caminhoBanco[256] = "../data/sigeh_v2.db";
+static char caminhoBanco[256] = "../data/sigeh_v3.db";
 
 int db_definir_caminho(const char *caminho)
 {

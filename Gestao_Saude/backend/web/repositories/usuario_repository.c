@@ -15,19 +15,20 @@ static int papel_valido(const char *papel)
            strcmp(papel, "PACIENTE") == 0;
 }
 
-int usuario_repo_criar(const char *login, const char *senha, const char *papel,
-                       int paciente_id, int medico_id)
+int usuario_repo_criar(const char *nome, const char *login, const char *senha,
+                       const char *papel, int paciente_id, int medico_id)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "INSERT INTO usuarios "
-        "(login, senha_hash, salt, papel, paciente_id, medico_id, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, 1);";
+        "(nome, login, senha_hash, salt, papel, paciente_id, medico_id, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 1);";
     char salt[17];
     char hash[65];
 
-    if (login == NULL || login[0] == '\0' ||
+    if (nome == NULL || nome[0] == '\0' ||
+        login == NULL || login[0] == '\0' ||
         senha == NULL || senha[0] == '\0' ||
         papel == NULL || papel_valido(papel) == 0)
     {
@@ -55,12 +56,13 @@ int usuario_repo_criar(const char *login, const char *senha, const char *papel,
         return 0;
     }
 
-    sqlite3_bind_text(stmt, 1, login, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, hash, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, salt, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, papel, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 5, paciente_id);
-    sqlite3_bind_int(stmt, 6, medico_id);
+    sqlite3_bind_text(stmt, 1, nome, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, login, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, hash, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, salt, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, papel, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 6, paciente_id);
+    sqlite3_bind_int(stmt, 7, medico_id);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
@@ -144,8 +146,8 @@ int usuario_repo_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, login, papel, paciente_id, medico_id "
-        "FROM usuarios WHERE ativo = 1 ORDER BY id;";
+        "SELECT id, nome, login, papel, paciente_id, medico_id, ativo, criado_em "
+        "FROM usuarios ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -176,18 +178,25 @@ int usuario_repo_listar_json(char *buffer, int tamanho)
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
+        char nomeJson[128];
         char loginJson[128];
         char papelJson[32];
-        char objeto[320];
+        char criadoJson[64];
+        char objeto[512];
         int id = sqlite3_column_int(stmt, 0);
-        const char *login = (const char *)sqlite3_column_text(stmt, 1);
-        const char *papel = (const char *)sqlite3_column_text(stmt, 2);
-        int pacienteId = sqlite3_column_int(stmt, 3);
-        int medicoId = sqlite3_column_int(stmt, 4);
+        const char *nome = (const char *)sqlite3_column_text(stmt, 1);
+        const char *login = (const char *)sqlite3_column_text(stmt, 2);
+        const char *papel = (const char *)sqlite3_column_text(stmt, 3);
+        int pacienteId = sqlite3_column_int(stmt, 4);
+        int medicoId = sqlite3_column_int(stmt, 5);
+        int ativo = sqlite3_column_int(stmt, 6);
+        const char *criado = (const char *)sqlite3_column_text(stmt, 7);
         int escrito;
 
-        if (repo_json_escapar(loginJson, sizeof(loginJson), login) == 0 ||
-            repo_json_escapar(papelJson, sizeof(papelJson), papel) == 0)
+        if (repo_json_escapar(nomeJson, sizeof(nomeJson), nome) == 0 ||
+            repo_json_escapar(loginJson, sizeof(loginJson), login) == 0 ||
+            repo_json_escapar(papelJson, sizeof(papelJson), papel) == 0 ||
+            repo_json_escapar(criadoJson, sizeof(criadoJson), criado) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -195,10 +204,11 @@ int usuario_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"login\":%s,\"papel\":%s,"
-            "\"pacienteId\":%d,\"medicoId\":%d}",
+            "%s{\"id\":%d,\"nome\":%s,\"login\":%s,\"papel\":%s,"
+            "\"pacienteId\":%d,\"medicoId\":%d,\"ativo\":%d,\"criadoEm\":%s}",
             primeiro ? "" : ",",
-            id, loginJson, papelJson, pacienteId, medicoId);
+            id, nomeJson, loginJson, papelJson, pacienteId, medicoId,
+            ativo, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

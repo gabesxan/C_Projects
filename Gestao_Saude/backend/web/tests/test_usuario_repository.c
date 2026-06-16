@@ -6,7 +6,7 @@
 #include <string.h>
 
 static const char *BANCO_TESTE = "build/test_sigeh_repository.db";
-static const char *SCHEMA = "../data/schema_v2.sql";
+static const char *SCHEMA = "../data/schema_v3.sql";
 
 int main(void)
 {
@@ -21,16 +21,17 @@ int main(void)
     assert(usuario_repo_contar_ativos() == 0);
 
     /* Criacao valida. */
-    assert(usuario_repo_criar("admin", "secreta", "ADMIN", 0, 0) == 1);
+    assert(usuario_repo_criar("Administrador", "admin", "secreta", "ADMIN", 0, 0) == 1);
     assert(usuario_repo_contar_ativos() == 1);
 
     /* Login duplicado (UNIQUE) -> falha. */
-    assert(usuario_repo_criar("admin", "outra", "ADMIN", 0, 0) == 0);
+    assert(usuario_repo_criar("Administrador", "admin", "outra", "ADMIN", 0, 0) == 0);
     /* Papel invalido -> falha. */
-    assert(usuario_repo_criar("joao", "x", "ROOT", 0, 0) == 0);
-    /* Login/senha vazios -> falha. */
-    assert(usuario_repo_criar("", "x", "ADMIN", 0, 0) == 0);
-    assert(usuario_repo_criar("ana", "", "ADMIN", 0, 0) == 0);
+    assert(usuario_repo_criar("Joao", "joao", "x", "ROOT", 0, 0) == 0);
+    /* Nome/login/senha vazios -> falha. */
+    assert(usuario_repo_criar("", "semnome", "x", "ADMIN", 0, 0) == 0);
+    assert(usuario_repo_criar("Nome", "", "x", "ADMIN", 0, 0) == 0);
+    assert(usuario_repo_criar("Ana", "ana", "", "ADMIN", 0, 0) == 0);
     assert(usuario_repo_contar_ativos() == 1);
 
     /* Autenticacao correta preenche papel/vinculos. */
@@ -47,7 +48,7 @@ int main(void)
                                    NULL, NULL) == 0);
 
     /* Usuario MEDICO vinculado a um medico. */
-    assert(usuario_repo_criar("drhouse", "house123", "MEDICO", 0, 5) == 1);
+    assert(usuario_repo_criar("Dr House", "drhouse", "house123", "MEDICO", 0, 5) == 1);
     assert(usuario_repo_autenticar("drhouse", "house123", papel, sizeof(papel),
                                    &pacienteId, &medicoId) == 1);
     assert(strcmp(papel, "MEDICO") == 0);

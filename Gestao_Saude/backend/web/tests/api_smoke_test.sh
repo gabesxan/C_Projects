@@ -33,7 +33,7 @@ RESP_FILE="${TMP_DIR}/response.json"
 # Define o arquivo temporario que recebera o log do servidor.
 SERVER_LOG="${TMP_DIR}/api.log"
 # Aponta para o banco padrao usado pela API dentro de backend/.
-DB_FILE="../data/sigeh_v2.db"
+DB_FILE="../data/sigeh_v3.db"
 # Guarda o caminho do backup do banco, caso ele exista antes do teste.
 DB_BACKUP=""
 # Permite reaproveitar o mesmo caminho de OpenSSL usado pelo Makefile do backend.
@@ -186,7 +186,7 @@ prepare_database() {
 
     # Se ja existir banco da API, faz backup para restaurar depois.
     if [[ -f "${DB_FILE}" ]]; then
-        DB_BACKUP="${TMP_DIR}/sigeh_v2.db.backup"
+        DB_BACKUP="${TMP_DIR}/sigeh_v3.db.backup"
         cp "${DB_FILE}" "${DB_BACKUP}"
     fi
 
@@ -204,7 +204,7 @@ prepare_database() {
 int main(void)
 {
     /* Recria o banco oficial da API usando o schema versionado do projeto. */
-    if (db_resetar_com_schema("../data/schema_v2.sql") != 1)
+    if (db_resetar_com_schema("../data/schema_v3.sql") != 1)
     {
         /* Explica a falha caso o reset nao funcione. */
         fprintf(stderr, "falha ao resetar banco com schema\n");
@@ -213,7 +213,7 @@ int main(void)
     }
 
     /* Cria o usuario admin padrao documentado para autenticar as rotas. */
-    if (usuario_repo_criar("admin", "secreta", "ADMIN", 0, 0) != 1)
+    if (usuario_repo_criar("Administrador", "admin", "secreta", "ADMIN", 0, 0) != 1)
     {
         /* Explica a falha caso o usuario nao possa ser criado. */
         fprintf(stderr, "falha ao criar usuario admin padrao\n");
@@ -329,7 +329,7 @@ curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=BiaSmoke&cpf=900901&
 # Agenda a paciente 1 (Ana) com o medico 1, criando o vinculo de escopo.
 curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/agendamentos?paciente_id=1&medico_id=1&data=2026-06-14&horario=09:00" >/dev/null
 # Cria um usuario MEDICO ligado ao medico 1 para autenticar com escopo.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=medsmoke&senha=med123&papel=MEDICO&medico_id=1" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=MedSmoke&login=medsmoke&senha=med123&papel=MEDICO&medico_id=1" >/dev/null
 # Credencial do medico recem-criado.
 MED_AUTH="medsmoke:med123"
 
@@ -395,8 +395,8 @@ request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_AUT
 # Medico 1 prescreve para a paciente 1.
 curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prescricoes?paciente_id=1&medico_id=1&medicamento=DipironaSmoke&dosagem=500mg&frequencia=8/8h&observacoes=apos+refeicoes" >/dev/null
 # Usuarios de enfermagem e do proprio paciente para validar os acessos.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=enfsmoke&senha=enf123&papel=ENFERMAGEM" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=pacsmoke&senha=pac123&papel=PACIENTE&paciente_id=1" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=EnfSmoke&login=enfsmoke&senha=enf123&papel=ENFERMAGEM" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=PacSmoke&login=pacsmoke&senha=pac123&papel=PACIENTE&paciente_id=1" >/dev/null
 ENF_AUTH="enfsmoke:enf123"
 PAC_AUTH="pacsmoke:pac123"
 
