@@ -143,6 +143,31 @@ export const RESOURCES = [
       { name: 'urgente', label: 'Urgente', type: 'select', options: ['0', '1'] },
     ],
   },
+  {
+    key: 'prescricoes',
+    label: 'Prescricoes',
+    path: '/prescricoes',
+    roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
+    writeRoles: ['ADMIN', 'MEDICO'],
+    deleteLabel: 'Suspender',
+    columns: [
+      { key: 'id', label: 'ID' },
+      { key: 'pacienteId', label: 'Paciente' },
+      { key: 'medicoId', label: 'Medico' },
+      { key: 'medicamento', label: 'Medicamento' },
+      { key: 'dosagem', label: 'Dosagem' },
+      { key: 'frequencia', label: 'Frequencia' },
+      { key: 'observacoes', label: 'Observacoes' },
+    ],
+    createFields: [
+      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
+      { name: 'medico_id', label: 'Medico ID', type: 'number' },
+      { name: 'medicamento', label: 'Medicamento', type: 'text' },
+      { name: 'dosagem', label: 'Dosagem', type: 'text' },
+      { name: 'frequencia', label: 'Frequencia', type: 'text' },
+      { name: 'observacoes', label: 'Observacoes', type: 'text' },
+    ],
+  },
 ]
 
 export function resourcesForRole(papel) {

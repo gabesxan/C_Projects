@@ -9,6 +9,7 @@
 #include "exame_repository.h"
 #include "internacao_repository.h"
 #include "usuario_repository.h"
+#include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 
@@ -331,7 +332,7 @@ static int ehClinico(const char *caminho)
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
            comecaCom(caminho, "/prontuarios") || comecaCom(caminho, "/exames") ||
            comecaCom(caminho, "/internacoes") || comecaCom(caminho, "/triagem/") ||
-           comecaCom(caminho, "/relatorios");
+           comecaCom(caminho, "/prescricoes") || comecaCom(caminho, "/relatorios");
 }
 
 /* Politica central de acesso por papel. 1 = permitido, 0 = negado.
@@ -368,7 +369,8 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         return strcmp(metodo, "GET") == 0 &&
                (comecaCom(caminho, "/internacoes") ||
                 comecaCom(caminho, "/leitos") ||
-                comecaCom(caminho, "/alas"));
+                comecaCom(caminho, "/alas") ||
+                comecaCom(caminho, "/prescricoes"));
     }
 
     /* PACIENTE: somente as rotas sob /me (ja liberadas acima). */
@@ -896,6 +898,64 @@ static void rotaListarExames(int cliente, const char *papel, int medico_id)
     free(json);
 }
 
+static void rotaListarPrescricoes(int cliente, const char *papel, int medico_id)
+{
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    /* MEDICO ve apenas as proprias prescricoes; ENFERMAGEM e ADMIN veem todas
+     * as ativas (a fila de "remedios a aplicar"). */
+    if (strcmp(papel, "MEDICO") == 0)
+    {
+        ok = prescricao_repo_listar_por_medico_json(medico_id, json, TAM_JSON);
+    }
+    else
+    {
+        ok = prescricao_repo_listar_json(json, TAM_JSON);
+    }
+
+    if (ok == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar prescricoes\"}");
+    }
+
+    free(json);
+}
+
+static void rotaCriarPrescricao(int cliente, const char *consulta)
+{
+    char pacienteId[16];
+    char medicoId[16];
+    char medicamento[128];
+    char dosagem[64];
+    char frequencia[64];
+    char observacoes[512];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
+    extrairParam(consulta, "medicamento", medicamento, sizeof(medicamento));
+    extrairParam(consulta, "dosagem", dosagem, sizeof(dosagem));
+    extrairParam(consulta, "frequencia", frequencia, sizeof(frequencia));
+    extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
+
+    responderCriacao(cliente,
+        prescricao_repo_criar(atoi(pacienteId), atoi(medicoId), medicamento,
+                              dosagem, frequencia, observacoes) == 1,
+        "{\"erro\":\"dados invalidos para prescricao\"}");
+}
+
 static void rotaCriarAla(int cliente, const char *consulta)
 {
     char nome[128];
@@ -1104,6 +1164,23 @@ static void rotaMeProntuarios(int cliente, int paciente_id)
     free(json);
 }
 
+static void rotaMeReceitas(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && prescricao_repo_listar_por_paciente_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar receitas\"}");
+    }
+
+    free(json);
+}
+
 static void rotaMeAgenda(int cliente, int medico_id)
 {
     char *json = malloc(TAM_JSON);
@@ -1279,6 +1356,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/triagens") || comecaCom(caminho, "/triagem/") ||
            comecaCom(caminho, "/agendamentos") || comecaCom(caminho, "/prontuarios") ||
            comecaCom(caminho, "/exames") || comecaCom(caminho, "/internacoes") ||
+           comecaCom(caminho, "/prescricoes") ||
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
            comecaCom(caminho, "/me");
 }
@@ -1511,6 +1589,22 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaInternacaoAlta(cliente, id, consulta);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prescricoes") == 0)
+    {
+        rotaListarPrescricoes(cliente, papel, authMedicoId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prescricoes/contar") == 0)
+    {
+        responderContagem(cliente, prescricao_repo_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/prescricoes") == 0)
+    {
+        rotaCriarPrescricao(cliente, consulta);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prescricoes/%d", &id) == 1)
+    {
+        responderRemocao(cliente, prescricao_repo_desativar(id) == 1, "{\"erro\":\"prescricao nao encontrada\"}");
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {
         rotaRelatorioIndicadores(cliente);
@@ -1534,6 +1628,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/prontuarios") == 0)
     {
         rotaMeProntuarios(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/receitas") == 0)
+    {
+        rotaMeReceitas(cliente, authPacienteId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agenda") == 0)
     {

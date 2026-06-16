@@ -342,6 +342,7 @@ Além da autorização por papel, as **listagens amplas são filtradas pela iden
 | `GET /agendamentos` | todos | apenas a própria agenda |
 | `GET /prontuarios` | todos | apenas os prontuários que ele assinou |
 | `GET /exames` | todos | apenas os exames que ele solicitou |
+| `GET /prescricoes` | todas | apenas as que ele prescreveu (ENFERMAGEM vê todas as ativas) |
 | `GET /triagens` | todas | apenas as triagens cuja especialidade provável (pelo `tipo`) é a dele |
 
 As contagens `/.../contar` permanecem **globais** (indicadores do sistema); para os totais do próprio médico há o endpoint dedicado **`GET /me/resumo`**. As demais rotas `/me/...` seguem como o caminho explícito do "só o seu".
@@ -364,6 +365,7 @@ Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 | `GET` | `/me/prontuarios` | PACIENTE | Prontuários do próprio paciente |
 | `GET` | `/me/agenda` | MEDICO | Agenda do próprio médico |
 | `GET` | `/me/pacientes` | MEDICO | Pacientes do próprio médico |
+| `GET` | `/me/receitas` | PACIENTE | Prescrições do próprio paciente |
 | `GET` | `/me/resumo` | MEDICO | Totais do próprio médico: pacientes, agendamentos, prontuários e exames |
 
 ### Usuários · ADMIN
@@ -394,6 +396,15 @@ Disponível para `triagens`, `agendamentos`, `prontuarios`, `exames`, `internaco
 | `POST` | `/{entidade}` | criar (parâmetros conforme a entidade) |
 | `DELETE` | `/{entidade}/{id}` | exclusão lógica · em `agendamentos` = **cancelar** |
 | `POST` | `/internacoes/{id}/alta` | `data` — dá alta (internações não têm `DELETE`) |
+
+### Prescrições / medicação · ADMIN, MEDICO (ENFERMAGEM lê, PACIENTE vê as suas)
+
+| Método | Rota | Observação |
+|---|---|---|
+| `GET` | `/prescricoes` · `/prescricoes/contar` | MEDICO vê só as suas; ENFERMAGEM e ADMIN veem todas as ativas |
+| `POST` | `/prescricoes` | `paciente_id`, `medico_id`, `medicamento`, `dosagem`, `frequencia`, `observacoes` |
+| `DELETE` | `/prescricoes/{id}` | exclusão lógica (suspende a prescrição) |
+| `GET` | `/me/receitas` | PACIENTE — as próprias prescrições |
 
 ### Triagem inteligente · ADMIN, MEDICO
 
@@ -614,7 +625,7 @@ Adicionar uma **nova entidade** com endpoint segue sempre o mesmo padrão:
 
 ## 🛣️ Roadmap
 
-- 💊 **Módulo de prescrição/medicação** — base para a enfermagem ver "remédios a aplicar" e o paciente ver receitas (entidade ainda inexistente).
+- 💊 **Prescrição/medicação** ✅ — entidade `prescricoes`: médico prescreve, enfermagem vê os "remédios a aplicar" e o paciente vê suas receitas (`/me/receitas`).
 - 🖥️ **Frontend web** consumindo a API (`GET /me` já entrega o papel para a UI decidir o que exibir).
 - 🔎 **Escopo de dados nas listas globais** — hoje quem tem permissão de leitura vê listas amplas; o escopo "só o seu" vive nas rotas `/me`.
 - 📈 **Relatórios mais ricos** (por período, especialidade, região).

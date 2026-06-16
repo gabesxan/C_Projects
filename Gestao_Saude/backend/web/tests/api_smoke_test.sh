@@ -391,5 +391,23 @@ request_and_assert "/me/resumo" "200" "/me/resumo (contagens do MEDICO)" "${MED_
 # Reforca que o resumo traz os totais do medico (prontuarios assinados por ele).
 request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_AUTH}" contains '"prontuarios":1'
 
+# --- Prescricoes / medicacao: matriz de papeis ---
+# Medico 1 prescreve para a paciente 1.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prescricoes?paciente_id=1&medico_id=1&medicamento=DipironaSmoke&dosagem=500mg&frequencia=8/8h&observacoes=apos+refeicoes" >/dev/null
+# Usuarios de enfermagem e do proprio paciente para validar os acessos.
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=enfsmoke&senha=enf123&papel=ENFERMAGEM" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?login=pacsmoke&senha=pac123&papel=PACIENTE&paciente_id=1" >/dev/null
+ENF_AUTH="enfsmoke:enf123"
+PAC_AUTH="pacsmoke:pac123"
+
+# ADMIN ve todas as prescricoes.
+request_and_assert "/prescricoes" "200" "/prescricoes (ADMIN)" "${ADMIN_AUTH}" contains 'DipironaSmoke'
+# MEDICO ve as proprias prescricoes (escopo por identidade).
+request_and_assert "/prescricoes" "200" "/prescricoes (MEDICO)" "${MED_AUTH}" contains 'DipironaSmoke'
+# ENFERMAGEM ve as prescricoes ativas (remedios a aplicar).
+request_and_assert "/prescricoes" "200" "/prescricoes (ENFERMAGEM)" "${ENF_AUTH}" contains 'DipironaSmoke'
+# PACIENTE ve as proprias receitas via /me/receitas.
+request_and_assert "/me/receitas" "200" "/me/receitas (PACIENTE)" "${PAC_AUTH}" contains 'DipironaSmoke'
+
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

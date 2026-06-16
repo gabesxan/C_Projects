@@ -104,6 +104,19 @@ CREATE TABLE exames (
     FOREIGN KEY (prontuario_id) REFERENCES prontuarios(id)
 );
 
+CREATE TABLE prescricoes (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    medico_id INTEGER NOT NULL,
+    medicamento TEXT NOT NULL,
+    dosagem TEXT NOT NULL,
+    frequencia TEXT NOT NULL,
+    observacoes TEXT NOT NULL,
+    ativo INTEGER NOT NULL,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+    FOREIGN KEY (medico_id) REFERENCES medicos(id)
+);
+
 -- Usuarios de acesso ao sistema (login criado pelo administrador).
 -- papel: ADMIN, CADASTRO, MEDICO, ENFERMAGEM, PACIENTE.
 -- paciente_id / medico_id vinculam o usuario a uma entidade (0 = nenhum).
