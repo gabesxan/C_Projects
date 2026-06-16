@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api/client'
+import { PageHeader, Alert } from '../components/ui'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -64,11 +65,7 @@ export default function Relatorios() {
   }, [inicio, fim])
 
   if (erro) {
-    return (
-      <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3">
-        {erro}
-      </div>
-    )
+    return <Alert>{erro}</Alert>
   }
 
   const dataRegiao = distrib && {
@@ -86,7 +83,10 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-slate-800">Relatorios</h2>
+      <PageHeader
+        title="Relatorios"
+        subtitle="Indicadores de distribuicao e agendamentos por periodo."
+      />
 
       <div className="grid md:grid-cols-2 gap-6">
         <ChartCard titulo="Pacientes por regiao administrativa">

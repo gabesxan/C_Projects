@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api/client'
 import DataTable from '../components/DataTable'
+import { PageHeader, Spinner } from '../components/ui'
 
 // Secoes do paciente, todas servidas pelas rotas /me/... (escopadas ao proprio).
 const SECOES = [
@@ -49,11 +50,9 @@ function Secao({ titulo, path, columns }) {
 
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-medium text-slate-500">{titulo}</h2>
+      <h2 className="text-sm font-semibold text-slate-600">{titulo}</h2>
       {erro && <p className="text-sm text-red-600">{erro}</p>}
-      {!erro && rows === null && (
-        <p className="text-sm text-slate-400">Carregando...</p>
-      )}
+      {!erro && rows === null && <Spinner />}
       {!erro && Array.isArray(rows) && rows.length === 0 && (
         <p className="text-sm text-slate-500">Nenhum registro.</p>
       )}
@@ -66,8 +65,11 @@ function Secao({ titulo, path, columns }) {
 
 export default function MinhaSaude() {
   return (
-    <div className="space-y-8">
-      <h1 className="text-xl font-semibold text-slate-800">Meus dados</h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="Meus dados"
+        subtitle="Suas receitas, exames e prontuarios — visiveis apenas para voce."
+      />
       {SECOES.map((s) => (
         <Secao key={s.path} {...s} />
       ))}

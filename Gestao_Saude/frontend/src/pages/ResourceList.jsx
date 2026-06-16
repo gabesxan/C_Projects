@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext'
 import { resourceByKey } from '../resources'
 import DataTable from '../components/DataTable'
 import ResourceForm from '../components/ResourceForm'
+import AcessoNegado from './AcessoNegado'
+import { PageHeader, Alert, Spinner, EmptyState, Badge } from '../components/ui'
 
 export default function ResourceList() {
   const { key } = useParams()
@@ -29,11 +31,20 @@ export default function ResourceList() {
     carregar()
   }, [carregar])
 
-  const podeEscrever = recurso?.writeRoles?.includes(user.papel)
+  if (!recurso) {
+    return <EmptyState title="Recurso desconhecido" description="Verifique o endereco." />
+  }
+
+  // Guarda de acesso por papel (espelha a politica do backend).
+  if (!recurso.roles.includes(user.papel)) {
+    return <AcessoNegado />
+  }
+
+  const podeCriar = recurso.createRoles?.includes(user.papel)
+  const podeDeletar = recurso.deleteRoles?.includes(user.papel)
 
   async function remover(row) {
-    const ok = window.confirm(`Confirmar: ${recurso.deleteLabel} #${row.id}?`)
-    if (!ok) return
+    if (!window.confirm(`Confirmar: ${recurso.deleteLabel} #${row.id}?`)) return
     try {
       await apiSend('DELETE', `${recurso.path}/${row.id}`)
       carregar()
@@ -42,40 +53,41 @@ export default function ResourceList() {
     }
   }
 
-  if (!recurso) {
-    return <p className="text-slate-500">Recurso desconhecido.</p>
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold text-slate-800">{recurso.label}</h2>
-        {Array.isArray(rows) && (
-          <span className="text-sm text-slate-500">{rows.length} registro(s)</span>
-        )}
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title={recurso.label}
+        subtitle={
+          Array.isArray(rows) ? `${rows.length} registro(s)` : 'Carregando registros...'
+        }
+        actions={
+          Array.isArray(rows) && (
+            <Badge tone="slate">{rows.length}</Badge>
+          )
+        }
+      />
 
-      {podeEscrever && <ResourceForm recurso={recurso} onCreated={carregar} />}
+      {podeCriar && <ResourceForm recurso={recurso} onCreated={carregar} />}
 
-      {erro && (
-        <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3">
-          {erro}
-        </div>
-      )}
-
-      {!erro && rows === null && (
-        <p className="text-sm text-slate-400">Carregando...</p>
-      )}
+      {erro && <Alert>{erro}</Alert>}
+      {!erro && rows === null && <Spinner />}
 
       {!erro && Array.isArray(rows) && rows.length === 0 && (
-        <p className="text-sm text-slate-500">Nenhum registro.</p>
+        <EmptyState
+          title="Nenhum registro"
+          description={
+            podeCriar
+              ? 'Comece criando o primeiro registro com o botao acima.'
+              : 'Ainda nao ha registros para exibir.'
+          }
+        />
       )}
 
       {!erro && Array.isArray(rows) && rows.length > 0 && (
         <DataTable
           columns={recurso.columns}
           rows={rows}
-          onDelete={podeEscrever ? remover : undefined}
+          onDelete={podeDeletar ? remover : undefined}
           deleteLabel={recurso.deleteLabel}
         />
       )}

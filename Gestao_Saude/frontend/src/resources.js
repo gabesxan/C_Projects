@@ -1,16 +1,28 @@
 // Catalogo de recursos listaveis. Cada um aponta para uma rota da API, as
-// colunas a exibir, os papeis com acesso de LEITURA (roles) e os papeis com
-// acesso de ESCRITA (writeRoles). createFields define o formulario de criacao
-// (parametros vao na query string). deleteLabel rotula a acao de remocao.
+// colunas a exibir e os papeis com acesso de LEITURA (roles), CRIACAO
+// (createRoles) e REMOCAO/CANCELAMENTO (deleteRoles). Registros clinicos que
+// nao podem ser apagados fisicamente tem deleteRoles vazio.
 // O backend tambem barra via 403; aqui filtramos a UI para nao oferecer o que
 // nao serve.
+
+// Tons de cor por classificacao de risco (Protocolo de Manchester).
+const RISCO = {
+  Vermelho: 'red',
+  Laranja: 'amber',
+  Amarelo: 'amber',
+  Verde: 'green',
+  Azul: 'sky',
+}
+const tomRisco = (v) => RISCO[v] ?? 'slate'
+
 export const RESOURCES = [
   {
     key: 'pacientes',
     label: 'Pacientes',
     path: '/pacientes',
-    roles: ['ADMIN', 'CADASTRO', 'MEDICO'],
-    writeRoles: ['ADMIN', 'CADASTRO'],
+    roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'],
+    createRoles: ['ADMIN', 'CADASTRO'],
+    deleteRoles: ['ADMIN', 'CADASTRO'],
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
@@ -34,8 +46,9 @@ export const RESOURCES = [
     key: 'medicos',
     label: 'Medicos',
     path: '/medicos',
-    roles: ['ADMIN', 'CADASTRO', 'MEDICO'],
-    writeRoles: ['ADMIN', 'CADASTRO'],
+    roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'],
+    createRoles: ['ADMIN', 'CADASTRO'],
+    deleteRoles: ['ADMIN', 'CADASTRO'],
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
@@ -56,7 +69,8 @@ export const RESOURCES = [
     label: 'Agendamentos',
     path: '/agendamentos',
     roles: ['ADMIN', 'MEDICO'],
-    writeRoles: ['ADMIN', 'MEDICO'],
+    createRoles: ['ADMIN', 'MEDICO'],
+    deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Cancelar',
     columns: [
       { key: 'id', label: 'ID' },
@@ -64,7 +78,7 @@ export const RESOURCES = [
       { key: 'medicoId', label: 'Medico' },
       { key: 'data', label: 'Data' },
       { key: 'horario', label: 'Horario' },
-      { key: 'status', label: 'Status' },
+      { key: 'status', label: 'Status', type: 'badge' },
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
@@ -77,21 +91,27 @@ export const RESOURCES = [
     key: 'triagens',
     label: 'Triagens',
     path: '/triagens',
-    roles: ['ADMIN', 'MEDICO'],
-    writeRoles: ['ADMIN', 'MEDICO'],
+    roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
+    createRoles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
+    deleteRoles: [],
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
       { key: 'tipoTriagem', label: 'Tipo' },
       { key: 'pontuacao', label: 'Pontuacao' },
-      { key: 'classificacao', label: 'Classificacao' },
+      { key: 'classificacao', label: 'Classificacao', type: 'badge', tone: tomRisco },
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
       { name: 'tipo', label: 'Tipo (1-5)', type: 'number' },
       { name: 'pontuacao', label: 'Pontuacao', type: 'number' },
-      { name: 'classificacao', label: 'Classificacao', type: 'text' },
+      {
+        name: 'classificacao',
+        label: 'Classificacao',
+        type: 'select',
+        options: ['Vermelho', 'Laranja', 'Amarelo', 'Verde', 'Azul'],
+      },
     ],
   },
   {
@@ -99,7 +119,8 @@ export const RESOURCES = [
     label: 'Prontuarios',
     path: '/prontuarios',
     roles: ['ADMIN', 'MEDICO'],
-    writeRoles: ['ADMIN', 'MEDICO'],
+    createRoles: ['ADMIN', 'MEDICO'],
+    deleteRoles: [],
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
@@ -111,7 +132,7 @@ export const RESOURCES = [
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID', type: 'number' },
+      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
       { name: 'data', label: 'Data', type: 'date' },
       { name: 'observacoes', label: 'Observacoes', type: 'text' },
       { name: 'diagnostico', label: 'Diagnostico', type: 'text' },
@@ -124,19 +145,20 @@ export const RESOURCES = [
     label: 'Exames',
     path: '/exames',
     roles: ['ADMIN', 'MEDICO'],
-    writeRoles: ['ADMIN', 'MEDICO'],
-    deleteLabel: 'Remover',
+    createRoles: ['ADMIN', 'MEDICO'],
+    deleteRoles: ['ADMIN', 'MEDICO'],
+    deleteLabel: 'Cancelar',
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
       { key: 'medicoId', label: 'Medico' },
       { key: 'tipoExame', label: 'Tipo' },
       { key: 'dataSolicitacao', label: 'Solicitacao' },
-      { key: 'status', label: 'Status' },
+      { key: 'status', label: 'Status', type: 'badge' },
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID', type: 'number' },
+      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
       { name: 'prontuario_id', label: 'Prontuario ID', type: 'number' },
       { name: 'tipo', label: 'Tipo', type: 'number' },
       { name: 'data_solicitacao', label: 'Solicitacao', type: 'date' },
@@ -148,7 +170,8 @@ export const RESOURCES = [
     label: 'Prescricoes',
     path: '/prescricoes',
     roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
-    writeRoles: ['ADMIN', 'MEDICO'],
+    createRoles: ['ADMIN', 'MEDICO'],
+    deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Suspender',
     columns: [
       { key: 'id', label: 'ID' },
@@ -161,7 +184,7 @@ export const RESOURCES = [
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID', type: 'number' },
+      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
       { name: 'medicamento', label: 'Medicamento', type: 'text' },
       { name: 'dosagem', label: 'Dosagem', type: 'text' },
       { name: 'frequencia', label: 'Frequencia', type: 'text' },
@@ -169,10 +192,6 @@ export const RESOURCES = [
     ],
   },
 ]
-
-export function resourcesForRole(papel) {
-  return RESOURCES.filter((r) => r.roles.includes(papel))
-}
 
 export function resourceByKey(key) {
   return RESOURCES.find((r) => r.key === key)

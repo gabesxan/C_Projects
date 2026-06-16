@@ -6,6 +6,9 @@ import Dashboard from './pages/Dashboard'
 import ResourceList from './pages/ResourceList'
 import Relatorios from './pages/Relatorios'
 import MinhaSaude from './pages/MinhaSaude'
+import Usuarios from './pages/Usuarios'
+import Auditoria from './pages/Auditoria'
+import AcessoNegado from './pages/AcessoNegado'
 
 // Protege rotas que exigem sessao; aguarda a revalidacao inicial do /me.
 function RequireAuth({ children }) {
@@ -17,6 +20,13 @@ function RequireAuth({ children }) {
     return <Navigate to="/login" replace />
   }
   return children
+}
+
+// Restringe uma rota a papeis especificos; caso contrario mostra Acesso negado
+// (mantendo a URL, para o usuario entender o que aconteceu).
+function RequireRole({ roles, children }) {
+  const { user } = useAuth()
+  return roles.includes(user.papel) ? children : <AcessoNegado />
 }
 
 export default function App() {
@@ -32,8 +42,39 @@ export default function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/r/:key" element={<ResourceList />} />
-        <Route path="/relatorios" element={<Relatorios />} />
-        <Route path="/minha-saude" element={<MinhaSaude />} />
+        <Route
+          path="/relatorios"
+          element={
+            <RequireRole roles={['ADMIN', 'MEDICO']}>
+              <Relatorios />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/minha-saude"
+          element={
+            <RequireRole roles={['PACIENTE']}>
+              <MinhaSaude />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/usuarios"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <Usuarios />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/admin/auditoria"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <Auditoria />
+            </RequireRole>
+          }
+        />
+        <Route path="/acesso-negado" element={<AcessoNegado />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

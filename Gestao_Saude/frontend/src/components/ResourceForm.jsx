@@ -40,7 +40,7 @@ export default function ResourceForm({ recurso, onCreated }) {
     return (
       <button
         onClick={() => setAberto(true)}
-        className="rounded-lg bg-sky-600 text-white text-sm font-medium px-4 py-2 hover:bg-sky-700"
+        className="rounded-lg bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700"
       >
         + Novo
       </button>
@@ -88,7 +88,7 @@ export default function ResourceForm({ recurso, onCreated }) {
         <button
           type="submit"
           disabled={salvando}
-          className="rounded-lg bg-sky-600 text-white text-sm font-medium px-4 py-2 hover:bg-sky-700 disabled:opacity-60"
+          className="rounded-lg bg-teal-600 text-white text-sm font-medium px-4 py-2 hover:bg-teal-700 disabled:opacity-60"
         >
           {salvando ? 'Salvando...' : 'Salvar'}
         </button>
