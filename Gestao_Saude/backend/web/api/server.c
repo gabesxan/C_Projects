@@ -39,6 +39,9 @@
 #define TAM_REQUISICAO 2048
 #define TAM_JSON 65536
 
+/* Diretorio do front buildado (servido para rotas que nao sao da API). */
+#define DIR_PUBLICO "public"
+
 /* ----------------------------------------------------------------------- */
 /* Utilitarios HTTP                                                         */
 /* ----------------------------------------------------------------------- */
@@ -1153,6 +1156,134 @@ static void rotaMePacientes(int cliente, int medico_id)
 }
 
 /* ----------------------------------------------------------------------- */
+/* Conteudo estatico (front buildado)                                       */
+/* ----------------------------------------------------------------------- */
+
+/* Mapeia a extensao do arquivo para o Content-Type apropriado. */
+static const char *tipoConteudo(const char *caminho)
+{
+    const char *ext = strrchr(caminho, '.');
+
+    if (ext == NULL) return "application/octet-stream";
+    if (strcmp(ext, ".html") == 0) return "text/html; charset=utf-8";
+    if (strcmp(ext, ".js") == 0) return "text/javascript";
+    if (strcmp(ext, ".css") == 0) return "text/css";
+    if (strcmp(ext, ".svg") == 0) return "image/svg+xml";
+    if (strcmp(ext, ".json") == 0) return "application/json";
+    if (strcmp(ext, ".ico") == 0) return "image/x-icon";
+    if (strcmp(ext, ".png") == 0) return "image/png";
+    if (strcmp(ext, ".woff2") == 0) return "font/woff2";
+    return "application/octet-stream";
+}
+
+/* Envia o arquivo (binario) com cabecalho HTTP. Retorna 1 se enviou, 0 se
+ * o arquivo nao existe ou houve erro. */
+static int enviarArquivo(int cliente, const char *caminhoArquivo)
+{
+    FILE *f = fopen(caminhoArquivo, "rb");
+    char cabecalho[256];
+    char *conteudo;
+    long tam;
+    int n;
+
+    if (f == NULL) return 0;
+
+    if (fseek(f, 0, SEEK_END) != 0 || (tam = ftell(f)) < 0 ||
+        fseek(f, 0, SEEK_SET) != 0)
+    {
+        fclose(f);
+        return 0;
+    }
+
+    conteudo = malloc((size_t)tam);
+    if (conteudo == NULL)
+    {
+        fclose(f);
+        return 0;
+    }
+
+    if (fread(conteudo, 1, (size_t)tam, f) != (size_t)tam)
+    {
+        fclose(f);
+        free(conteudo);
+        return 0;
+    }
+    fclose(f);
+
+    n = snprintf(cabecalho, sizeof(cabecalho),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %ld\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        tipoConteudo(caminhoArquivo), tam);
+
+    if (n > 0)
+    {
+        write(cliente, cabecalho, (size_t)n);
+        write(cliente, conteudo, (size_t)tam);
+    }
+
+    free(conteudo);
+    return 1;
+}
+
+/* Serve um arquivo de DIR_PUBLICO; se nao existir e a rota nao tiver extensao,
+ * cai no index.html (fallback de SPA). */
+static void servirEstatico(int cliente, const char *caminho)
+{
+    char arquivo[512];
+
+    /* Seguranca: recusa qualquer tentativa de path traversal. */
+    if (strstr(caminho, "..") != NULL)
+    {
+        responder(cliente, "400 Bad Request", "{\"erro\":\"caminho invalido\"}");
+        return;
+    }
+
+    if (strcmp(caminho, "/") == 0)
+    {
+        snprintf(arquivo, sizeof(arquivo), "%s/index.html", DIR_PUBLICO);
+    }
+    else
+    {
+        snprintf(arquivo, sizeof(arquivo), "%s%s", DIR_PUBLICO, caminho);
+    }
+
+    if (enviarArquivo(cliente, arquivo))
+    {
+        return;
+    }
+
+    /* Rota de SPA (sem extensao) que nao e arquivo real -> index.html. */
+    if (strrchr(caminho, '.') == NULL)
+    {
+        char index[512];
+        snprintf(index, sizeof(index), "%s/index.html", DIR_PUBLICO);
+        if (enviarArquivo(cliente, index))
+        {
+            return;
+        }
+    }
+
+    responder(cliente, "404 Not Found", "{\"erro\":\"recurso nao encontrado\"}");
+}
+
+/* Verdadeiro se o caminho pertence a API (e nao ao front estatico). As rotas
+ * de relatorio usam "/relatorios/" com barra para liberar "/relatorios" ao SPA. */
+static int ehRotaApi(const char *caminho)
+{
+    return strcmp(caminho, "/health") == 0 ||
+           comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
+           comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
+           comecaCom(caminho, "/triagens") || comecaCom(caminho, "/triagem/") ||
+           comecaCom(caminho, "/agendamentos") || comecaCom(caminho, "/prontuarios") ||
+           comecaCom(caminho, "/exames") || comecaCom(caminho, "/internacoes") ||
+           comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
+           comecaCom(caminho, "/me");
+}
+
+/* ----------------------------------------------------------------------- */
 /* Roteamento                                                               */
 /* ----------------------------------------------------------------------- */
 
@@ -1176,6 +1307,14 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/health") == 0)
     {
         rotaHealth(cliente);
+        return;
+    }
+
+    /* Front estatico (publico): qualquer GET que nao seja rota de API.
+     * Cobre "/", "/login", "/r/...", "/assets/..." com fallback de SPA. */
+    if (strcmp(metodo, "GET") == 0 && !ehRotaApi(caminho))
+    {
+        servirEstatico(cliente, caminho);
         return;
     }
 

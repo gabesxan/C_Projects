@@ -69,6 +69,13 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 api: $(API_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS)
 
+# Builda o frontend (Vite) e publica em public/ para o servidor servir.
+frontend:
+	npm --prefix ../../frontend install
+	npm --prefix ../../frontend run build
+	rm -rf public
+	cp -r ../../frontend/dist public
+
 # Sobe o servidor (precisa rodar de dentro de backend/web/ para achar ../data/).
 run: api
 	./$(BUILD)/sigeh_api
@@ -136,7 +143,7 @@ test_usuario_repository: | $(BUILD)
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all api run api-smoke-test test clean \
+.PHONY: all api frontend run api-smoke-test test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \

@@ -234,12 +234,25 @@ curl -u admin:secreta http://localhost:8080/me # rota autenticada
 | `make` / `make all` | Compila `build/database.o` e o servidor `build/sigeh_api` |
 | `make api` | Compila apenas o servidor da API |
 | `make run` | Compila e sobe o servidor na porta 8080 |
+| `make frontend` | Builda o frontend (Vite) e publica em `public/` para o servidor servir |
 | `make test` | Compila e roda as 12 suítes de teste |
 | `make test_<nome>` | Roda uma suíte específica (ex.: `make test_triagem_service`) |
 | `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (testes de ponta a ponta via `curl`) |
 | `make clean` | Remove o diretório `build/` (binários, objetos e banco de teste) |
 
 > Todos os artefatos compilados vão para `backend/web/build/` (binários, `database.o` e o banco de teste), mantido fora do versionamento.
+
+### Produção (full-stack num binário só)
+
+Em produção o **próprio servidor em C serve o frontend buildado** e a API na mesma origem — não precisa de Vite nem de CORS:
+
+```sh
+cd backend/web
+make frontend     # builda o React e copia o resultado para public/
+make run          # sobe o servidor; abra http://localhost:8080
+```
+
+O servidor entrega `public/index.html` e os assets para qualquer rota que **não** seja da API (`/`, `/login`, `/r/...`, com fallback de SPA para o `index.html`), e mantém a API na raiz (`/pacientes`, `/relatorios/...`, etc.). No modo de **desenvolvimento** (`npm run dev`), o front fala com a API via proxy `/api`; no build de produção ele chama a raiz automaticamente.
 
 ---
 

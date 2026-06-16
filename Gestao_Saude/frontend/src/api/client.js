@@ -3,7 +3,10 @@
 // - Autenticacao HTTP Basic: o header vai em toda requisicao.
 // - A API le parametros pela QUERY STRING, inclusive nos POST.
 
-const BASE = '/api'
+// Em dev, "/api" e reescrito pelo proxy do Vite para o backend (:8080).
+// Em producao, o proprio servidor C serve o front e a API na mesma origem,
+// entao as chamadas vao para a raiz.
+const BASE = import.meta.env.DEV ? '/api' : ''
 
 // Credencial em memoria; persistida em sessionStorage para sobreviver a reload.
 let credentials = null
