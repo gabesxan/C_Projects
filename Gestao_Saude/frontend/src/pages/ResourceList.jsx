@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { apiGet, apiSend } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { resourceByKey } from '../resources'
@@ -10,6 +10,7 @@ import { PageHeader, Alert, Spinner, EmptyState, Badge } from '../components/ui'
 
 export default function ResourceList() {
   const { key } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const recurso = resourceByKey(key)
   const [rows, setRows] = useState(null)
@@ -88,6 +89,7 @@ export default function ResourceList() {
           columns={recurso.columns}
           rows={rows}
           onDelete={podeDeletar ? remover : undefined}
+          onRowClick={recurso.detail ? (row) => navigate(recurso.detail(row)) : undefined}
           deleteLabel={recurso.deleteLabel}
         />
       )}

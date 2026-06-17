@@ -27,8 +27,8 @@ int main(void)
     assert(strstr(json, "\"casosGraves\":0") != NULL);
 
     /* Massa de dados. */
-    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
-    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 2, "", "") == 1);
     assert(medico_repo_criar("Dr X", "CRM1", "Cardiologia", 1) == 1);
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1);
     assert(triagem_repo_criar(2, 1, 3, "Prioritario") == 1);
@@ -71,8 +71,8 @@ int main(void)
 
     /* --- Resumo do proprio medico (contagens escopadas) --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
-    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 2, "", "") == 1);
     assert(medico_repo_criar("Dr X", "CRM1", "Cardiologia", 1) == 1); /* id 1 */
     assert(medico_repo_criar("Dr Y", "CRM2", "Ortopedia", 2) == 1);   /* id 2 */
     /* Medico 1: 1 paciente (via agendamento), 1 agendamento, 1 prontuario, 1 exame. */

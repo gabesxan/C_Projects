@@ -503,21 +503,27 @@ static void rotaContarPacientes(int cliente)
 static void rotaCriarPaciente(int cliente, const char *consulta, const Sessao *s)
 {
     char nome[128];
-    char cpf[32];
+    char nascimento[16];
+    char documento[40];
+    char tipoDocumento[16];
     char telefone[32];
     char sexo[8];
-    char idadeStr[16];
     char regiaoStr[16];
+    char responsavel[128];
+    char alergias[256];
 
     extrairParam(consulta, "nome", nome, sizeof(nome));
-    extrairParam(consulta, "cpf", cpf, sizeof(cpf));
-    extrairParam(consulta, "idade", idadeStr, sizeof(idadeStr));
+    extrairParam(consulta, "nascimento", nascimento, sizeof(nascimento));
+    extrairParam(consulta, "documento", documento, sizeof(documento));
+    extrairParam(consulta, "tipo_documento", tipoDocumento, sizeof(tipoDocumento));
     extrairParam(consulta, "telefone", telefone, sizeof(telefone));
     extrairParam(consulta, "sexo", sexo, sizeof(sexo));
     extrairParam(consulta, "regiao", regiaoStr, sizeof(regiaoStr));
+    extrairParam(consulta, "responsavel", responsavel, sizeof(responsavel));
+    extrairParam(consulta, "alergias", alergias, sizeof(alergias));
 
-    if (paciente_repo_criar(nome, cpf, atoi(idadeStr), telefone, sexo,
-                            atoi(regiaoStr)) == 1)
+    if (paciente_repo_criar(nome, nascimento, documento, tipoDocumento, telefone,
+                            sexo, atoi(regiaoStr), responsavel, alergias) == 1)
     {
         auditar(s, "CRIAR", "paciente", 0, nome);
         responder(cliente, "201 Created", "{\"status\":\"criado\"}");
@@ -525,7 +531,8 @@ static void rotaCriarPaciente(int cliente, const char *consulta, const Sessao *s
     else
     {
         responder(cliente, "400 Bad Request",
-                  "{\"erro\":\"dados invalidos para paciente\"}");
+                  "{\"erro\":\"dados invalidos (verifique nascimento, documento, "
+                  "responsavel de menor ou CPF ja cadastrado)\"}");
     }
 }
 
@@ -541,6 +548,73 @@ static void rotaDesativarPaciente(int cliente, int id, const Sessao *s)
         responder(cliente, "404 Not Found",
                   "{\"erro\":\"paciente nao encontrado ou ja inativo\"}");
     }
+}
+
+static void rotaDetalhePaciente(int cliente, int id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && paciente_repo_detalhe_json(id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"paciente nao encontrado\"}");
+    }
+
+    free(json);
+}
+
+/* Historico clinico agregado de um paciente: prontuarios, exames, prescricoes,
+ * triagens e agendamentos num unico objeto. Dados clinicos: restrito a equipe
+ * assistencial (CADASTRO nao ve). */
+static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
+{
+    char *prontuarios = malloc(TAM_JSON);
+    char *exames = malloc(TAM_JSON);
+    char *prescricoes = malloc(TAM_JSON);
+    char *triagens = malloc(TAM_JSON);
+    char *agendamentos = malloc(TAM_JSON);
+    char *saida = malloc(TAM_JSON);
+    int ok = 0;
+
+    if (strcmp(s->papel, "CADASTRO") == 0)
+    {
+        responder(cliente, "403 Forbidden",
+                  "{\"erro\":\"sem acesso ao historico clinico\"}");
+        free(prontuarios); free(exames); free(prescricoes);
+        free(triagens); free(agendamentos); free(saida);
+        return;
+    }
+
+    if (prontuarios && exames && prescricoes && triagens && agendamentos && saida &&
+        prontuario_repo_listar_por_paciente_json(id, prontuarios, TAM_JSON) == 1 &&
+        exame_repo_listar_por_paciente_json(id, exames, TAM_JSON) == 1 &&
+        prescricao_repo_listar_por_paciente_json(id, prescricoes, TAM_JSON) == 1 &&
+        triagem_service_historico_json(id, triagens, TAM_JSON) == 1 &&
+        agendamento_repo_listar_por_paciente_json(id, agendamentos, TAM_JSON) == 1)
+    {
+        int n = snprintf(saida, TAM_JSON,
+            "{\"prontuarios\":%s,\"exames\":%s,\"prescricoes\":%s,"
+            "\"triagens\":%s,\"agendamentos\":%s}",
+            prontuarios, exames, prescricoes, triagens, agendamentos);
+        ok = (n > 0 && n < TAM_JSON);
+    }
+
+    if (ok)
+    {
+        responder(cliente, "200 OK", saida);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao montar historico\"}");
+    }
+
+    free(prontuarios); free(exames); free(prescricoes);
+    free(triagens); free(agendamentos); free(saida);
 }
 
 static void rotaListarMedicos(int cliente)
@@ -1570,6 +1644,15 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/pacientes") == 0)
     {
         rotaCriarPaciente(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "historico") == 0)
+    {
+        rotaHistoricoPaciente(cliente, id, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d", &id) == 1)
+    {
+        rotaDetalhePaciente(cliente, id);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/pacientes/%d", &id) == 1)
     {

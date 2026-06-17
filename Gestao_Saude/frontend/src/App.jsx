@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import ResourceList from './pages/ResourceList'
+import PacienteDetalhe from './pages/PacienteDetalhe'
 import Relatorios from './pages/Relatorios'
 import MinhaSaude from './pages/MinhaSaude'
 import Usuarios from './pages/Usuarios'
@@ -42,6 +43,14 @@ export default function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/r/:key" element={<ResourceList />} />
+        <Route
+          path="/paciente/:id"
+          element={
+            <RequireRole roles={['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM']}>
+              <PacienteDetalhe />
+            </RequireRole>
+          }
+        />
         <Route
           path="/relatorios"
           element={

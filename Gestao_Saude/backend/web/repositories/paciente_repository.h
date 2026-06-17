@@ -7,14 +7,25 @@
  * Escrita: retorna 1 = sucesso, 0 = falha.
  */
 
+/* Cria um paciente. Regras: nome/documento/telefone obrigatorios; nascimento
+ * (YYYY-MM-DD) valido e nao futuro; menor de idade exige responsavel; CPF
+ * unico entre pacientes ativos (tipo_documento "CPF"). A idade e derivada do
+ * nascimento, nunca armazenada. Retorna 1 em sucesso, 0 em falha. */
 int paciente_repo_criar(const char *nome,
-                        const char *cpf,
-                        int idade,
+                        const char *nascimento,
+                        const char *documento,
+                        const char *tipo_documento,
                         const char *telefone,
                         const char *sexo,
-                        int regiao_administrativa);
+                        int regiao_administrativa,
+                        const char *responsavel,
+                        const char *alergias);
 
 int paciente_repo_listar_json(char *buffer, int tamanho);
+
+/* Escreve (JSON) um unico paciente por id (ativo ou nao, para o historico).
+ * Retorna 1 se encontrou, 0 caso contrario. */
+int paciente_repo_detalhe_json(int id, char *buffer, int tamanho);
 
 /* Lista (JSON) os pacientes ativos que tem agendamento com o medico. */
 int paciente_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho);

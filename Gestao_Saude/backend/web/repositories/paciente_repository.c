@@ -3,6 +3,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
+/* Colunas (e ordem) usadas em toda leitura de paciente, para montar o JSON
+ * num so lugar (montarPacienteJson). */
+#define PACIENTE_COLUNAS \
+    "id, nome, nascimento, documento, tipo_documento, telefone, sexo, " \
+    "regiao_administrativa, responsavel, alergias, ativo"
 
 /* Escreve em 'destino' a string 'origem' como literal JSON entre aspas,
  * escapando aspas e barras. Retorna 1 se coube, 0 se faltou espaco. */
@@ -62,31 +69,106 @@ static int anexarTexto(char *buffer, int tamanho, int *usado, const char *texto)
     return 1;
 }
 
+/* Idade em anos completos a partir de 'nascimento' (YYYY-MM-DD), relativa a
+ * hoje. Retorna 0 se a data for invalida. */
+static int idadeDe(const char *nascimento)
+{
+    int ay, am, ad;
+    time_t agora;
+    struct tm *hoje;
+    int idade;
+
+    if (nascimento == NULL || sscanf(nascimento, "%d-%d-%d", &ay, &am, &ad) != 3)
+    {
+        return 0;
+    }
+
+    agora = time(NULL);
+    hoje = localtime(&agora);
+    idade = (hoje->tm_year + 1900) - ay;
+
+    if ((hoje->tm_mon + 1) < am ||
+        ((hoje->tm_mon + 1) == am && hoje->tm_mday < ad))
+    {
+        idade--;
+    }
+
+    return idade < 0 ? 0 : idade;
+}
+
+/* 1 se 'nascimento' e uma data valida (YYYY-MM-DD) e nao esta no futuro. */
+static int nascimentoValido(const char *nascimento)
+{
+    int ay, am, ad;
+    int cy, cm, cd;
+    time_t agora;
+    struct tm *hoje;
+
+    if (nascimento == NULL ||
+        sscanf(nascimento, "%d-%d-%d", &ay, &am, &ad) != 3)
+    {
+        return 0;
+    }
+
+    if (ay < 1900 || am < 1 || am > 12 || ad < 1 || ad > 31)
+    {
+        return 0;
+    }
+
+    agora = time(NULL);
+    hoje = localtime(&agora);
+    cy = hoje->tm_year + 1900;
+    cm = hoje->tm_mon + 1;
+    cd = hoje->tm_mday;
+
+    /* Recusa data no futuro. */
+    if (ay > cy || (ay == cy && (am > cm || (am == cm && ad > cd))))
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
 int paciente_repo_criar(const char *nome,
-                        const char *cpf,
-                        int idade,
+                        const char *nascimento,
+                        const char *documento,
+                        const char *tipo_documento,
                         const char *telefone,
                         const char *sexo,
-                        int regiao_administrativa)
+                        int regiao_administrativa,
+                        const char *responsavel,
+                        const char *alergias)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "INSERT INTO pacientes "
-        "(nome, cpf, idade, telefone, sexo, regiao_administrativa, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, 1);";
+        "(nome, nascimento, documento, tipo_documento, telefone, sexo, "
+        "regiao_administrativa, responsavel, alergias, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);";
+    const char *tipo = (tipo_documento != NULL && tipo_documento[0] != '\0')
+                           ? tipo_documento : "CPF";
+    int ok;
 
-    if (nome == NULL || nome[0] == '\0')
+    /* Cadastro minimo: nome, nascimento, documento, telefone. */
+    if (nome == NULL || nome[0] == '\0' ||
+        documento == NULL || documento[0] == '\0' ||
+        telefone == NULL || telefone[0] == '\0' ||
+        sexo == NULL)
     {
         return 0;
     }
 
-    if (idade < 0)
+    /* Data de nascimento valida e nao futura (idade derivada dela). */
+    if (nascimentoValido(nascimento) == 0)
     {
         return 0;
     }
 
-    if (cpf == NULL || telefone == NULL || sexo == NULL)
+    /* Menor de idade exige responsavel. */
+    if (idadeDe(nascimento) < 18 &&
+        (responsavel == NULL || responsavel[0] == '\0'))
     {
         return 0;
     }
@@ -103,31 +185,80 @@ int paciente_repo_criar(const char *nome,
     }
 
     sqlite3_bind_text(stmt, 1, nome, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, cpf, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 3, idade);
-    sqlite3_bind_text(stmt, 4, telefone, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, sexo, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 6, regiao_administrativa);
+    sqlite3_bind_text(stmt, 2, nascimento, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, documento, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, tipo, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, telefone, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, sexo, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 7, regiao_administrativa);
+    sqlite3_bind_text(stmt, 8, responsavel != NULL ? responsavel : "",
+                      -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, alergias != NULL ? alergias : "",
+                      -1, SQLITE_STATIC);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE)
-    {
-        sqlite3_finalize(stmt);
-        db_fechar(db);
-        return 0;
-    }
+    /* Falha aqui inclui a violacao do indice de CPF unico entre ativos. */
+    ok = sqlite3_step(stmt) == SQLITE_DONE;
 
     sqlite3_finalize(stmt);
     db_fechar(db);
-    return 1;
+    return ok ? 1 : 0;
 }
 
-int paciente_repo_listar_json(char *buffer, int tamanho)
+/* Monta o objeto JSON de um paciente a partir de uma linha posicionada em
+ * PACIENTE_COLUNAS. Escreve em 'objeto' (com 'prefixo' antes). 1 ok / 0 erro. */
+static int montarPacienteJson(sqlite3_stmt *stmt, const char *prefixo,
+                              char *objeto, int tam)
+{
+    char nomeJson[256];
+    char docJson[64];
+    char tipoJson[16];
+    char nascJson[16];
+    char telefoneJson[64];
+    char sexoJson[16];
+    char responsavelJson[256];
+    char alergiasJson[512];
+    int id = sqlite3_column_int(stmt, 0);
+    const char *nome = (const char *)sqlite3_column_text(stmt, 1);
+    const char *nascimento = (const char *)sqlite3_column_text(stmt, 2);
+    const char *documento = (const char *)sqlite3_column_text(stmt, 3);
+    const char *tipo = (const char *)sqlite3_column_text(stmt, 4);
+    const char *telefone = (const char *)sqlite3_column_text(stmt, 5);
+    const char *sexo = (const char *)sqlite3_column_text(stmt, 6);
+    int regiao = sqlite3_column_int(stmt, 7);
+    const char *responsavel = (const char *)sqlite3_column_text(stmt, 8);
+    const char *alergias = (const char *)sqlite3_column_text(stmt, 9);
+    int ativo = sqlite3_column_int(stmt, 10);
+    int escrito;
+
+    if (escaparJson(nomeJson, sizeof(nomeJson), nome) == 0 ||
+        escaparJson(nascJson, sizeof(nascJson), nascimento) == 0 ||
+        escaparJson(docJson, sizeof(docJson), documento) == 0 ||
+        escaparJson(tipoJson, sizeof(tipoJson), tipo) == 0 ||
+        escaparJson(telefoneJson, sizeof(telefoneJson), telefone) == 0 ||
+        escaparJson(sexoJson, sizeof(sexoJson), sexo) == 0 ||
+        escaparJson(responsavelJson, sizeof(responsavelJson), responsavel) == 0 ||
+        escaparJson(alergiasJson, sizeof(alergiasJson), alergias) == 0)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(objeto, (size_t)tam,
+        "%s{\"id\":%d,\"nome\":%s,\"nascimento\":%s,\"idade\":%d,"
+        "\"documento\":%s,\"tipoDocumento\":%s,\"telefone\":%s,\"sexo\":%s,"
+        "\"regiaoAdministrativa\":%d,\"responsavel\":%s,\"alergias\":%s,"
+        "\"ativo\":%d}",
+        prefixo, id, nomeJson, nascJson, idadeDe(nascimento), docJson, tipoJson,
+        telefoneJson, sexoJson, regiao, responsavelJson, alergiasJson, ativo);
+
+    return (escrito > 0 && escrito < tam) ? 1 : 0;
+}
+
+/* Executa 'sql' (com um possivel bind de medico_id) e serializa as linhas
+ * como um array JSON de pacientes. Se medico_id > 0, faz o bind no parametro 1. */
+static int listarComSql(const char *sql, int medico_id, char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql =
-        "SELECT id, nome, cpf, idade, telefone, sexo, regiao_administrativa "
-        "FROM pacientes WHERE ativo = 1 ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -147,6 +278,11 @@ int paciente_repo_listar_json(char *buffer, int tamanho)
         return 0;
     }
 
+    if (medico_id > 0)
+    {
+        sqlite3_bind_int(stmt, 1, medico_id);
+    }
+
     buffer[0] = '\0';
 
     if (anexarTexto(buffer, tamanho, &usado, "[") == 0)
@@ -158,44 +294,11 @@ int paciente_repo_listar_json(char *buffer, int tamanho)
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        char nomeJson[256];
-        char cpfJson[64];
-        char telefoneJson[64];
-        char sexoJson[16];
-        char objeto[700];
-        int id = sqlite3_column_int(stmt, 0);
-        const char *nome = (const char *)sqlite3_column_text(stmt, 1);
-        const char *cpf = (const char *)sqlite3_column_text(stmt, 2);
-        int idade = sqlite3_column_int(stmt, 3);
-        const char *telefone = (const char *)sqlite3_column_text(stmt, 4);
-        const char *sexo = (const char *)sqlite3_column_text(stmt, 5);
-        int regiao = sqlite3_column_int(stmt, 6);
-        int escrito;
+        char objeto[1600];
 
-        if (escaparJson(nomeJson, sizeof(nomeJson), nome) == 0 ||
-            escaparJson(cpfJson, sizeof(cpfJson), cpf) == 0 ||
-            escaparJson(telefoneJson, sizeof(telefoneJson), telefone) == 0 ||
-            escaparJson(sexoJson, sizeof(sexoJson), sexo) == 0)
-        {
-            sqlite3_finalize(stmt);
-            db_fechar(db);
-            return 0;
-        }
-
-        escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"cpf\":%s,\"idade\":%d,"
-            "\"telefone\":%s,\"sexo\":%s,\"regiaoAdministrativa\":%d}",
-            primeiro ? "" : ",",
-            id, nomeJson, cpfJson, idade, telefoneJson, sexoJson, regiao);
-
-        if (escrito < 0 || escrito >= (int)sizeof(objeto))
-        {
-            sqlite3_finalize(stmt);
-            db_fechar(db);
-            return 0;
-        }
-
-        if (anexarTexto(buffer, tamanho, &usado, objeto) == 0)
+        if (montarPacienteJson(stmt, primeiro ? "" : ",",
+                               objeto, sizeof(objeto)) == 0 ||
+            anexarTexto(buffer, tamanho, &usado, objeto) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -208,28 +311,45 @@ int paciente_repo_listar_json(char *buffer, int tamanho)
     sqlite3_finalize(stmt);
     db_fechar(db);
 
-    if (anexarTexto(buffer, tamanho, &usado, "]") == 0)
-    {
-        return 0;
-    }
+    return anexarTexto(buffer, tamanho, &usado, "]");
+}
 
-    return 1;
+int paciente_repo_listar_json(char *buffer, int tamanho)
+{
+    return listarComSql(
+        "SELECT " PACIENTE_COLUNAS " FROM pacientes WHERE ativo = 1 ORDER BY id;",
+        0, buffer, tamanho);
 }
 
 int paciente_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
 {
-    sqlite3 *db = NULL;
-    sqlite3_stmt *stmt = NULL;
+    /* Mesmas 11 colunas/ordem de PACIENTE_COLUNAS, qualificadas por 'p' por
+     * causa do JOIN (montarPacienteJson le por posicao). */
     const char *sql =
-        "SELECT DISTINCT p.id, p.nome, p.cpf, p.idade, p.telefone, p.sexo, "
-        "p.regiao_administrativa "
+        "SELECT DISTINCT p.id, p.nome, p.nascimento, p.documento, "
+        "p.tipo_documento, p.telefone, p.sexo, p.regiao_administrativa, "
+        "p.responsavel, p.alergias, p.ativo "
         "FROM pacientes p JOIN agendamentos a ON a.paciente_id = p.id "
         "WHERE p.ativo = 1 AND a.medico_id = ? AND a.status != 'CANCELADO' "
         "ORDER BY p.id;";
-    int usado = 0;
-    int primeiro = 1;
 
-    if (buffer == NULL || tamanho <= 0 || medico_id <= 0)
+    if (medico_id <= 0)
+    {
+        return 0;
+    }
+
+    return listarComSql(sql, medico_id, buffer, tamanho);
+}
+
+int paciente_repo_detalhe_json(int id, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT " PACIENTE_COLUNAS " FROM pacientes WHERE id = ?;";
+    int encontrado = 0;
+
+    if (buffer == NULL || tamanho <= 0 || id <= 0)
     {
         return 0;
     }
@@ -245,75 +365,17 @@ int paciente_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanh
         return 0;
     }
 
-    sqlite3_bind_int(stmt, 1, medico_id);
-
+    sqlite3_bind_int(stmt, 1, id);
     buffer[0] = '\0';
 
-    if (anexarTexto(buffer, tamanho, &usado, "[") == 0)
+    if (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        sqlite3_finalize(stmt);
-        db_fechar(db);
-        return 0;
-    }
-
-    while (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        char nomeJson[256];
-        char cpfJson[64];
-        char telefoneJson[64];
-        char sexoJson[16];
-        char objeto[700];
-        int id = sqlite3_column_int(stmt, 0);
-        const char *nome = (const char *)sqlite3_column_text(stmt, 1);
-        const char *cpf = (const char *)sqlite3_column_text(stmt, 2);
-        int idade = sqlite3_column_int(stmt, 3);
-        const char *telefone = (const char *)sqlite3_column_text(stmt, 4);
-        const char *sexo = (const char *)sqlite3_column_text(stmt, 5);
-        int regiao = sqlite3_column_int(stmt, 6);
-        int escrito;
-
-        if (escaparJson(nomeJson, sizeof(nomeJson), nome) == 0 ||
-            escaparJson(cpfJson, sizeof(cpfJson), cpf) == 0 ||
-            escaparJson(telefoneJson, sizeof(telefoneJson), telefone) == 0 ||
-            escaparJson(sexoJson, sizeof(sexoJson), sexo) == 0)
-        {
-            sqlite3_finalize(stmt);
-            db_fechar(db);
-            return 0;
-        }
-
-        escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"cpf\":%s,\"idade\":%d,"
-            "\"telefone\":%s,\"sexo\":%s,\"regiaoAdministrativa\":%d}",
-            primeiro ? "" : ",",
-            id, nomeJson, cpfJson, idade, telefoneJson, sexoJson, regiao);
-
-        if (escrito < 0 || escrito >= (int)sizeof(objeto))
-        {
-            sqlite3_finalize(stmt);
-            db_fechar(db);
-            return 0;
-        }
-
-        if (anexarTexto(buffer, tamanho, &usado, objeto) == 0)
-        {
-            sqlite3_finalize(stmt);
-            db_fechar(db);
-            return 0;
-        }
-
-        primeiro = 0;
+        encontrado = montarPacienteJson(stmt, "", buffer, tamanho);
     }
 
     sqlite3_finalize(stmt);
     db_fechar(db);
-
-    if (anexarTexto(buffer, tamanho, &usado, "]") == 0)
-    {
-        return 0;
-    }
-
-    return 1;
+    return encontrado;
 }
 
 int paciente_repo_desativar(int id)

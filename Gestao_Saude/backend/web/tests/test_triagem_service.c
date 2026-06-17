@@ -22,8 +22,8 @@ int main(void)
     assert(db_resetar_com_schema(SCHEMA) == 1);
 
     /* Pacientes pais (ids 1 e 2) exigidos pela FK de triagens. */
-    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
-    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 2, "", "") == 1);
 
     /* Paciente sem triagem ativa -> 0. */
     assert(triagem_service_avaliar_json(1, json, sizeof(json)) == 0);
@@ -54,7 +54,7 @@ int main(void)
     assert(db_resetar_com_schema(SCHEMA) == 1);
 
     /* Paciente da regiao 7 (recebe id 1). */
-    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(paciente_repo_criar("Joao", "1985-01-01", "11122233344", "CPF", "61999990000", "M", 7, "", "") == 1);
     /* Triagem cardiologica para o paciente 1. */
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1);
 
@@ -75,7 +75,7 @@ int main(void)
 
     /* --- Historico clinico (prontuarios + exames anteriores) --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(paciente_repo_criar("Joao", "1985-01-01", "11122233344", "CPF", "61999990000", "M", 7, "", "") == 1);
     assert(medico_repo_criar("Dr Cardio", "CRM1", "Cardiologia", 7) == 1);
     assert(prontuario_repo_criar(1, 1, "2026-06-01", "Estavel", "Gripe",
                                  "Repouso", 0) == 1);
@@ -93,7 +93,7 @@ int main(void)
 
     /* --- Sugestao de exames iniciais por tipo de triagem --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(paciente_repo_criar("Joao", "1985-01-01", "11122233344", "CPF", "61999990000", "M", 7, "", "") == 1);
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1); /* Cardiologia */
     assert(triagem_service_sugerir_exames_json(1, json, sizeof(json)) == 1);
     assert(strstr(json, "Eletrocardiograma") != NULL);
@@ -101,7 +101,7 @@ int main(void)
 
     /* --- Agendamento automatico --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(paciente_repo_criar("Joao", "1985-01-01", "11122233344", "CPF", "61999990000", "M", 7, "", "") == 1);
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1); /* Cardiologia */
     assert(medico_repo_criar("Dr Cardio", "CRM1", "Cardiologia", 7) == 1); /* id 1 */
 
@@ -127,7 +127,7 @@ int main(void)
 
     /* --- Encaminhamento para outra especialidade --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Joao", "11122233344", 40, "61999990000", "M", 7) == 1);
+    assert(paciente_repo_criar("Joao", "1985-01-01", "11122233344", "CPF", "61999990000", "M", 7, "", "") == 1);
     assert(medico_repo_criar("Dr Orto", "CRM9", "Ortopedia", 7) == 1); /* id 1 */
 
     /* Encaminha para Ortopedia (independe da triagem) -> agenda. */
@@ -145,8 +145,8 @@ int main(void)
 
     /* --- Fila de triagem escopada pela especialidade do medico --- */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
-    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 2, "", "") == 1);
     assert(triagem_repo_criar(1, 3, 8, "Emergencia") == 1);  /* tipo 3: Cardiologia */
     assert(triagem_repo_criar(2, 2, 4, "Prioritario") == 1); /* tipo 2: Ortopedia */
 

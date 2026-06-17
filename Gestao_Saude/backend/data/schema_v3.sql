@@ -13,14 +13,22 @@ PRAGMA foreign_keys = ON;
 -- respectivos modulos, junto com repository e UI.
 -- =========================================================================
 
+-- Pacientes. A idade NAO e armazenada: e calculada a partir de 'nascimento'.
+-- 'documento' guarda o CPF ou um documento alternativo, distinguido por
+-- 'tipo_documento' ('CPF' | 'OUTRO'). 'responsavel' e obrigatorio para menores
+-- de idade. 'alergias' destaca alertas clinicos. Historico nunca e apagado
+-- fisicamente: a baixa e logica (ativo = 0).
 CREATE TABLE pacientes (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL,
-    cpf TEXT NOT NULL,
-    idade INTEGER NOT NULL,
+    nascimento TEXT NOT NULL,                 -- YYYY-MM-DD
+    documento TEXT NOT NULL,
+    tipo_documento TEXT NOT NULL DEFAULT 'CPF',
     telefone TEXT NOT NULL,
     sexo TEXT NOT NULL,
     regiao_administrativa INTEGER NOT NULL,
+    responsavel TEXT NOT NULL DEFAULT '',
+    alergias TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL
 );
 
@@ -174,3 +182,9 @@ CREATE INDEX idx_exames_paciente ON exames(paciente_id);
 CREATE INDEX idx_prescricoes_paciente ON prescricoes(paciente_id);
 CREATE INDEX idx_triagens_paciente ON triagens(paciente_id);
 CREATE INDEX idx_auditoria_entidade ON auditoria(entidade, entidade_id);
+
+-- Nao permite dois pacientes ATIVOS com o mesmo CPF (documento alternativo
+-- nao entra na regra). Indice parcial: a unicidade so vale para CPF ativo.
+CREATE UNIQUE INDEX idx_pacientes_cpf_ativo
+    ON pacientes(documento)
+    WHERE ativo = 1 AND tipo_documento = 'CPF';

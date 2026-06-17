@@ -19,8 +19,8 @@ int main(void)
     assert(db_resetar_com_schema(SCHEMA) == 1);
 
     /* Pacientes e medicos pais (ids 1 e 2) exigidos pela FK de prontuarios. */
-    assert(paciente_repo_criar("Ana", "111", 20, "61", "F", 1) == 1);
-    assert(paciente_repo_criar("Bia", "222", 30, "61", "F", 2) == 1);
+    assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 2, "", "") == 1);
     assert(medico_repo_criar("Dr X", "CRM1", "Cardiologia", 1) == 1);
     assert(medico_repo_criar("Dr Y", "CRM2", "Ortopedia", 2) == 1);
 

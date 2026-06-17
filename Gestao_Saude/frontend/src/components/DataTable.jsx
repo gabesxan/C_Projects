@@ -27,7 +27,7 @@ function Cell({ col, row }) {
   return formatCell(value)
 }
 
-export default function DataTable({ columns, rows, onDelete, deleteLabel = 'Remover' }) {
+export default function DataTable({ columns, rows, onDelete, onRowClick, deleteLabel = 'Remover' }) {
   return (
     <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
       <table className="min-w-full text-sm">
@@ -45,7 +45,11 @@ export default function DataTable({ columns, rows, onDelete, deleteLabel = 'Remo
           {rows.map((row, i) => (
             <tr
               key={row.id ?? i}
-              className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70"
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={[
+                'border-b border-slate-100 last:border-0 hover:bg-slate-50/70',
+                onRowClick ? 'cursor-pointer' : '',
+              ].join(' ')}
             >
               {columns.map((col) => (
                 <td key={col.key} className="px-4 py-3 text-slate-700 whitespace-nowrap">
@@ -54,7 +58,14 @@ export default function DataTable({ columns, rows, onDelete, deleteLabel = 'Remo
               ))}
               {onDelete && (
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Button variant="danger" className="px-3 py-1" onClick={() => onDelete(row)}>
+                  <Button
+                    variant="danger"
+                    className="px-3 py-1"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(row)
+                    }}
+                  >
                     {deleteLabel}
                   </Button>
                 </td>

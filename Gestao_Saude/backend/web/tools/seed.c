@@ -59,8 +59,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (paciente_repo_criar("Joao da Silva", "12345678900", 44,
-                            "61999990000", "M", 1) != 1)
+    if (paciente_repo_criar("Joao da Silva", "1981-05-12", "12345678900", "CPF",
+                            "61999990000", "M", 1, "", "Penicilina") != 1)
     {
         fprintf(stderr, "falha ao criar paciente de exemplo\n");
         return 1;

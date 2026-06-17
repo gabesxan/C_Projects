@@ -324,8 +324,8 @@ echo "[INFO] Preparando cenario de escopo por papel (MEDICO)"
 # Cria um medico (sera o id 1 no banco recem-resetado).
 curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/medicos?nome=DrSmoke&crm=CRM-SMOKE&especialidade=Cardiologia&regiao=1" >/dev/null
 # Cria dois pacientes: o primeiro sera vinculado ao medico, o segundo nao.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=AnaSmoke&cpf=900900&idade=20&telefone=61&sexo=F&regiao=1" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=BiaSmoke&cpf=900901&idade=30&telefone=61&sexo=F&regiao=2" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=AnaSmoke&nascimento=1990-01-01&documento=900900&tipo_documento=CPF&telefone=61&sexo=F&regiao=1" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=BiaSmoke&nascimento=1980-01-01&documento=900901&tipo_documento=CPF&telefone=61&sexo=F&regiao=2" >/dev/null
 # Agenda a paciente 1 (Ana) com o medico 1, criando o vinculo de escopo.
 curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/agendamentos?paciente_id=1&medico_id=1&data=2026-06-14&horario=09:00" >/dev/null
 # Cria um usuario MEDICO ligado ao medico 1 para autenticar com escopo.
