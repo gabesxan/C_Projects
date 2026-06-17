@@ -24,4 +24,8 @@ int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
                                const char *responsavel);
 int internacao_repo_contar_ativos(void);
 
+/* Escreve (JSON) a distribuicao de internacoes por status, no formato
+ * [{"status":"INTERNADO","total":3},...]. 1 = ok, 0 = erro. */
+int internacao_repo_distribuicao_por_status_json(char *buffer, int tamanho);
+
 #endif

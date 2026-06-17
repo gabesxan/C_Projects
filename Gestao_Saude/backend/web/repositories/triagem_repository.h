@@ -17,6 +17,10 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
                                 const char *freq_cardiaca, const char *saturacao);
 int triagem_repo_listar_json(char *buffer, int tamanho);
 
+/* Escreve (JSON) a distribuicao de triagens ativas por classificacao, no
+ * formato [{"classificacao":"Vermelho","total":2},...]. 1 = ok, 0 = erro. */
+int triagem_repo_distribuicao_por_classificacao_json(char *buffer, int tamanho);
+
 /* Lista (JSON) as triagens ativas cujo tipo_triagem esta no vetor 'tipos'
  * (tamanho 'n'). Com n <= 0 devolve uma lista vazia. 1 = ok, 0 = erro. */
 int triagem_repo_listar_por_tipos_json(const int *tipos, int n,

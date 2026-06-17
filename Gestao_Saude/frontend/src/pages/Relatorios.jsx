@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api/client'
-import { PageHeader, Alert } from '../components/ui'
+import { PageHeader, Alert, StatCard } from '../components/ui'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -44,6 +44,9 @@ export default function Relatorios() {
   const [inicio, setInicio] = useState(PRIMEIRO_DIA)
   const [fim, setFim] = useState(ULTIMO_DIA)
   const [periodo, setPeriodo] = useState(null)
+  const [triagens, setTriagens] = useState(null)
+  const [internacoes, setInternacoes] = useState(null)
+  const [ocupacao, setOcupacao] = useState(null)
   const [erro, setErro] = useState('')
 
   // Distribuicao (pacientes por regiao, medicos por especialidade) — uma vez.
@@ -53,6 +56,9 @@ export default function Relatorios() {
       .catch((e) =>
         setErro(e.status === 403 ? 'Voce nao tem acesso aos relatorios.' : e.message)
       )
+    apiGet('/relatorios/triagens').then(setTriagens).catch(() => {})
+    apiGet('/relatorios/internacoes').then(setInternacoes).catch(() => {})
+    apiGet('/relatorios/ocupacao').then(setOcupacao).catch(() => {})
   }, [])
 
   // Relatorio por periodo — refaz quando as datas mudam.
@@ -80,13 +86,56 @@ export default function Relatorios() {
     labels: periodo.porDia.map((d) => d.data),
     datasets: [{ label: 'Agendamentos', data: periodo.porDia.map((d) => d.total), backgroundColor: COR }],
   }
+  const dataTriagens = triagens && {
+    labels: triagens.map((t) => t.classificacao),
+    datasets: [{ label: 'Triagens', data: triagens.map((t) => t.total), backgroundColor: '#dc2626' }],
+  }
+  const dataInternacoes = internacoes && {
+    labels: internacoes.map((i) => i.status),
+    datasets: [{ label: 'Internacoes', data: internacoes.map((i) => i.total), backgroundColor: '#7c3aed' }],
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Relatorios"
-        subtitle="Indicadores de distribuicao e agendamentos por periodo."
+        subtitle="Ocupacao de leitos, distribuicao, triagens, internacoes e agendamentos."
       />
+
+      {ocupacao && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard label="Taxa de ocupacao" value={`${ocupacao.taxaOcupacao}%`} />
+          <StatCard label="Leitos ocupados" value={ocupacao.ocupados} />
+          <StatCard label="Leitos disponiveis" value={ocupacao.disponiveis} />
+          <StatCard label="Em higienizacao" value={ocupacao.higienizacao} />
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <ChartCard titulo="Triagens por classificacao de risco">
+          {dataTriagens ? (
+            triagens.length ? (
+              <Bar data={dataTriagens} options={baseOptions} />
+            ) : (
+              <p className="text-sm text-slate-400">Sem dados.</p>
+            )
+          ) : (
+            <p className="text-sm text-slate-400">Carregando...</p>
+          )}
+        </ChartCard>
+
+        <ChartCard titulo="Internacoes por status">
+          {dataInternacoes ? (
+            internacoes.length ? (
+              <Bar data={dataInternacoes} options={baseOptions} />
+            ) : (
+              <p className="text-sm text-slate-400">Sem dados.</p>
+            )
+          ) : (
+            <p className="text-sm text-slate-400">Carregando...</p>
+          )}
+        </ChartCard>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <ChartCard titulo="Pacientes por regiao administrativa">

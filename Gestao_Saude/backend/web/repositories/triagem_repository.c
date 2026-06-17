@@ -69,6 +69,77 @@ int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                                        classificacao, "", "", "", "", "");
 }
 
+int triagem_repo_distribuicao_por_classificacao_json(char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT classificacao, COUNT(*) FROM triagens WHERE ativo = 1 "
+        "GROUP BY classificacao ORDER BY classificacao;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    buffer[0] = '\0';
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char classificacaoJson[128];
+        char objeto[192];
+        int total = sqlite3_column_int(stmt, 1);
+        int escrito;
+
+        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson),
+                              (const char *)sqlite3_column_text(stmt, 0)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+                           "%s{\"classificacao\":%s,\"total\":%d}",
+                           primeiro ? "" : ",", classificacaoJson, total);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
 int triagem_repo_listar_json(char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;

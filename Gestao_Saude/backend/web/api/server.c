@@ -2154,6 +2154,21 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaRelatorioAgendamentos(cliente, consulta);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/triagens") == 0)
+    {
+        responderLista(cliente, triagem_repo_distribuicao_por_classificacao_json,
+                       "{\"erro\":\"falha ao gerar relatorio de triagens\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/internacoes") == 0)
+    {
+        responderLista(cliente, internacao_repo_distribuicao_por_status_json,
+                       "{\"erro\":\"falha ao gerar relatorio de internacoes\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/ocupacao") == 0)
+    {
+        responderLista(cliente, leito_repo_ocupacao_json,
+                       "{\"erro\":\"falha ao calcular ocupacao\"}");
+    }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/login") == 0)
     {
         rotaLogin(cliente, &s);
@@ -2173,6 +2188,36 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/receitas") == 0)
     {
         rotaMeReceitas(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agendamentos") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL &&
+            agendamento_repo_listar_por_paciente_json(authPacienteId, json, TAM_JSON) == 1)
+        {
+            responder(cliente, "200 OK", json);
+        }
+        else
+        {
+            responder(cliente, "500 Internal Server Error",
+                      "{\"erro\":\"falha ao listar agendamentos\"}");
+        }
+        free(json);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/perfil") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL &&
+            paciente_repo_detalhe_json(authPacienteId, json, TAM_JSON) == 1)
+        {
+            responder(cliente, "200 OK", json);
+        }
+        else
+        {
+            responder(cliente, "404 Not Found",
+                      "{\"erro\":\"perfil nao encontrado\"}");
+        }
+        free(json);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agenda") == 0)
     {
