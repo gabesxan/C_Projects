@@ -41,12 +41,19 @@ CREATE TABLE medicos (
     ativo INTEGER NOT NULL
 );
 
+-- Triagens. Alem da classificacao de risco, registra a queixa principal e os
+-- sinais vitais basicos (texto livre para nao perder informacao do protocolo).
 CREATE TABLE triagens (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
     tipo_triagem INTEGER NOT NULL,
     pontuacao INTEGER NOT NULL,
     classificacao TEXT NOT NULL,
+    queixa TEXT NOT NULL DEFAULT '',
+    pressao TEXT NOT NULL DEFAULT '',
+    temperatura TEXT NOT NULL DEFAULT '',
+    freq_cardiaca TEXT NOT NULL DEFAULT '',
+    saturacao TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );

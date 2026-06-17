@@ -13,6 +13,7 @@
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
+#include "credencial_util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -550,6 +551,28 @@ static void rotaDesativarPaciente(int cliente, int id, const Sessao *s)
     }
 }
 
+static void rotaBuscarPacientes(int cliente, const char *consulta)
+{
+    char termo[128];
+    char *json;
+
+    extrairParam(consulta, "q", termo, sizeof(termo));
+
+    json = malloc(TAM_JSON);
+
+    if (json != NULL && paciente_repo_buscar_json(termo, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha na busca de pacientes\"}");
+    }
+
+    free(json);
+}
+
 static void rotaDetalhePaciente(int cliente, int id)
 {
     char *json = malloc(TAM_JSON);
@@ -816,6 +839,86 @@ static void rotaTriagemEncaminhar(int cliente, int paciente_id, const char *cons
     }
 
     free(json);
+}
+
+/* Fluxo de triagem: cadastra um paciente novo E ja cria seu acesso PACIENTE,
+ * gerando login unico (pac-<nome><sufixo>) e senha automatica, devolvendo as
+ * credenciais para exibicao imediata. */
+static void rotaTriagemCadastrarPaciente(int cliente, const char *consulta,
+                                         const Sessao *s)
+{
+    char nome[128];
+    char nascimento[16];
+    char documento[40];
+    char tipoDocumento[16];
+    char telefone[32];
+    char sexo[8];
+    char regiaoStr[16];
+    char responsavel[128];
+    char alergias[256];
+    char norm[128];
+    char login[180];
+    char senha[40];
+    char corpo[512];
+    int pacienteId = 0;
+    int sufixo = 1;
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "nascimento", nascimento, sizeof(nascimento));
+    extrairParam(consulta, "documento", documento, sizeof(documento));
+    extrairParam(consulta, "tipo_documento", tipoDocumento, sizeof(tipoDocumento));
+    extrairParam(consulta, "telefone", telefone, sizeof(telefone));
+    extrairParam(consulta, "sexo", sexo, sizeof(sexo));
+    extrairParam(consulta, "regiao", regiaoStr, sizeof(regiaoStr));
+    extrairParam(consulta, "responsavel", responsavel, sizeof(responsavel));
+    extrairParam(consulta, "alergias", alergias, sizeof(alergias));
+
+    if (paciente_repo_criar_retornando_id(nome, nascimento, documento,
+            tipoDocumento, telefone, sexo, atoi(regiaoStr), responsavel,
+            alergias, &pacienteId) != 1 || pacienteId <= 0)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"dados invalidos (verifique nascimento, documento, "
+                  "responsavel de menor ou CPF ja cadastrado)\"}");
+        return;
+    }
+
+    /* Login unico: pac-<nome-normalizado>, com sufixo numerico se ja existir. */
+    if (credencial_normalizar(nome, norm, sizeof(norm)) == 0 || norm[0] == '\0')
+    {
+        strcpy(norm, "paciente");
+    }
+    snprintf(login, sizeof(login), "pac-%s", norm);
+    while (usuario_repo_login_existe(login))
+    {
+        sufixo++;
+        snprintf(login, sizeof(login), "pac-%s%d", norm, sufixo);
+    }
+
+    if (credencial_gerar_senha(nome, nascimento, senha, sizeof(senha)) == 0)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao gerar senha\"}");
+        return;
+    }
+
+    if (usuario_repo_criar(nome, login, senha, "PACIENTE", pacienteId, 0) != 1)
+    {
+        /* Paciente foi criado; sinaliza que o acesso nao pode ser gerado. */
+        snprintf(corpo, sizeof(corpo),
+            "{\"pacienteId\":%d,\"erro\":\"paciente criado, mas falha ao criar acesso\"}",
+            pacienteId);
+        responder(cliente, "409 Conflict", corpo);
+        return;
+    }
+
+    auditar(s, "CRIAR", "paciente", pacienteId, nome);
+    auditar(s, "CRIAR", "usuario", pacienteId, login);
+
+    snprintf(corpo, sizeof(corpo),
+        "{\"pacienteId\":%d,\"login\":\"%s\",\"senha\":\"%s\"}",
+        pacienteId, login, senha);
+    responder(cliente, "201 Created", corpo);
 }
 
 static void rotaRelatorioIndicadores(int cliente)
@@ -1139,22 +1242,39 @@ static void rotaCriarLeito(int cliente, const char *consulta)
         "{\"erro\":\"dados invalidos para leito\"}");
 }
 
-static void rotaCriarTriagem(int cliente, const char *consulta)
+static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char tipo[16];
     char pontuacao[16];
     char classificacao[64];
+    char queixa[256];
+    char pressao[32];
+    char temperatura[32];
+    char freqCardiaca[32];
+    char saturacao[32];
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "tipo", tipo, sizeof(tipo));
     extrairParam(consulta, "pontuacao", pontuacao, sizeof(pontuacao));
     extrairParam(consulta, "classificacao", classificacao, sizeof(classificacao));
+    extrairParam(consulta, "queixa", queixa, sizeof(queixa));
+    extrairParam(consulta, "pressao", pressao, sizeof(pressao));
+    extrairParam(consulta, "temperatura", temperatura, sizeof(temperatura));
+    extrairParam(consulta, "freq_cardiaca", freqCardiaca, sizeof(freqCardiaca));
+    extrairParam(consulta, "saturacao", saturacao, sizeof(saturacao));
 
-    responderCriacao(cliente,
-        triagem_repo_criar(atoi(pacienteId), atoi(tipo), atoi(pontuacao),
-                           classificacao) == 1,
-        "{\"erro\":\"dados invalidos para triagem\"}");
+    ok = triagem_repo_criar_completa(atoi(pacienteId), atoi(tipo),
+            atoi(pontuacao), classificacao, queixa, pressao, temperatura,
+            freqCardiaca, saturacao) == 1;
+
+    if (ok)
+    {
+        auditar(s, "TRIAGEM", "triagem", atoi(pacienteId), classificacao);
+    }
+
+    responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para triagem\"}");
 }
 
 static void rotaCriarAgendamento(int cliente, const char *consulta)
@@ -1645,6 +1765,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarPaciente(cliente, consulta, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes/buscar") == 0)
+    {
+        rotaBuscarPacientes(cliente, consulta);
+    }
     else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "historico") == 0)
     {
@@ -1673,6 +1797,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicos/%d", &id) == 1)
     {
         rotaDesativarMedico(cliente, id);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/triagem/pacientes") == 0)
+    {
+        rotaTriagemCadastrarPaciente(cliente, consulta, &s);
     }
     else if (sscanf(caminho, "/triagem/%d/%31s", &id, acao) == 2)
     {
@@ -1748,7 +1876,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/triagens") == 0)
     {
-        rotaCriarTriagem(cliente, consulta);
+        rotaCriarTriagem(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/triagens/%d", &id) == 1)
     {

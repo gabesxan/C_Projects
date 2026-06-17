@@ -19,6 +19,7 @@ BUILD = build
 DB_SRC = database/database.c
 JSON_SRC = util/repo_json.c
 SENHA_SRC = util/senha_util.c
+CRED_SRC = util/credencial_util.c
 USUARIO_SRC = repositories/usuario_repository.c
 AUDIT_SRC = repositories/auditoria_repository.c
 
@@ -56,6 +57,7 @@ TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC
 TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_AUDIT = tests/test_auditoria_repository.c $(AUDIT_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_CRED = tests/test_credencial_util.c $(CRED_SRC)
 TEST_PRESC = tests/test_prescricao_repository.c $(PRESC_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
@@ -71,7 +73,7 @@ $(BUILD)/database.o: $(DB_SRC) | $(BUILD)
 # Compila o servidor HTTP (health, cadastros, triagem inteligente e usuarios).
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
-	$(USUARIO_SRC) $(AUDIT_SRC) $(SENHA_SRC) $(PRESC_SRC) \
+	$(USUARIO_SRC) $(AUDIT_SRC) $(SENHA_SRC) $(CRED_SRC) $(PRESC_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS) | $(BUILD)
@@ -110,7 +112,7 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository \
-	test_prescricao_repository test_auditoria_repository
+	test_prescricao_repository test_auditoria_repository test_credencial_util
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -168,6 +170,10 @@ test_auditoria_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_AUDIT) -o $(BUILD)/test_auditoria_repository $(LDLIBS)
 	./$(BUILD)/test_auditoria_repository
 
+test_credencial_util: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_CRED) -o $(BUILD)/test_credencial_util
+	./$(BUILD)/test_credencial_util
+
 clean:
 	rm -rf $(BUILD)
 
@@ -176,4 +182,4 @@ clean:
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository \
-	test_prescricao_repository test_auditoria_repository
+	test_prescricao_repository test_auditoria_repository test_credencial_util

@@ -21,7 +21,23 @@ int paciente_repo_criar(const char *nome,
                         const char *responsavel,
                         const char *alergias);
 
+/* Como paciente_repo_criar, mas devolve em *novo_id o id gerado (usado no
+ * fluxo de triagem para vincular o usuario PACIENTE). 1 = ok, 0 = falha. */
+int paciente_repo_criar_retornando_id(const char *nome,
+                                      const char *nascimento,
+                                      const char *documento,
+                                      const char *tipo_documento,
+                                      const char *telefone,
+                                      const char *sexo,
+                                      int regiao_administrativa,
+                                      const char *responsavel,
+                                      const char *alergias,
+                                      int *novo_id);
+
 int paciente_repo_listar_json(char *buffer, int tamanho);
+
+/* Busca (JSON) pacientes ativos cujo nome ou documento contem 'termo'. */
+int paciente_repo_buscar_json(const char *termo, char *buffer, int tamanho);
 
 /* Escreve (JSON) um unico paciente por id (ativo ou nao, para o historico).
  * Retorna 1 se encontrou, 0 caso contrario. */

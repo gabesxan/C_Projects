@@ -130,15 +130,16 @@ static int nascimentoValido(const char *nascimento)
     return 1;
 }
 
-int paciente_repo_criar(const char *nome,
-                        const char *nascimento,
-                        const char *documento,
-                        const char *tipo_documento,
-                        const char *telefone,
-                        const char *sexo,
-                        int regiao_administrativa,
-                        const char *responsavel,
-                        const char *alergias)
+int paciente_repo_criar_retornando_id(const char *nome,
+                                      const char *nascimento,
+                                      const char *documento,
+                                      const char *tipo_documento,
+                                      const char *telefone,
+                                      const char *sexo,
+                                      int regiao_administrativa,
+                                      const char *responsavel,
+                                      const char *alergias,
+                                      int *novo_id)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
@@ -150,6 +151,11 @@ int paciente_repo_criar(const char *nome,
     const char *tipo = (tipo_documento != NULL && tipo_documento[0] != '\0')
                            ? tipo_documento : "CPF";
     int ok;
+
+    if (novo_id != NULL)
+    {
+        *novo_id = 0;
+    }
 
     /* Cadastro minimo: nome, nascimento, documento, telefone. */
     if (nome == NULL || nome[0] == '\0' ||
@@ -199,9 +205,30 @@ int paciente_repo_criar(const char *nome,
     /* Falha aqui inclui a violacao do indice de CPF unico entre ativos. */
     ok = sqlite3_step(stmt) == SQLITE_DONE;
 
+    if (ok && novo_id != NULL)
+    {
+        *novo_id = (int)sqlite3_last_insert_rowid(db);
+    }
+
     sqlite3_finalize(stmt);
     db_fechar(db);
     return ok ? 1 : 0;
+}
+
+int paciente_repo_criar(const char *nome,
+                        const char *nascimento,
+                        const char *documento,
+                        const char *tipo_documento,
+                        const char *telefone,
+                        const char *sexo,
+                        int regiao_administrativa,
+                        const char *responsavel,
+                        const char *alergias)
+{
+    return paciente_repo_criar_retornando_id(nome, nascimento, documento,
+                                             tipo_documento, telefone, sexo,
+                                             regiao_administrativa, responsavel,
+                                             alergias, NULL);
 }
 
 /* Monta o objeto JSON de um paciente a partir de uma linha posicionada em
@@ -376,6 +403,68 @@ int paciente_repo_detalhe_json(int id, char *buffer, int tamanho)
     sqlite3_finalize(stmt);
     db_fechar(db);
     return encontrado;
+}
+
+int paciente_repo_buscar_json(const char *termo, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT " PACIENTE_COLUNAS " FROM pacientes "
+        "WHERE ativo = 1 AND (nome LIKE ?1 OR documento LIKE ?1) "
+        "ORDER BY nome LIMIT 50;";
+    char like[128];
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0 || termo == NULL)
+    {
+        return 0;
+    }
+
+    snprintf(like, sizeof(like), "%%%s%%", termo);
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, like, -1, SQLITE_TRANSIENT);
+    buffer[0] = '\0';
+
+    if (anexarTexto(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char objeto[1600];
+
+        if (montarPacienteJson(stmt, primeiro ? "" : ",",
+                               objeto, sizeof(objeto)) == 0 ||
+            anexarTexto(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    return anexarTexto(buffer, tamanho, &usado, "]");
 }
 
 int paciente_repo_desativar(int id)

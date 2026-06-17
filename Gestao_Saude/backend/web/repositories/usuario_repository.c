@@ -312,6 +312,41 @@ int usuario_repo_reativar(int id)
     return alteradas > 0 ? 1 : 0;
 }
 
+int usuario_repo_login_existe(const char *login)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT 1 FROM usuarios WHERE login = ? LIMIT 1;";
+    int existe = 0;
+
+    if (login == NULL || login[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, login, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        existe = 1;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return existe;
+}
+
 int usuario_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;

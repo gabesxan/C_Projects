@@ -5,15 +5,18 @@
 #include <stdio.h>
 #include <string.h>
 
-int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
-                       const char *classificacao)
+int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao,
+                                const char *classificacao, const char *queixa,
+                                const char *pressao, const char *temperatura,
+                                const char *freq_cardiaca, const char *saturacao)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "INSERT INTO triagens "
-        "(paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
-        "VALUES (?, ?, ?, ?, 1);";
+        "(paciente_id, tipo_triagem, pontuacao, classificacao, queixa, "
+        "pressao, temperatura, freq_cardiaca, saturacao, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);";
 
     if (paciente_id <= 0 || tipo_triagem <= 0)
     {
@@ -40,6 +43,11 @@ int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
     sqlite3_bind_int(stmt, 2, tipo_triagem);
     sqlite3_bind_int(stmt, 3, pontuacao);
     sqlite3_bind_text(stmt, 4, classificacao, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, queixa != NULL ? queixa : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, pressao != NULL ? pressao : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, temperatura != NULL ? temperatura : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 8, freq_cardiaca != NULL ? freq_cardiaca : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, saturacao != NULL ? saturacao : "", -1, SQLITE_STATIC);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
@@ -51,6 +59,14 @@ int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
     sqlite3_finalize(stmt);
     db_fechar(db);
     return 1;
+}
+
+/* Versao simples (sem sinais vitais): mantida para compatibilidade. */
+int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
+                       const char *classificacao)
+{
+    return triagem_repo_criar_completa(paciente_id, tipo_triagem, pontuacao,
+                                       classificacao, "", "", "", "", "");
 }
 
 int triagem_repo_listar_json(char *buffer, int tamanho)

@@ -21,6 +21,10 @@ int usuario_repo_autenticar(const char *login, const char *senha,
 /* Reativa um usuario previamente desativado. Retorna 1 se reativou. */
 int usuario_repo_reativar(int id);
 
+/* 1 se ja existe um usuario (ativo ou nao) com o login informado; 0 se livre.
+ * Usado para garantir a unicidade do login gerado no fluxo de triagem. */
+int usuario_repo_login_existe(const char *login);
+
 /* Lista (JSON) os usuarios ativos SEM expor senha/hash/salt. */
 int usuario_repo_listar_json(char *buffer, int tamanho);
 
