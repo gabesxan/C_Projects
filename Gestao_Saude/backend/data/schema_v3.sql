@@ -65,6 +65,7 @@ CREATE TABLE agendamentos (
     data TEXT NOT NULL,
     horario TEXT NOT NULL,
     status TEXT NOT NULL,
+    motivo_cancelamento TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (medico_id) REFERENCES medicos(id)
 );
@@ -126,6 +127,8 @@ CREATE TABLE exames (
     resultado TEXT NOT NULL,
     status TEXT NOT NULL,
     urgente INTEGER NOT NULL,
+    resultado_critico INTEGER NOT NULL DEFAULT 0,
+    motivo_cancelamento TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (medico_id) REFERENCES medicos(id),
@@ -139,7 +142,10 @@ CREATE TABLE prescricoes (
     medicamento TEXT NOT NULL,
     dosagem TEXT NOT NULL,
     frequencia TEXT NOT NULL,
+    via TEXT NOT NULL DEFAULT '',
+    duracao TEXT NOT NULL DEFAULT '',
     observacoes TEXT NOT NULL,
+    motivo_suspensao TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (medico_id) REFERENCES medicos(id)

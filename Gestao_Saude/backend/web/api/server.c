@@ -1182,6 +1182,8 @@ static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao 
     char medicamento[128];
     char dosagem[64];
     char frequencia[64];
+    char via[48];
+    char duracao[48];
     char observacoes[512];
     int medico;
     int ok;
@@ -1191,6 +1193,8 @@ static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao 
     extrairParam(consulta, "medicamento", medicamento, sizeof(medicamento));
     extrairParam(consulta, "dosagem", dosagem, sizeof(dosagem));
     extrairParam(consulta, "frequencia", frequencia, sizeof(frequencia));
+    extrairParam(consulta, "via", via, sizeof(via));
+    extrairParam(consulta, "duracao", duracao, sizeof(duracao));
     extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
 
     medico = medicoAutor(s, medicoId);
@@ -1203,7 +1207,8 @@ static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao 
     }
 
     ok = prescricao_repo_criar(atoi(pacienteId), medico, medicamento,
-                               dosagem, frequencia, observacoes) == 1;
+                               dosagem, frequencia, via, duracao,
+                               observacoes) == 1;
 
     if (ok)
     {
@@ -1211,7 +1216,7 @@ static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao 
     }
 
     responderCriacao(cliente, ok,
-        "{\"erro\":\"dados invalidos para prescricao\"}");
+        "{\"erro\":\"dados invalidos ou paciente alergico ao medicamento\"}");
 }
 
 static void rotaCriarAla(int cliente, const char *consulta)
@@ -1894,11 +1899,28 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarAgendamento(cliente, consulta);
     }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/agendamentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "reagendar") == 0)
+    {
+        char data[32];
+        char horario[16];
+        int ok;
+        extrairParam(consulta, "data", data, sizeof(data));
+        extrairParam(consulta, "horario", horario, sizeof(horario));
+        ok = agendamento_repo_reagendar(id, data, horario) == 1;
+        if (ok) auditar(&s, "REAGENDAR", "agendamento", id, data);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"reagendamento invalido (status, grade ou conflito)\"}");
+    }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/agendamentos/%d", &id) == 1)
     {
-        int ok = agendamento_repo_cancelar(id) == 1;
-        if (ok) auditar(&s, "CANCELAR", "agendamento", id, "");
-        responderRemocao(cliente, ok, "{\"erro\":\"agendamento nao encontrado\"}");
+        char motivo[256];
+        int ok;
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = agendamento_repo_cancelar(id, motivo) == 1;
+        if (ok) auditar(&s, "CANCELAR", "agendamento", id, motivo);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"agendamento nao encontrado ou motivo ausente\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios") == 0)
     {
@@ -1912,10 +1934,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarProntuario(cliente, consulta, &s);
     }
-    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prontuarios/%d", &id) == 1)
-    {
-        responderRemocao(cliente, prontuario_repo_desativar(id) == 1, "{\"erro\":\"prontuario nao encontrado\"}");
-    }
+    /* Sem rota de remocao de prontuario: registro clinico nao e apagado. */
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames") == 0)
     {
         rotaListarExames(cliente, papel, authMedicoId);
@@ -1928,11 +1947,43 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarExame(cliente, consulta, &s);
     }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "status") == 0)
+    {
+        char valor[32];
+        int ok;
+        extrairParam(consulta, "valor", valor, sizeof(valor));
+        ok = exame_repo_atualizar_status(id, valor) == 1;
+        if (ok) auditar(&s, "EXAME_STATUS", "exame", id, valor);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"transicao de status invalida\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "resultado") == 0)
+    {
+        char resultado[512];
+        char critico[8];
+        int ok;
+        extrairParam(consulta, "resultado", resultado, sizeof(resultado));
+        extrairParam(consulta, "critico", critico, sizeof(critico));
+        ok = exame_repo_registrar_resultado(id, resultado, atoi(critico)) == 1;
+        if (ok)
+        {
+            auditar(&s, "EXAME_RESULTADO", "exame", id,
+                    atoi(critico) ? "CRITICO" : "");
+        }
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"nao foi possivel registrar resultado (status/coleta)\"}");
+    }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/exames/%d", &id) == 1)
     {
-        int ok = exame_repo_desativar(id) == 1;
-        if (ok) auditar(&s, "CANCELAR", "exame", id, "");
-        responderRemocao(cliente, ok, "{\"erro\":\"exame nao encontrado\"}");
+        char motivo[256];
+        int ok;
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = exame_repo_cancelar(id, motivo) == 1;
+        if (ok) auditar(&s, "CANCELAR", "exame", id, motivo);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"exame nao cancelado (motivo ausente ou ja concluido)\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/internacoes") == 0)
     {
@@ -1965,9 +2016,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prescricoes/%d", &id) == 1)
     {
-        int ok = prescricao_repo_desativar(id) == 1;
-        if (ok) auditar(&s, "SUSPENDER", "prescricao", id, "");
-        responderRemocao(cliente, ok, "{\"erro\":\"prescricao nao encontrada\"}");
+        char motivo[256];
+        int ok;
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = prescricao_repo_desativar(id, motivo) == 1;
+        if (ok) auditar(&s, "SUSPENDER", "prescricao", id, motivo);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"prescricao nao encontrada ou motivo ausente\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {

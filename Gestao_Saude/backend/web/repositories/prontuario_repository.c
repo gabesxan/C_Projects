@@ -32,6 +32,12 @@ int prontuario_repo_criar(int paciente_id, int medico_id, const char *data,
         return 0;
     }
 
+    /* Nao finaliza atendimento sem conduta (regra clinica). */
+    if (conduta[0] == '\0')
+    {
+        return 0;
+    }
+
     if (db_abrir(&db) == 0)
     {
         return 0;

@@ -45,9 +45,21 @@ export default function ResourceList() {
   const podeDeletar = recurso.deleteRoles?.includes(user.papel)
 
   async function remover(row) {
-    if (!window.confirm(`Confirmar: ${recurso.deleteLabel} #${row.id}?`)) return
+    let params = {}
+    // Acoes que exigem motivo (cancelar/suspender) pedem a justificativa.
+    if (recurso.requireReason) {
+      const motivo = window.prompt(`Motivo para ${recurso.deleteLabel.toLowerCase()} #${row.id}:`)
+      if (motivo === null) return
+      if (!motivo.trim()) {
+        setErro('Motivo e obrigatorio.')
+        return
+      }
+      params = { motivo }
+    } else if (!window.confirm(`Confirmar: ${recurso.deleteLabel} #${row.id}?`)) {
+      return
+    }
     try {
-      await apiSend('DELETE', `${recurso.path}/${row.id}`)
+      await apiSend('DELETE', `${recurso.path}/${row.id}`, params)
       carregar()
     } catch (e) {
       setErro(e.message)

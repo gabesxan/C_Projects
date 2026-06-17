@@ -54,8 +54,21 @@ int main(void)
     assert(strstr(json, "\"medicoId\":2") != NULL);
     assert(strstr(json, "\"medicoId\":1") == NULL);
 
-    assert(exame_repo_desativar(1) == 1);
-    assert(exame_repo_contar_ativos() == antes - 1);
+    /* Maquina de estados: SOLICITADO -> AUTORIZADO -> COLETADO -> EM_ANALISE. */
+    assert(exame_repo_atualizar_status(1, "COLETADO") == 0); /* pula etapa */
+    assert(exame_repo_atualizar_status(1, "AUTORIZADO") == 1);
+    assert(exame_repo_atualizar_status(1, "COLETADO") == 1);
+    /* Resultado so apos coleta; marca CONCLUIDO e o flag de critico. */
+    assert(exame_repo_registrar_resultado(1, "Alterado", 1) == 1);
+    assert(exame_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "CONCLUIDO") != NULL);
+    /* Exame concluido nao avanca status nem e cancelado. */
+    assert(exame_repo_atualizar_status(1, "EM_ANALISE") == 0);
+    assert(exame_repo_cancelar(1, "tentativa") == 0);
+
+    /* Cancelamento exige motivo; com motivo, sai dos ativos. */
+    assert(exame_repo_cancelar(2, "") == 0);
+    assert(exame_repo_cancelar(2, "Duplicado") == 1);
     assert(exame_repo_desativar(9999) == 0);
 
     printf("test_exame_repository: OK\n");

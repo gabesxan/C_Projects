@@ -54,9 +54,22 @@ int main(void)
     assert(strstr(json, "2026-06-14") != NULL);
     assert(strstr(json, "AGENDADO") != NULL);
 
+    /* Conflito: mesmo medico, mesmo data/horario (paciente 1 ja ocupa). */
+    assert(agendamento_repo_criar(2, 1, "2026-06-14", "09:00") == 0);
+    /* Conflito: mesmo paciente, mesmo data/horario, outro medico/setor. */
+    assert(agendamento_repo_criar(1, 2, "2026-06-14", "09:00") == 0);
+    /* Medico inexistente/inativo nao agenda. */
+    assert(agendamento_repo_criar(1, 999, "2026-06-14", "10:00") == 0);
+    assert(agendamento_repo_contar_ativos() == 1);
+
     assert(agendamento_repo_criar(2, 2, "2026-06-15", "10:30") == 1);
     antes = agendamento_repo_contar_ativos();
     assert(antes == 2);
+
+    /* Reagendamento valido (status AGENDADO) para slot livre. */
+    assert(agendamento_repo_reagendar(2, "2026-06-15", "11:00") == 1);
+    /* Reagendar para horario fora da grade falha. */
+    assert(agendamento_repo_reagendar(2, "2026-06-15", "11:15") == 0);
 
     /* Escopo por medico: agenda e pacientes do medico 1 (paciente Ana). */
     assert(agendamento_repo_listar_por_medico_json(1, json, sizeof(json)) == 1);
@@ -69,10 +82,11 @@ int main(void)
     assert(strstr(json, "Bia") != NULL);
     assert(strstr(json, "Ana") == NULL);
 
-    /* Cancelar diminui os ativos (status passa a CANCELADO). */
-    assert(agendamento_repo_cancelar(1) == 1);
+    /* Cancelar exige motivo; com motivo, status passa a CANCELADO. */
+    assert(agendamento_repo_cancelar(1, "") == 0);
+    assert(agendamento_repo_cancelar(1, "Paciente faltou") == 1);
     assert(agendamento_repo_contar_ativos() == antes - 1);
-    assert(agendamento_repo_cancelar(9999) == 0);
+    assert(agendamento_repo_cancelar(9999, "x") == 0);
 
     printf("test_agendamento_repository: OK\n");
     return 0;

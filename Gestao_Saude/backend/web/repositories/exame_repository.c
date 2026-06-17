@@ -366,6 +366,172 @@ int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int taman
     return 1;
 }
 
+/* Posicao do status na linha do tempo do exame; -1 se desconhecido. */
+static int ordemStatus(const char *s)
+{
+    if (s == NULL) return -1;
+    if (strcmp(s, "SOLICITADO") == 0) return 0;
+    if (strcmp(s, "AUTORIZADO") == 0) return 1;
+    if (strcmp(s, "COLETADO") == 0) return 2;
+    if (strcmp(s, "EM_ANALISE") == 0) return 3;
+    if (strcmp(s, "CONCLUIDO") == 0) return 4;
+    if (strcmp(s, "CANCELADO") == 0) return 5;
+    return -1;
+}
+
+/* Le o status atual do exame ativo em 'destino'. 1 se encontrou. */
+static int statusAtual(int id, char *destino, int tam)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT status FROM exames WHERE id = ? AND ativo = 1;";
+    int ok = 0;
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char *st = (const char *)sqlite3_column_text(stmt, 0);
+        snprintf(destino, (size_t)tam, "%s", st != NULL ? st : "");
+        ok = 1;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok;
+}
+
+int exame_repo_atualizar_status(int id, const char *novo_status)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "UPDATE exames SET status = ? WHERE id = ? AND ativo = 1;";
+    char atual[32];
+    int ok = 0;
+
+    if (statusAtual(id, atual, sizeof(atual)) == 0)
+    {
+        return 0;
+    }
+
+    /* So avanca um passo na linha do tempo, ate EM_ANALISE. A conclusao se da
+     * pelo registro de resultado; o cancelamento por rota propria. */
+    if (ordemStatus(novo_status) < 1 || ordemStatus(novo_status) > 3 ||
+        ordemStatus(novo_status) != ordemStatus(atual) + 1)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, novo_status, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int exame_repo_registrar_resultado(int id, const char *resultado, int critico)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE exames SET resultado = ?, resultado_critico = ?, "
+        "status = 'CONCLUIDO', data_resultado = datetime('now') "
+        "WHERE id = ? AND ativo = 1;";
+    char atual[32];
+    int ok = 0;
+
+    if (resultado == NULL || resultado[0] == '\0')
+    {
+        return 0;
+    }
+
+    /* Resultado so apos a coleta (COLETADO ou EM_ANALISE). */
+    if (statusAtual(id, atual, sizeof(atual)) == 0 ||
+        (strcmp(atual, "COLETADO") != 0 && strcmp(atual, "EM_ANALISE") != 0))
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, resultado, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, critico ? 1 : 0);
+    sqlite3_bind_int(stmt, 3, id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int exame_repo_cancelar(int id, const char *motivo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE exames SET status = 'CANCELADO', motivo_cancelamento = ?, "
+        "ativo = 0 WHERE id = ? AND ativo = 1 AND status != 'CONCLUIDO';";
+    int ok = 0;
+
+    /* Cancelamento exige motivo; exame concluido nao se cancela. */
+    if (motivo == NULL || motivo[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, motivo, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
 int exame_repo_desativar(int id)
 {
     sqlite3 *db = NULL;

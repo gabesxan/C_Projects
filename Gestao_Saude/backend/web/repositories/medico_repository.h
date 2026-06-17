@@ -18,6 +18,9 @@ int medico_repo_desativar(int id);
 
 int medico_repo_contar_ativos(void);
 
+/* 1 se existe um medico ativo com o id informado; 0 caso contrario. */
+int medico_repo_ativo(int id);
+
 /* Lista (JSON) os medicos ativos de uma especialidade numa regiao. */
 int medico_repo_listar_por_especialidade_regiao_json(const char *especialidade,
                                                      int regiao,

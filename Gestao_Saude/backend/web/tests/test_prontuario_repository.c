@@ -34,6 +34,8 @@ int main(void)
     assert(prontuario_repo_criar(0, 1, "2026-06-14", "x", "y", "z", 0) == 0);
     assert(prontuario_repo_criar(1, 0, "2026-06-14", "x", "y", "z", 0) == 0);
     assert(prontuario_repo_criar(1, 1, "", "x", "y", "z", 0) == 0);
+    /* Nao finaliza atendimento sem conduta. */
+    assert(prontuario_repo_criar(1, 1, "2026-06-14", "x", "y", "", 0) == 0);
     assert(prontuario_repo_contar_ativos() == 1);
 
     assert(prontuario_repo_listar_json(json, sizeof(json)) == 1);

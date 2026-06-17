@@ -82,6 +82,7 @@ export const RESOURCES = [
     createRoles: ['ADMIN', 'MEDICO'],
     deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Cancelar',
+    requireReason: true,
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
@@ -158,6 +159,7 @@ export const RESOURCES = [
     createRoles: ['ADMIN', 'MEDICO'],
     deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Cancelar',
+    requireReason: true,
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
@@ -183,6 +185,7 @@ export const RESOURCES = [
     createRoles: ['ADMIN', 'MEDICO'],
     deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Suspender',
+    requireReason: true,
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
@@ -190,6 +193,8 @@ export const RESOURCES = [
       { key: 'medicamento', label: 'Medicamento' },
       { key: 'dosagem', label: 'Dosagem' },
       { key: 'frequencia', label: 'Frequencia' },
+      { key: 'via', label: 'Via' },
+      { key: 'duracao', label: 'Duracao' },
       { key: 'observacoes', label: 'Observacoes' },
     ],
     createFields: [
@@ -198,6 +203,8 @@ export const RESOURCES = [
       { name: 'medicamento', label: 'Medicamento', type: 'text' },
       { name: 'dosagem', label: 'Dosagem', type: 'text' },
       { name: 'frequencia', label: 'Frequencia', type: 'text' },
+      { name: 'via', label: 'Via', type: 'text' },
+      { name: 'duracao', label: 'Duracao', type: 'text' },
       { name: 'observacoes', label: 'Observacoes', type: 'text' },
     ],
   },
