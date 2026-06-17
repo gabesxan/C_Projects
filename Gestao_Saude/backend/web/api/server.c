@@ -53,12 +53,12 @@ static void responder(int cliente, const char *status, const char *corpo)
 {
     char cabecalho[256];
     int n = snprintf(cabecalho, sizeof(cabecalho),
-        "HTTP/1.1 %s\r\n"
-        "Content-Type: application/json\r\n"
-        "Content-Length: %d\r\n"
-        "Connection: close\r\n"
-        "\r\n",
-        status, (int)strlen(corpo));
+                     "HTTP/1.1 %s\r\n"
+                     "Content-Type: application/json\r\n"
+                     "Content-Length: %d\r\n"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     status, (int)strlen(corpo));
 
     if (n > 0)
     {
@@ -193,11 +193,16 @@ static int extrairParam(const char *consulta, const char *chave,
 
 static int base64Valor(char c)
 {
-    if (c >= 'A' && c <= 'Z') return c - 'A';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if (c >= '0' && c <= '9') return c - '0' + 52;
-    if (c == '+') return 62;
-    if (c == '/') return 63;
+    if (c >= 'A' && c <= 'Z')
+        return c - 'A';
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 26;
+    if (c >= '0' && c <= '9')
+        return c - '0' + 52;
+    if (c == '+')
+        return 62;
+    if (c == '/')
+        return 63;
     return -1;
 }
 
@@ -326,6 +331,13 @@ static int comecaCom(const char *texto, const char *prefixo)
     return strncmp(texto, prefixo, strlen(prefixo)) == 0;
 }
 
+static int terminaCom(const char *texto, const char *sufixo)
+{
+    size_t lt = strlen(texto);
+    size_t ls = strlen(sufixo);
+    return lt >= ls && strcmp(texto + lt - ls, sufixo) == 0;
+}
+
 static int ehRotaMe(const char *caminho)
 {
     return strcmp(caminho, "/me") == 0 || comecaCom(caminho, "/me/");
@@ -389,11 +401,22 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
             return strcmp(metodo, "GET") == 0 || strcmp(metodo, "POST") == 0;
         }
 
-        /* Acompanhamento de internacao/leitos/prescricoes: somente leitura. */
+        /* Enfermagem gerencia status de leito e transfere internacao. */
+        if (comecaCom(caminho, "/leitos"))
+        {
+            return strcmp(metodo, "GET") == 0 ||
+                   (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/status"));
+        }
+
+        if (comecaCom(caminho, "/internacoes"))
+        {
+            return strcmp(metodo, "GET") == 0 ||
+                   (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/transferir"));
+        }
+
+        /* Acompanhamento de alas/medicos/prescricoes: somente leitura. */
         return strcmp(metodo, "GET") == 0 &&
-               (comecaCom(caminho, "/internacoes") ||
-                comecaCom(caminho, "/leitos") ||
-                comecaCom(caminho, "/alas") ||
+               (comecaCom(caminho, "/alas") ||
                 comecaCom(caminho, "/medicos") ||
                 comecaCom(caminho, "/prescricoes"));
     }
@@ -607,8 +630,12 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
     {
         responder(cliente, "403 Forbidden",
                   "{\"erro\":\"sem acesso ao historico clinico\"}");
-        free(prontuarios); free(exames); free(prescricoes);
-        free(triagens); free(agendamentos); free(saida);
+        free(prontuarios);
+        free(exames);
+        free(prescricoes);
+        free(triagens);
+        free(agendamentos);
+        free(saida);
         return;
     }
 
@@ -620,9 +647,9 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
         agendamento_repo_listar_por_paciente_json(id, agendamentos, TAM_JSON) == 1)
     {
         int n = snprintf(saida, TAM_JSON,
-            "{\"prontuarios\":%s,\"exames\":%s,\"prescricoes\":%s,"
-            "\"triagens\":%s,\"agendamentos\":%s}",
-            prontuarios, exames, prescricoes, triagens, agendamentos);
+                         "{\"prontuarios\":%s,\"exames\":%s,\"prescricoes\":%s,"
+                         "\"triagens\":%s,\"agendamentos\":%s}",
+                         prontuarios, exames, prescricoes, triagens, agendamentos);
         ok = (n > 0 && n < TAM_JSON);
     }
 
@@ -636,8 +663,12 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
                   "{\"erro\":\"falha ao montar historico\"}");
     }
 
-    free(prontuarios); free(exames); free(prescricoes);
-    free(triagens); free(agendamentos); free(saida);
+    free(prontuarios);
+    free(exames);
+    free(prescricoes);
+    free(triagens);
+    free(agendamentos);
+    free(saida);
 }
 
 static void rotaListarMedicos(int cliente)
@@ -874,8 +905,9 @@ static void rotaTriagemCadastrarPaciente(int cliente, const char *consulta,
     extrairParam(consulta, "alergias", alergias, sizeof(alergias));
 
     if (paciente_repo_criar_retornando_id(nome, nascimento, documento,
-            tipoDocumento, telefone, sexo, atoi(regiaoStr), responsavel,
-            alergias, &pacienteId) != 1 || pacienteId <= 0)
+                                          tipoDocumento, telefone, sexo, atoi(regiaoStr), responsavel,
+                                          alergias, &pacienteId) != 1 ||
+        pacienteId <= 0)
     {
         responder(cliente, "400 Bad Request",
                   "{\"erro\":\"dados invalidos (verifique nascimento, documento, "
@@ -906,8 +938,8 @@ static void rotaTriagemCadastrarPaciente(int cliente, const char *consulta,
     {
         /* Paciente foi criado; sinaliza que o acesso nao pode ser gerado. */
         snprintf(corpo, sizeof(corpo),
-            "{\"pacienteId\":%d,\"erro\":\"paciente criado, mas falha ao criar acesso\"}",
-            pacienteId);
+                 "{\"pacienteId\":%d,\"erro\":\"paciente criado, mas falha ao criar acesso\"}",
+                 pacienteId);
         responder(cliente, "409 Conflict", corpo);
         return;
     }
@@ -916,8 +948,8 @@ static void rotaTriagemCadastrarPaciente(int cliente, const char *consulta,
     auditar(s, "CRIAR", "usuario", pacienteId, login);
 
     snprintf(corpo, sizeof(corpo),
-        "{\"pacienteId\":%d,\"login\":\"%s\",\"senha\":\"%s\"}",
-        pacienteId, login, senha);
+             "{\"pacienteId\":%d,\"login\":\"%s\",\"senha\":\"%s\"}",
+             pacienteId, login, senha);
     responder(cliente, "201 Created", corpo);
 }
 
@@ -1216,7 +1248,7 @@ static void rotaCriarPrescricao(int cliente, const char *consulta, const Sessao 
     }
 
     responderCriacao(cliente, ok,
-        "{\"erro\":\"dados invalidos ou paciente alergico ao medicamento\"}");
+                     "{\"erro\":\"dados invalidos ou paciente alergico ao medicamento\"}");
 }
 
 static void rotaCriarAla(int cliente, const char *consulta)
@@ -1230,8 +1262,8 @@ static void rotaCriarAla(int cliente, const char *consulta)
     extrairParam(consulta, "total_leitos", totalLeitos, sizeof(totalLeitos));
 
     responderCriacao(cliente,
-        ala_repo_criar(nome, atoi(tipo), atoi(totalLeitos)) == 1,
-        "{\"erro\":\"dados invalidos para ala\"}");
+                     ala_repo_criar(nome, atoi(tipo), atoi(totalLeitos)) == 1,
+                     "{\"erro\":\"dados invalidos para ala\"}");
 }
 
 static void rotaCriarLeito(int cliente, const char *consulta)
@@ -1243,8 +1275,8 @@ static void rotaCriarLeito(int cliente, const char *consulta)
     extrairParam(consulta, "numero", numero, sizeof(numero));
 
     responderCriacao(cliente,
-        leito_repo_criar(atoi(alaId), atoi(numero)) == 1,
-        "{\"erro\":\"dados invalidos para leito\"}");
+                     leito_repo_criar(atoi(alaId), atoi(numero)) == 1,
+                     "{\"erro\":\"dados invalidos para leito\"}");
 }
 
 static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
@@ -1271,8 +1303,8 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
     extrairParam(consulta, "saturacao", saturacao, sizeof(saturacao));
 
     ok = triagem_repo_criar_completa(atoi(pacienteId), atoi(tipo),
-            atoi(pontuacao), classificacao, queixa, pressao, temperatura,
-            freqCardiaca, saturacao) == 1;
+                                     atoi(pontuacao), classificacao, queixa, pressao, temperatura,
+                                     freqCardiaca, saturacao) == 1;
 
     if (ok)
     {
@@ -1295,8 +1327,8 @@ static void rotaCriarAgendamento(int cliente, const char *consulta)
     extrairParam(consulta, "horario", horario, sizeof(horario));
 
     responderCriacao(cliente,
-        agendamento_repo_criar(atoi(pacienteId), atoi(medicoId), data, horario) == 1,
-        "{\"erro\":\"dados invalidos para agendamento\"}");
+                     agendamento_repo_criar(atoi(pacienteId), atoi(medicoId), data, horario) == 1,
+                     "{\"erro\":\"dados invalidos para agendamento\"}");
 }
 
 static void rotaCriarProntuario(int cliente, const char *consulta, const Sessao *s)
@@ -1338,7 +1370,7 @@ static void rotaCriarProntuario(int cliente, const char *consulta, const Sessao 
     }
 
     responderCriacao(cliente, ok,
-        "{\"erro\":\"dados invalidos para prontuario\"}");
+                     "{\"erro\":\"dados invalidos para prontuario\"}");
 }
 
 static void rotaCriarExame(int cliente, const char *consulta, const Sessao *s)
@@ -1379,41 +1411,97 @@ static void rotaCriarExame(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para exame\"}");
 }
 
-static void rotaCriarInternacao(int cliente, const char *consulta)
+static void rotaCriarInternacao(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char alaId[16];
     char leitoId[16];
     char dataEntrada[32];
+    char responsavel[128];
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "ala_id", alaId, sizeof(alaId));
     extrairParam(consulta, "leito_id", leitoId, sizeof(leitoId));
     extrairParam(consulta, "data_entrada", dataEntrada, sizeof(dataEntrada));
+    extrairParam(consulta, "responsavel", responsavel, sizeof(responsavel));
 
-    responderCriacao(cliente,
-        internacao_repo_criar(atoi(pacienteId), atoi(alaId), atoi(leitoId),
-                              dataEntrada) == 1,
-        "{\"erro\":\"dados invalidos para internacao\"}");
+    ok = internacao_repo_criar(atoi(pacienteId), atoi(alaId), atoi(leitoId),
+                               dataEntrada, responsavel) == 1;
+
+    if (ok)
+    {
+        auditar(s, "INTERNAR", "internacao", atoi(pacienteId), responsavel);
+    }
+
+    responderCriacao(cliente, ok,
+        "{\"erro\":\"dados invalidos ou leito indisponivel\"}");
 }
 
 static void rotaInternacaoAlta(int cliente, int id, const char *consulta,
                                const Sessao *s)
 {
     char data[32];
+    char resumo[512];
+    char diagnostico[256];
+    char orientacoes[512];
 
     extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "resumo", resumo, sizeof(resumo));
+    extrairParam(consulta, "diagnostico", diagnostico, sizeof(diagnostico));
+    extrairParam(consulta, "orientacoes", orientacoes, sizeof(orientacoes));
 
-    if (internacao_repo_dar_alta(id, data) == 1)
+    if (internacao_repo_dar_alta(id, data, resumo, diagnostico, orientacoes) == 1)
     {
-        auditar(s, "ALTA", "internacao", id, data);
+        auditar(s, "ALTA", "internacao", id, diagnostico);
         responder(cliente, "200 OK", "{\"status\":\"alta registrada\"}");
     }
     else
     {
         responder(cliente, "409 Conflict",
-                  "{\"erro\":\"internacao nao encontrada ou ja com alta\"}");
+                  "{\"erro\":\"internacao invalida, sem alta, ou falta resumo/diagnostico\"}");
     }
+}
+
+static void rotaInternacaoTransferir(int cliente, int id, const char *consulta,
+                                     const Sessao *s)
+{
+    char leito[16];
+    char data[32];
+    char responsavel[128];
+    int ok;
+
+    extrairParam(consulta, "leito_id", leito, sizeof(leito));
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "responsavel", responsavel, sizeof(responsavel));
+
+    ok = internacao_repo_transferir(id, atoi(leito), data, responsavel) == 1;
+
+    if (ok)
+    {
+        auditar(s, "TRANSFERIR", "internacao", id, responsavel);
+    }
+
+    responderRemocao(cliente, ok,
+        "{\"erro\":\"transferencia invalida (internacao/leito destino)\"}");
+}
+
+static void rotaLeitoStatus(int cliente, int id, const char *consulta,
+                            const Sessao *s)
+{
+    char valor[32];
+    int ok;
+
+    extrairParam(consulta, "valor", valor, sizeof(valor));
+    ok = leito_repo_registrar_status(id, valor, s->login) == 1;
+
+    if (ok)
+    {
+        auditar(s, "LEITO_STATUS", "leito", id, valor);
+    }
+
+    responderRemocao(cliente, ok,
+        "{\"erro\":\"status de leito invalido\"}");
 }
 
 static void rotaCriarUsuario(int cliente, const char *consulta, const Sessao *s)
@@ -1451,8 +1539,8 @@ static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_i
     char corpo[160];
 
     snprintf(corpo, sizeof(corpo),
-        "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
-        papel, paciente_id, medico_id);
+             "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
+             papel, paciente_id, medico_id);
     responder(cliente, "200 OK", corpo);
 }
 
@@ -1464,8 +1552,8 @@ static void rotaLogin(int cliente, const Sessao *s)
 
     auditar(s, "LOGIN", "usuario", s->usuario_id, s->login);
     snprintf(corpo, sizeof(corpo),
-        "{\"papel\":\"%s\",\"login\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
-        s->papel, s->login, s->paciente_id, s->medico_id);
+             "{\"papel\":\"%s\",\"login\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
+             s->papel, s->login, s->paciente_id, s->medico_id);
     responder(cliente, "200 OK", corpo);
 }
 
@@ -1580,15 +1668,24 @@ static const char *tipoConteudo(const char *caminho)
 {
     const char *ext = strrchr(caminho, '.');
 
-    if (ext == NULL) return "application/octet-stream";
-    if (strcmp(ext, ".html") == 0) return "text/html; charset=utf-8";
-    if (strcmp(ext, ".js") == 0) return "text/javascript";
-    if (strcmp(ext, ".css") == 0) return "text/css";
-    if (strcmp(ext, ".svg") == 0) return "image/svg+xml";
-    if (strcmp(ext, ".json") == 0) return "application/json";
-    if (strcmp(ext, ".ico") == 0) return "image/x-icon";
-    if (strcmp(ext, ".png") == 0) return "image/png";
-    if (strcmp(ext, ".woff2") == 0) return "font/woff2";
+    if (ext == NULL)
+        return "application/octet-stream";
+    if (strcmp(ext, ".html") == 0)
+        return "text/html; charset=utf-8";
+    if (strcmp(ext, ".js") == 0)
+        return "text/javascript";
+    if (strcmp(ext, ".css") == 0)
+        return "text/css";
+    if (strcmp(ext, ".svg") == 0)
+        return "image/svg+xml";
+    if (strcmp(ext, ".json") == 0)
+        return "application/json";
+    if (strcmp(ext, ".ico") == 0)
+        return "image/x-icon";
+    if (strcmp(ext, ".png") == 0)
+        return "image/png";
+    if (strcmp(ext, ".woff2") == 0)
+        return "font/woff2";
     return "application/octet-stream";
 }
 
@@ -1602,7 +1699,8 @@ static int enviarArquivo(int cliente, const char *caminhoArquivo)
     long tam;
     int n;
 
-    if (f == NULL) return 0;
+    if (f == NULL)
+        return 0;
 
     if (fseek(f, 0, SEEK_END) != 0 || (tam = ftell(f)) < 0 ||
         fseek(f, 0, SEEK_SET) != 0)
@@ -1627,12 +1725,12 @@ static int enviarArquivo(int cliente, const char *caminhoArquivo)
     fclose(f);
 
     n = snprintf(cabecalho, sizeof(cabecalho),
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: %s\r\n"
-        "Content-Length: %ld\r\n"
-        "Connection: close\r\n"
-        "\r\n",
-        tipoConteudo(caminhoArquivo), tam);
+                 "HTTP/1.1 200 OK\r\n"
+                 "Content-Type: %s\r\n"
+                 "Content-Length: %ld\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 tipoConteudo(caminhoArquivo), tam);
 
     if (n > 0)
     {
@@ -1863,9 +1961,19 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         responderContagem(cliente, leito_repo_contar_ativos);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/leitos/ocupacao") == 0)
+    {
+        responderLista(cliente, leito_repo_ocupacao_json,
+                       "{\"erro\":\"falha ao calcular ocupacao\"}");
+    }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/leitos") == 0)
     {
         rotaCriarLeito(cliente, consulta);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/leitos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "status") == 0)
+    {
+        rotaLeitoStatus(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/leitos/%d", &id) == 1)
     {
@@ -1908,9 +2016,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         extrairParam(consulta, "data", data, sizeof(data));
         extrairParam(consulta, "horario", horario, sizeof(horario));
         ok = agendamento_repo_reagendar(id, data, horario) == 1;
-        if (ok) auditar(&s, "REAGENDAR", "agendamento", id, data);
+        if (ok)
+            auditar(&s, "REAGENDAR", "agendamento", id, data);
         responderRemocao(cliente, ok,
-            "{\"erro\":\"reagendamento invalido (status, grade ou conflito)\"}");
+                         "{\"erro\":\"reagendamento invalido (status, grade ou conflito)\"}");
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/agendamentos/%d", &id) == 1)
     {
@@ -1918,9 +2027,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok;
         extrairParam(consulta, "motivo", motivo, sizeof(motivo));
         ok = agendamento_repo_cancelar(id, motivo) == 1;
-        if (ok) auditar(&s, "CANCELAR", "agendamento", id, motivo);
+        if (ok)
+            auditar(&s, "CANCELAR", "agendamento", id, motivo);
         responderRemocao(cliente, ok,
-            "{\"erro\":\"agendamento nao encontrado ou motivo ausente\"}");
+                         "{\"erro\":\"agendamento nao encontrado ou motivo ausente\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prontuarios") == 0)
     {
@@ -1954,9 +2064,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok;
         extrairParam(consulta, "valor", valor, sizeof(valor));
         ok = exame_repo_atualizar_status(id, valor) == 1;
-        if (ok) auditar(&s, "EXAME_STATUS", "exame", id, valor);
+        if (ok)
+            auditar(&s, "EXAME_STATUS", "exame", id, valor);
         responderRemocao(cliente, ok,
-            "{\"erro\":\"transicao de status invalida\"}");
+                         "{\"erro\":\"transicao de status invalida\"}");
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "resultado") == 0)
@@ -1973,7 +2084,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
                     atoi(critico) ? "CRITICO" : "");
         }
         responderRemocao(cliente, ok,
-            "{\"erro\":\"nao foi possivel registrar resultado (status/coleta)\"}");
+                         "{\"erro\":\"nao foi possivel registrar resultado (status/coleta)\"}");
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/exames/%d", &id) == 1)
     {
@@ -1981,9 +2092,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok;
         extrairParam(consulta, "motivo", motivo, sizeof(motivo));
         ok = exame_repo_cancelar(id, motivo) == 1;
-        if (ok) auditar(&s, "CANCELAR", "exame", id, motivo);
+        if (ok)
+            auditar(&s, "CANCELAR", "exame", id, motivo);
         responderRemocao(cliente, ok,
-            "{\"erro\":\"exame nao cancelado (motivo ausente ou ja concluido)\"}");
+                         "{\"erro\":\"exame nao cancelado (motivo ausente ou ja concluido)\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/internacoes") == 0)
     {
@@ -1995,12 +2107,17 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/internacoes") == 0)
     {
-        rotaCriarInternacao(cliente, consulta);
+        rotaCriarInternacao(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/internacoes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "alta") == 0)
     {
         rotaInternacaoAlta(cliente, id, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/internacoes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "transferir") == 0)
+    {
+        rotaInternacaoTransferir(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/prescricoes") == 0)
     {
@@ -2020,9 +2137,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok;
         extrairParam(consulta, "motivo", motivo, sizeof(motivo));
         ok = prescricao_repo_desativar(id, motivo) == 1;
-        if (ok) auditar(&s, "SUSPENDER", "prescricao", id, motivo);
+        if (ok)
+            auditar(&s, "SUSPENDER", "prescricao", id, motivo);
         responderRemocao(cliente, ok,
-            "{\"erro\":\"prescricao nao encontrada ou motivo ausente\"}");
+                         "{\"erro\":\"prescricao nao encontrada ou motivo ausente\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/relatorios/indicadores") == 0)
     {
@@ -2083,14 +2201,16 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/usuarios/%d", &id) == 1)
     {
         int ok = usuario_repo_desativar(id) == 1;
-        if (ok) auditar(&s, "DESATIVAR", "usuario", id, "");
+        if (ok)
+            auditar(&s, "DESATIVAR", "usuario", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"usuario nao encontrado\"}");
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/usuarios/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "reativar") == 0)
     {
         int ok = usuario_repo_reativar(id) == 1;
-        if (ok) auditar(&s, "REATIVAR", "usuario", id, "");
+        if (ok)
+            auditar(&s, "REATIVAR", "usuario", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"usuario nao encontrado ou ja ativo\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria") == 0)

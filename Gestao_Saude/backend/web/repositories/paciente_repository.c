@@ -7,7 +7,7 @@
 
 /* Colunas (e ordem) usadas em toda leitura de paciente, para montar o JSON
  * num so lugar (montarPacienteJson). */
-#define PACIENTE_COLUNAS \
+#define PACIENTE_COLUNAS                                                \
     "id, nome, nascimento, documento, tipo_documento, telefone, sexo, " \
     "regiao_administrativa, responsavel, alergias, ativo"
 
@@ -149,7 +149,8 @@ int paciente_repo_criar_retornando_id(const char *nome,
         "regiao_administrativa, responsavel, alergias, ativo) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);";
     const char *tipo = (tipo_documento != NULL && tipo_documento[0] != '\0')
-                           ? tipo_documento : "CPF";
+                           ? tipo_documento
+                           : "CPF";
     int ok;
 
     if (novo_id != NULL)
@@ -270,12 +271,12 @@ static int montarPacienteJson(sqlite3_stmt *stmt, const char *prefixo,
     }
 
     escrito = snprintf(objeto, (size_t)tam,
-        "%s{\"id\":%d,\"nome\":%s,\"nascimento\":%s,\"idade\":%d,"
-        "\"documento\":%s,\"tipoDocumento\":%s,\"telefone\":%s,\"sexo\":%s,"
-        "\"regiaoAdministrativa\":%d,\"responsavel\":%s,\"alergias\":%s,"
-        "\"ativo\":%d}",
-        prefixo, id, nomeJson, nascJson, idadeDe(nascimento), docJson, tipoJson,
-        telefoneJson, sexoJson, regiao, responsavelJson, alergiasJson, ativo);
+                       "%s{\"id\":%d,\"nome\":%s,\"nascimento\":%s,\"idade\":%d,"
+                       "\"documento\":%s,\"tipoDocumento\":%s,\"telefone\":%s,\"sexo\":%s,"
+                       "\"regiaoAdministrativa\":%d,\"responsavel\":%s,\"alergias\":%s,"
+                       "\"ativo\":%d}",
+                       prefixo, id, nomeJson, nascJson, idadeDe(nascimento), docJson, tipoJson,
+                       telefoneJson, sexoJson, regiao, responsavelJson, alergiasJson, ativo);
 
     return (escrito > 0 && escrito < tam) ? 1 : 0;
 }
@@ -583,8 +584,8 @@ int paciente_repo_distribuicao_por_regiao_json(char *buffer, int tamanho)
         int escrito;
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"regiao\":%d,\"total\":%d}",
-            primeiro ? "" : ",", regiao, total);
+                           "%s{\"regiao\":%d,\"total\":%d}",
+                           primeiro ? "" : ",", regiao, total);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

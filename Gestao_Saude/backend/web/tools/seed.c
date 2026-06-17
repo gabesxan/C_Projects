@@ -13,6 +13,8 @@
 #include "usuario_repository.h"
 #include "paciente_repository.h"
 #include "medico_repository.h"
+#include "ala_repository.h"
+#include "leito_repository.h"
 
 #include <stdio.h>
 
@@ -63,6 +65,16 @@ int main(int argc, char *argv[])
                             "61999990000", "M", 1, "", "Penicilina") != 1)
     {
         fprintf(stderr, "falha ao criar paciente de exemplo\n");
+        return 1;
+    }
+
+    /* Uma ala com tres leitos para a gestao de internacao/enfermagem. */
+    if (ala_repo_criar("Ala A - Clinica Medica", 1, 3) != 1 ||
+        leito_repo_criar(1, 101) != 1 ||
+        leito_repo_criar(1, 102) != 1 ||
+        leito_repo_criar(1, 103) != 1)
+    {
+        fprintf(stderr, "falha ao criar ala/leitos de exemplo\n");
         return 1;
     }
 

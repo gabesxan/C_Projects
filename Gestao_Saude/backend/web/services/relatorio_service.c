@@ -48,13 +48,13 @@ int relatorio_service_indicadores_json(char *buffer, int tamanho)
     casosGraves = emergencia + muitoPrioritario;
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacientesAtivos\":%d,\"medicosAtivos\":%d,\"triagensAtivas\":%d,"
-        "\"agendamentosAtivos\":%d,\"triagensPorClassificacao\":{"
-        "\"emergencia\":%d,\"muitoPrioritario\":%d,\"prioritario\":%d,"
-        "\"comum\":%d,\"orientacaoBasica\":%d},\"casosGraves\":%d}",
-        pacientes, medicos, triagens, agendamentos,
-        emergencia, muitoPrioritario, prioritario, comum, orientacaoBasica,
-        casosGraves);
+                       "{\"pacientesAtivos\":%d,\"medicosAtivos\":%d,\"triagensAtivas\":%d,"
+                       "\"agendamentosAtivos\":%d,\"triagensPorClassificacao\":{"
+                       "\"emergencia\":%d,\"muitoPrioritario\":%d,\"prioritario\":%d,"
+                       "\"comum\":%d,\"orientacaoBasica\":%d},\"casosGraves\":%d}",
+                       pacientes, medicos, triagens, agendamentos,
+                       emergencia, muitoPrioritario, prioritario, comum, orientacaoBasica,
+                       casosGraves);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -88,8 +88,8 @@ int relatorio_service_distribuicao_json(char *buffer, int tamanho)
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacientesPorRegiao\":%s,\"medicosPorEspecialidade\":%s}",
-        porRegiao, porEspecialidade);
+                       "{\"pacientesPorRegiao\":%s,\"medicosPorEspecialidade\":%s}",
+                       porRegiao, porEspecialidade);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -135,8 +135,8 @@ int relatorio_service_agendamentos_periodo_json(const char *inicio,
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"inicio\":%s,\"fim\":%s,\"total\":%d,\"porDia\":%s}",
-        inicioJson, fimJson, total, porDia);
+                       "{\"inicio\":%s,\"fim\":%s,\"total\":%d,\"porDia\":%s}",
+                       inicioJson, fimJson, total, porDia);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -170,9 +170,9 @@ int relatorio_service_resumo_medico_json(int medico_id, char *buffer, int tamanh
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"medicoId\":%d,\"pacientes\":%d,\"agendamentos\":%d,"
-        "\"prontuarios\":%d,\"exames\":%d}",
-        medico_id, pacientes, agendamentos, prontuarios, exames);
+                       "{\"medicoId\":%d,\"pacientes\":%d,\"agendamentos\":%d,"
+                       "\"prontuarios\":%d,\"exames\":%d}",
+                       medico_id, pacientes, agendamentos, prontuarios, exames);
 
     if (escrito < 0 || escrito >= tamanho)
     {

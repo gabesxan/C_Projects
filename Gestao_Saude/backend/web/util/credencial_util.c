@@ -12,25 +12,60 @@ static char baseDeAcento(unsigned char b)
 {
     switch (b)
     {
-        case 0xA1: case 0xA0: case 0xA2: case 0xA3: case 0xA4: /* a com acento */
-        case 0x81: case 0x80: case 0x82: case 0x83: case 0x84: /* A com acento */
-            return 'a';
-        case 0xA9: case 0xA8: case 0xAA: case 0xAB:
-        case 0x89: case 0x88: case 0x8A: case 0x8B:
-            return 'e';
-        case 0xAD: case 0xAC: case 0xAE: case 0xAF:
-        case 0x8D: case 0x8C: case 0x8E: case 0x8F:
-            return 'i';
-        case 0xB3: case 0xB2: case 0xB4: case 0xB5: case 0xB6:
-        case 0x93: case 0x92: case 0x94: case 0x95: case 0x96:
-            return 'o';
-        case 0xBA: case 0xB9: case 0xBB: case 0xBC:
-        case 0x9A: case 0x99: case 0x9B: case 0x9C:
-            return 'u';
-        case 0xA7: case 0x87: /* c cedilha */
-            return 'c';
-        default:
-            return 0;
+    case 0xA1:
+    case 0xA0:
+    case 0xA2:
+    case 0xA3:
+    case 0xA4: /* a com acento */
+    case 0x81:
+    case 0x80:
+    case 0x82:
+    case 0x83:
+    case 0x84: /* A com acento */
+        return 'a';
+    case 0xA9:
+    case 0xA8:
+    case 0xAA:
+    case 0xAB:
+    case 0x89:
+    case 0x88:
+    case 0x8A:
+    case 0x8B:
+        return 'e';
+    case 0xAD:
+    case 0xAC:
+    case 0xAE:
+    case 0xAF:
+    case 0x8D:
+    case 0x8C:
+    case 0x8E:
+    case 0x8F:
+        return 'i';
+    case 0xB3:
+    case 0xB2:
+    case 0xB4:
+    case 0xB5:
+    case 0xB6:
+    case 0x93:
+    case 0x92:
+    case 0x94:
+    case 0x95:
+    case 0x96:
+        return 'o';
+    case 0xBA:
+    case 0xB9:
+    case 0xBB:
+    case 0xBC:
+    case 0x9A:
+    case 0x99:
+    case 0x9B:
+    case 0x9C:
+        return 'u';
+    case 0xA7:
+    case 0x87: /* c cedilha */
+        return 'c';
+    default:
+        return 0;
     }
 }
 

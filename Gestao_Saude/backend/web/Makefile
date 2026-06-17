@@ -81,7 +81,7 @@ api: $(API_DEPS) | $(BUILD)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
-	$(JSON_SRC) $(DB_SRC)
+	$(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC)
 
 seed: $(SEED_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(SEED_DEPS) -o $(BUILD)/seed $(LDLIBS) $(CRYPTO_LIBS)

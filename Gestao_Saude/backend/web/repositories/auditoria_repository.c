@@ -103,15 +103,15 @@ int auditoria_listar_json(char *buffer, int tamanho)
         int escrito;
 
         if (repo_json_escapar(loginJson, sizeof(loginJson),
-                (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
+                              (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
             repo_json_escapar(acaoJson, sizeof(acaoJson),
-                (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
+                              (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
             repo_json_escapar(entidadeJson, sizeof(entidadeJson),
-                (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
+                              (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
             repo_json_escapar(detalheJson, sizeof(detalheJson),
-                (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
+                              (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
             repo_json_escapar(criadoJson, sizeof(criadoJson),
-                (const char *)sqlite3_column_text(stmt, 7)) == 0)
+                              (const char *)sqlite3_column_text(stmt, 7)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -119,11 +119,11 @@ int auditoria_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"usuarioId\":%d,\"usuarioLogin\":%s,\"acao\":%s,"
-            "\"entidade\":%s,\"entidadeId\":%d,\"detalhe\":%s,\"criadoEm\":%s}",
-            primeiro ? "" : ",",
-            id, usuarioId, loginJson, acaoJson, entidadeJson, entidadeId,
-            detalheJson, criadoJson);
+                           "%s{\"id\":%d,\"usuarioId\":%d,\"usuarioLogin\":%s,\"acao\":%s,"
+                           "\"entidade\":%s,\"entidadeId\":%d,\"detalhe\":%s,\"criadoEm\":%s}",
+                           primeiro ? "" : ",",
+                           id, usuarioId, loginJson, acaoJson, entidadeJson, entidadeId,
+                           detalheJson, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

@@ -122,13 +122,13 @@ int exame_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
-            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
-            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, prontuarioId, tipoExame,
-            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
-            urgente);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+                           "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
+                           "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, prontuarioId, tipoExame,
+                           dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
+                           urgente);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -226,13 +226,13 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
-            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
-            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, prontuarioId, tipoExame,
-            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
-            urgente);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+                           "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
+                           "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, prontuarioId, tipoExame,
+                           dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
+                           urgente);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -330,13 +330,13 @@ int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int taman
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
-            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
-            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, prontuarioId, tipoExame,
-            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
-            urgente);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+                           "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
+                           "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, prontuarioId, tipoExame,
+                           dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
+                           urgente);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -369,13 +369,20 @@ int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int taman
 /* Posicao do status na linha do tempo do exame; -1 se desconhecido. */
 static int ordemStatus(const char *s)
 {
-    if (s == NULL) return -1;
-    if (strcmp(s, "SOLICITADO") == 0) return 0;
-    if (strcmp(s, "AUTORIZADO") == 0) return 1;
-    if (strcmp(s, "COLETADO") == 0) return 2;
-    if (strcmp(s, "EM_ANALISE") == 0) return 3;
-    if (strcmp(s, "CONCLUIDO") == 0) return 4;
-    if (strcmp(s, "CANCELADO") == 0) return 5;
+    if (s == NULL)
+        return -1;
+    if (strcmp(s, "SOLICITADO") == 0)
+        return 0;
+    if (strcmp(s, "AUTORIZADO") == 0)
+        return 1;
+    if (strcmp(s, "COLETADO") == 0)
+        return 2;
+    if (strcmp(s, "EM_ANALISE") == 0)
+        return 3;
+    if (strcmp(s, "CONCLUIDO") == 0)
+        return 4;
+    if (strcmp(s, "CANCELADO") == 0)
+        return 5;
     return -1;
 }
 

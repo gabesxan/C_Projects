@@ -79,16 +79,31 @@ CREATE TABLE alas (
     ativo INTEGER NOT NULL
 );
 
+-- Leitos. 'status' substitui o antigo booleano 'ocupado' por um enum:
+-- DISPONIVEL | OCUPADO | HIGIENIZACAO | MANUTENCAO | BLOQUEADO.
+-- paciente_id (0 = nenhum) guarda quem ocupa o leito no momento.
 CREATE TABLE leitos (
     id INTEGER PRIMARY KEY,
     ala_id INTEGER NOT NULL,
     numero INTEGER NOT NULL,
-    ocupado INTEGER NOT NULL,
-    paciente_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'DISPONIVEL',
+    paciente_id INTEGER NOT NULL DEFAULT 0,
     ativo INTEGER NOT NULL,
     FOREIGN KEY (ala_id) REFERENCES alas(id)
 );
 
+-- Historico de mudanca de status dos leitos (nunca apagado).
+CREATE TABLE leito_status_historico (
+    id INTEGER PRIMARY KEY,
+    leito_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    responsavel TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (leito_id) REFERENCES leitos(id)
+);
+
+-- Internacoes. Registra responsavel pela admissao e, na alta, o resumo
+-- clinico, o diagnostico final e as orientacoes ao paciente.
 CREATE TABLE internacoes (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
@@ -97,9 +112,25 @@ CREATE TABLE internacoes (
     data_entrada TEXT NOT NULL,
     data_alta TEXT NOT NULL,
     status TEXT NOT NULL,
+    responsavel TEXT NOT NULL DEFAULT '',
+    resumo_alta TEXT NOT NULL DEFAULT '',
+    diagnostico_final TEXT NOT NULL DEFAULT '',
+    orientacoes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (ala_id) REFERENCES alas(id),
     FOREIGN KEY (leito_id) REFERENCES leitos(id)
+);
+
+-- Transferencias de leito durante uma internacao (origem/destino/responsavel).
+CREATE TABLE transferencias (
+    id INTEGER PRIMARY KEY,
+    internacao_id INTEGER NOT NULL,
+    leito_origem INTEGER NOT NULL,
+    leito_destino INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    responsavel TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (internacao_id) REFERENCES internacoes(id)
 );
 
 CREATE TABLE prontuarios (

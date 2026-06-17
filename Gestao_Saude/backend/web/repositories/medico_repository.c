@@ -175,10 +175,10 @@ int medico_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"crm\":%s,\"especialidade\":%s,"
-            "\"regiaoAdministrativa\":%d}",
-            primeiro ? "" : ",",
-            id, nomeJson, crmJson, especialidadeJson, regiao);
+                           "%s{\"id\":%d,\"nome\":%s,\"crm\":%s,\"especialidade\":%s,"
+                           "\"regiaoAdministrativa\":%d}",
+                           primeiro ? "" : ",",
+                           id, nomeJson, crmJson, especialidadeJson, regiao);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -273,10 +273,10 @@ int medico_repo_listar_por_especialidade_regiao_json(const char *especialidade,
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"crm\":%s,\"especialidade\":%s,"
-            "\"regiaoAdministrativa\":%d}",
-            primeiro ? "" : ",",
-            id, nomeJson, crmJson, especialidadeJson, regiaoMedico);
+                           "%s{\"id\":%d,\"nome\":%s,\"crm\":%s,\"especialidade\":%s,"
+                           "\"regiaoAdministrativa\":%d}",
+                           primeiro ? "" : ",",
+                           id, nomeJson, crmJson, especialidadeJson, regiaoMedico);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -399,8 +399,8 @@ int medico_repo_distribuicao_por_especialidade_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"especialidade\":%s,\"total\":%d}",
-            primeiro ? "" : ",", especialidadeJson, total);
+                           "%s{\"especialidade\":%s,\"total\":%d}",
+                           primeiro ? "" : ",", especialidadeJson, total);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

@@ -264,8 +264,8 @@ function ProximoPasso({ paciente }) {
   // Carrega avaliacao/sugestoes uma vez (apos a triagem registrada).
   useEffect(() => {
     apiGet(`/triagem/${paciente.id}/avaliacao`).then(setAval).catch((e) => setErro(e.message))
-    apiGet(`/triagem/${paciente.id}/medicos`).then(setMedicos).catch(() => {})
-    apiGet(`/triagem/${paciente.id}/exames`).then(setExames).catch(() => {})
+    apiGet(`/triagem/${paciente.id}/medicos`).then(setMedicos).catch(() => { })
+    apiGet(`/triagem/${paciente.id}/exames`).then(setExames).catch(() => { })
   }, [paciente.id])
 
   async function agendar(e) {

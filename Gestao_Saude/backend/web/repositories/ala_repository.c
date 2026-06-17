@@ -105,10 +105,10 @@ int ala_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"tipo\":%d,"
-            "\"totalLeitos\":%d,\"leitosOcupados\":%d}",
-            primeiro ? "" : ",",
-            id, nomeJson, tipo, totalLeitos, ocupados);
+                           "%s{\"id\":%d,\"nome\":%s,\"tipo\":%d,"
+                           "\"totalLeitos\":%d,\"leitosOcupados\":%d}",
+                           primeiro ? "" : ",",
+                           id, nomeJson, tipo, totalLeitos, ocupados);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

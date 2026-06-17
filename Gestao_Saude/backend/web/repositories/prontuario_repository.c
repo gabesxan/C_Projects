@@ -133,12 +133,12 @@ int prontuario_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
-            "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
-            "\"alertaImportante\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, observacoesJson,
-            diagnosticoJson, condutaJson, alerta);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
+                           "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
+                           "\"alertaImportante\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, observacoesJson,
+                           diagnosticoJson, condutaJson, alerta);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -234,12 +234,12 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
-            "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
-            "\"alertaImportante\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, observacoesJson,
-            diagnosticoJson, condutaJson, alerta);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
+                           "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
+                           "\"alertaImportante\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, observacoesJson,
+                           diagnosticoJson, condutaJson, alerta);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -335,12 +335,12 @@ int prontuario_repo_listar_por_paciente_json(int paciente_id, char *buffer, int 
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
-            "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
-            "\"alertaImportante\":%d}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, observacoesJson,
-            diagnosticoJson, condutaJson, alerta);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
+                           "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
+                           "\"alertaImportante\":%d}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, observacoesJson,
+                           diagnosticoJson, condutaJson, alerta);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

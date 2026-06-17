@@ -210,11 +210,11 @@ int usuario_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"nome\":%s,\"login\":%s,\"papel\":%s,"
-            "\"pacienteId\":%d,\"medicoId\":%d,\"ativo\":%d,\"criadoEm\":%s}",
-            primeiro ? "" : ",",
-            id, nomeJson, loginJson, papelJson, pacienteId, medicoId,
-            ativo, criadoJson);
+                           "%s{\"id\":%d,\"nome\":%s,\"login\":%s,\"papel\":%s,"
+                           "\"pacienteId\":%d,\"medicoId\":%d,\"ativo\":%d,\"criadoEm\":%s}",
+                           primeiro ? "" : ",",
+                           id, nomeJson, loginJson, papelJson, pacienteId, medicoId,
+                           ativo, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

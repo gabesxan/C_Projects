@@ -124,10 +124,10 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
-            "\"pontuacao\":%d,\"classificacao\":%s}",
-            primeiro ? "" : ",",
-            id, pacienteId, tipo, pontuacao, classificacaoJson);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
+                           "\"pontuacao\":%d,\"classificacao\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, tipo, pontuacao, classificacaoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -198,9 +198,10 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
     }
 
     if (snprintf(sql, sizeof(sql),
-            "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao "
-            "FROM triagens WHERE ativo = 1 AND tipo_triagem IN (%s) "
-            "ORDER BY id;", placeholders) >= (int)sizeof(sql))
+                 "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao "
+                 "FROM triagens WHERE ativo = 1 AND tipo_triagem IN (%s) "
+                 "ORDER BY id;",
+                 placeholders) >= (int)sizeof(sql))
     {
         return 0;
     }
@@ -250,10 +251,10 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
-            "\"pontuacao\":%d,\"classificacao\":%s}",
-            primeiro ? "" : ",",
-            id, pacienteId, tipo, pontuacao, classificacaoJson);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
+                           "\"pontuacao\":%d,\"classificacao\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, tipo, pontuacao, classificacaoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

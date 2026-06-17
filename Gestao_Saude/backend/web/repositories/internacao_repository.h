@@ -7,10 +7,21 @@
  * Usa database.h (SQLite) com prepared statements. Escrita: 1 = ok, 0 = falha.
  */
 
+/* Interna o paciente: exige leito DISPONIVEL (que passa a OCUPADO) e registra
+ * o responsavel. 1 = ok, 0 = falha (inclui leito indisponivel). */
 int internacao_repo_criar(int paciente_id, int ala_id, int leito_id,
-                          const char *data_entrada);
+                          const char *data_entrada, const char *responsavel);
 int internacao_repo_listar_json(char *buffer, int tamanho);
-int internacao_repo_dar_alta(int id, const char *data_alta);
+
+/* Da alta: exige resumo clinico e diagnostico final; libera o leito para
+ * HIGIENIZACAO. 1 = ok, 0 = falha. */
+int internacao_repo_dar_alta(int id, const char *data_alta, const char *resumo,
+                             const char *diagnostico, const char *orientacoes);
+
+/* Transfere a internacao para outro leito DISPONIVEL, liberando o de origem e
+ * registrando a transferencia. 1 = ok, 0 = falha. */
+int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
+                               const char *responsavel);
 int internacao_repo_contar_ativos(void);
 
 #endif

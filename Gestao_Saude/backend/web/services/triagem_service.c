@@ -145,9 +145,9 @@ int triagem_service_avaliar_json(int paciente_id, char *buffer, int tamanho)
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacienteId\":%d,\"classificacao\":%s,\"prioridade\":%d,"
-        "\"especialidadeProvavel\":%s}",
-        paciente_id, classificacaoJson, prioridade, especialidadeJson);
+                       "{\"pacienteId\":%d,\"classificacao\":%s,\"prioridade\":%d,"
+                       "\"especialidadeProvavel\":%s}",
+                       paciente_id, classificacaoJson, prioridade, especialidadeJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -199,9 +199,9 @@ int triagem_service_sugerir_medicos_json(int paciente_id, char *buffer, int tama
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacienteId\":%d,\"especialidadeProvavel\":%s,\"regiao\":%d,"
-        "\"medicosSugeridos\":%s}",
-        paciente_id, especialidadeJson, regiao, medicosJson);
+                       "{\"pacienteId\":%d,\"especialidadeProvavel\":%s,\"regiao\":%d,"
+                       "\"medicosSugeridos\":%s}",
+                       paciente_id, especialidadeJson, regiao, medicosJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -235,8 +235,8 @@ int triagem_service_historico_json(int paciente_id, char *buffer, int tamanho)
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacienteId\":%d,\"prontuarios\":%s,\"exames\":%s}",
-        paciente_id, prontuariosJson, examesJson);
+                       "{\"pacienteId\":%d,\"prontuarios\":%s,\"exames\":%s}",
+                       paciente_id, prontuariosJson, examesJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -262,8 +262,8 @@ int triagem_service_sugerir_exames_json(int paciente_id, char *buffer, int taman
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"pacienteId\":%d,\"tipoTriagem\":%d,\"examesSugeridos\":%s}",
-        paciente_id, tipo, exames_sugeridos(tipo));
+                       "{\"pacienteId\":%d,\"tipoTriagem\":%d,\"examesSugeridos\":%s}",
+                       paciente_id, tipo, exames_sugeridos(tipo));
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -300,7 +300,7 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
     if (agendamento_repo_horario_valido(horario) == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"agendado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
+                 "{\"agendado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
         return 0;
     }
 
@@ -332,14 +332,14 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
     if (escolhido == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"agendado\":false,\"motivo\":\"sem medico disponivel\"}");
+                 "{\"agendado\":false,\"motivo\":\"sem medico disponivel\"}");
         return 0;
     }
 
     if (agendamento_repo_criar(paciente_id, escolhido, data, horario) == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"agendado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
+                 "{\"agendado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
         return 0;
     }
 
@@ -350,9 +350,9 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"agendado\":true,\"pacienteId\":%d,\"medicoId\":%d,"
-        "\"data\":%s,\"horario\":%s}",
-        paciente_id, escolhido, dataJson, horarioJson);
+                       "{\"agendado\":true,\"pacienteId\":%d,\"medicoId\":%d,"
+                       "\"data\":%s,\"horario\":%s}",
+                       paciente_id, escolhido, dataJson, horarioJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {
@@ -391,7 +391,7 @@ int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
     if (agendamento_repo_horario_valido(horario) == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"encaminhado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
+                 "{\"encaminhado\":false,\"motivo\":\"horario fora da grade ou do expediente\"}");
         return 0;
     }
 
@@ -417,14 +417,14 @@ int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
     if (escolhido == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"encaminhado\":false,\"motivo\":\"sem medico disponivel\"}");
+                 "{\"encaminhado\":false,\"motivo\":\"sem medico disponivel\"}");
         return 0;
     }
 
     if (agendamento_repo_criar(paciente_id, escolhido, data, horario) == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-            "{\"encaminhado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
+                 "{\"encaminhado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
         return 0;
     }
 
@@ -436,9 +436,9 @@ int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"encaminhado\":true,\"pacienteId\":%d,\"especialidade\":%s,"
-        "\"medicoId\":%d,\"data\":%s,\"horario\":%s}",
-        paciente_id, especialidadeJson, escolhido, dataJson, horarioJson);
+                       "{\"encaminhado\":true,\"pacienteId\":%d,\"especialidade\":%s,"
+                       "\"medicoId\":%d,\"data\":%s,\"horario\":%s}",
+                       paciente_id, especialidadeJson, escolhido, dataJson, horarioJson);
 
     if (escrito < 0 || escrito >= tamanho)
     {

@@ -7,9 +7,9 @@
 #include <string.h>
 
 /* Politica de agenda (grade de slots fixos + janela de expediente). */
-#define AGENDA_MIN_INICIO (8 * 60)   /* 08:00, inclusivo */
-#define AGENDA_MIN_FIM (18 * 60)     /* 18:00, exclusivo */
-#define AGENDA_SLOT_MIN 30           /* passo da grade, em minutos */
+#define AGENDA_MIN_INICIO (8 * 60) /* 08:00, inclusivo */
+#define AGENDA_MIN_FIM (18 * 60)   /* 18:00, exclusivo */
+#define AGENDA_SLOT_MIN 30         /* passo da grade, em minutos */
 
 /* Converte "HH:MM" em minutos do dia; -1 se invalido. */
 static int minutosDoHorario(const char *horario)
@@ -225,10 +225,10 @@ int agendamento_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-            "\"data\":%s,\"horario\":%s,\"status\":%s}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -319,10 +319,10 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-            "\"data\":%s,\"horario\":%s,\"status\":%s}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -414,10 +414,10 @@ int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer,
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-            "\"data\":%s,\"horario\":%s,\"status\":%s}",
-            primeiro ? "" : ",",
-            id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -695,8 +695,8 @@ int agendamento_repo_distribuicao_por_dia_json(const char *inicio,
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"data\":%s,\"total\":%d}",
-            primeiro ? "" : ",", dataJson, total);
+                           "%s{\"data\":%s,\"total\":%d}",
+                           primeiro ? "" : ",", dataJson, total);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
