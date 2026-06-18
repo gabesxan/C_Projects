@@ -18,6 +18,15 @@ int usuario_repo_autenticar(const char *login, const char *senha,
                             int *paciente_id, int *medico_id,
                             int *usuario_id);
 
+/* Como usuario_repo_autenticar, mas com bloqueio por tentativas: cada senha
+ * errada incrementa o contador e, ao atingir o limite, bloqueia o login por
+ * um intervalo; um acerto zera o contador. Se o login estiver bloqueado no
+ * momento, *bloqueado recebe 1 (pode ser NULL) e retorna 0. */
+int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
+                                         char *papel, int papel_tam,
+                                         int *paciente_id, int *medico_id,
+                                         int *usuario_id, int *bloqueado);
+
 /* Reativa um usuario previamente desativado. Retorna 1 se reativou. */
 int usuario_repo_reativar(int id);
 

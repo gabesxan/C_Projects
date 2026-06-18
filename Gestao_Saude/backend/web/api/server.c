@@ -9,6 +9,7 @@
 #include "exame_repository.h"
 #include "internacao_repository.h"
 #include "usuario_repository.h"
+#include "sessao_repository.h"
 #include "auditoria_repository.h"
 #include "enfermagem_repository.h"
 #include "checkin_repository.h"
@@ -44,6 +45,12 @@
 #define PORTA_PADRAO 8080
 #define TAM_REQUISICAO 2048
 #define TAM_JSON 65536
+
+/* Validade de uma sessao (token Bearer) em horas. */
+#define SESSAO_VALIDADE_HORAS 8
+
+/* Tamanho de um token de sessao (hex) + NUL. */
+#define TAM_TOKEN 65
 
 /* Diretorio do front buildado (servido para rotas que nao sao da API). */
 #define DIR_PUBLICO "public"
@@ -190,8 +197,79 @@ static int extrairParam(const char *consulta, const char *chave,
     return 0;
 }
 
+/* Devolve o ponteiro para o corpo da requisicao (apos o "\r\n\r\n"), ou NULL
+ * se nao houver corpo. Nao copia: aponta dentro do proprio buffer. */
+static const char *corpoRequisicao(const char *requisicao)
+{
+    const char *fim = strstr(requisicao, "\r\n\r\n");
+    if (fim == NULL)
+    {
+        return NULL;
+    }
+    fim += 4;
+    return *fim != '\0' ? fim : NULL;
+}
+
+/* Extrai o valor (string) de um campo de um corpo JSON simples e plano,
+ * tratando os escapes basicos (\" \\ \/ \n \t). Suporta apenas valores string,
+ * que e o suficiente para os corpos de autenticacao. Retorna 1 se achou. */
+static int extrairCampoJson(const char *corpo, const char *chave,
+                            char *destino, int tamanho)
+{
+    char alvo[64];
+    const char *p;
+    int n = snprintf(alvo, sizeof(alvo), "\"%s\"", chave);
+    int i = 0;
+
+    if (destino == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+    destino[0] = '\0';
+
+    if (corpo == NULL || n <= 0 || n >= (int)sizeof(alvo))
+    {
+        return 0;
+    }
+
+    p = strstr(corpo, alvo);
+    if (p == NULL)
+    {
+        return 0;
+    }
+    p += n;
+
+    while (*p == ' ' || *p == '\t' || *p == ':')
+    {
+        p++;
+    }
+    if (*p != '"')
+    {
+        return 0; /* so valores string sao suportados aqui */
+    }
+    p++;
+
+    while (*p != '\0' && *p != '"' && i < tamanho - 1)
+    {
+        if (*p == '\\' && *(p + 1) != '\0')
+        {
+            p++;
+            if (*p == 'n') destino[i++] = '\n';
+            else if (*p == 't') destino[i++] = '\t';
+            else destino[i++] = *p; /* \" \\ \/ e afins */
+        }
+        else
+        {
+            destino[i++] = *p;
+        }
+        p++;
+    }
+    destino[i] = '\0';
+    return 1;
+}
+
 /* ----------------------------------------------------------------------- */
-/* Autenticacao (HTTP Basic)                                                */
+/* Autenticacao (Bearer token / HTTP Basic)                                 */
 /* ----------------------------------------------------------------------- */
 
 static int base64Valor(char c)
@@ -281,16 +359,55 @@ static const char *aposCabecalho(const char *texto, const char *prefixo)
 /* Autentica o request pelo cabecalho 'Authorization: Basic'. Em sucesso
  * preenche papel/vinculos, o login e o id do usuario e retorna 1; senao 0.
  * login_out/usuario_id podem ser NULL quando o chamador nao precisa deles. */
+/* Copia o token de 'Authorization: Bearer <token>' para 'destino'. Retorna 1
+ * se o cabecalho existe; 0 caso contrario. */
+static int extrairTokenBearer(const char *requisicao, char *destino, int tam)
+{
+    const char *inicio = aposCabecalho(requisicao, "Authorization: Bearer ");
+    int n = 0;
+
+    if (destino == NULL || tam <= 0)
+    {
+        return 0;
+    }
+    destino[0] = '\0';
+
+    if (inicio == NULL)
+    {
+        return 0;
+    }
+
+    while (inicio[n] != '\0' && inicio[n] != '\r' && inicio[n] != '\n' &&
+           inicio[n] != ' ' && n < tam - 1)
+    {
+        destino[n] = inicio[n];
+        n++;
+    }
+    destino[n] = '\0';
+    return 1;
+}
+
 static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
                              int *paciente_id, int *medico_id,
                              char *login_out, int login_tam, int *usuario_id)
 {
     const char *prefixo = "Authorization: Basic ";
-    const char *inicio = aposCabecalho(requisicao, prefixo);
+    const char *inicio;
+    char token[TAM_TOKEN];
     char b64[512];
     char credenciais[512];
     char *separador;
     int n = 0;
+
+    /* Caminho preferencial: token de sessao (Bearer). A senha nao trafega. */
+    if (extrairTokenBearer(requisicao, token, sizeof(token)) == 1)
+    {
+        return sessao_repo_validar(token, papel, papel_tam, paciente_id,
+                                   medico_id, usuario_id, login_out, login_tam);
+    }
+
+    /* Fallback temporario: HTTP Basic (removido na sub-etapa de limpeza). */
+    inicio = aposCabecalho(requisicao, prefixo);
 
     if (inicio == NULL)
     {
@@ -372,7 +489,8 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
     }
 
     /* Qualquer usuario autenticado acessa o proprio perfil/sessao e seus dados. */
-    if (ehRotaMe(caminho) || strcmp(caminho, "/login") == 0)
+    if (ehRotaMe(caminho) || strcmp(caminho, "/login") == 0 ||
+        strcmp(caminho, "/sessao") == 0)
     {
         return 1;
     }
@@ -1698,6 +1816,76 @@ static void rotaLogin(int cliente, const Sessao *s)
     responder(cliente, "200 OK", corpo);
 }
 
+/* POST /sessao (publica): le {login, senha} do CORPO (a senha nao vai na URL),
+ * aplica o bloqueio por tentativas e, em sucesso, cria um token de sessao. */
+static void rotaSessaoCriar(int cliente, const char *requisicao)
+{
+    const char *corpo = corpoRequisicao(requisicao);
+    char login[128];
+    char senha[128];
+    char papel[32];
+    char token[TAM_TOKEN];
+    char resposta[320];
+    int pacienteId = 0;
+    int medicoId = 0;
+    int usuarioId = 0;
+    int bloqueado = 0;
+
+    if (extrairCampoJson(corpo, "login", login, sizeof(login)) == 0 ||
+        extrairCampoJson(corpo, "senha", senha, sizeof(senha)) == 0 ||
+        login[0] == '\0' || senha[0] == '\0')
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"informe login e senha\"}");
+        return;
+    }
+
+    if (usuario_repo_autenticar_com_bloqueio(login, senha, papel, sizeof(papel),
+                                             &pacienteId, &medicoId, &usuarioId,
+                                             &bloqueado) == 0)
+    {
+        if (bloqueado)
+        {
+            responder(cliente, "429 Too Many Requests",
+                      "{\"erro\":\"login temporariamente bloqueado por tentativas invalidas\"}");
+        }
+        else
+        {
+            responder(cliente, "401 Unauthorized",
+                      "{\"erro\":\"login ou senha invalidos\"}");
+        }
+        return;
+    }
+
+    if (sessao_repo_criar(usuarioId, SESSAO_VALIDADE_HORAS, token, sizeof(token)) == 0)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao criar sessao\"}");
+        return;
+    }
+
+    auditoria_registrar(usuarioId, login, "LOGIN", "usuario", usuarioId, "");
+
+    snprintf(resposta, sizeof(resposta),
+             "{\"token\":\"%s\",\"papel\":\"%s\",\"login\":\"%s\","
+             "\"pacienteId\":%d,\"medicoId\":%d}",
+             token, papel, login, pacienteId, medicoId);
+    responder(cliente, "200 OK", resposta);
+}
+
+/* DELETE /sessao: encerra a sessao do token Bearer apresentado. */
+static void rotaSessaoRemover(int cliente, const char *requisicao, const Sessao *s)
+{
+    char token[TAM_TOKEN];
+
+    if (extrairTokenBearer(requisicao, token, sizeof(token)) == 1)
+    {
+        sessao_repo_remover(token);
+    }
+    auditar(s, "LOGOUT", "usuario", s->usuario_id, s->login);
+    responder(cliente, "200 OK", "{\"ok\":true}");
+}
+
 static void rotaMeExames(int cliente, int paciente_id)
 {
     char *json = malloc(TAM_JSON);
@@ -1968,6 +2156,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/health") == 0)
     {
         rotaHealth(cliente);
+        return;
+    }
+
+    /* POST /sessao e publico: e o proprio login (le login/senha do corpo). */
+    if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/sessao") == 0)
+    {
+        rotaSessaoCriar(cliente, requisicao);
         return;
     }
 
@@ -2417,6 +2612,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaLogin(cliente, &s);
     }
+    else if (strcmp(metodo, "DELETE") == 0 && strcmp(caminho, "/sessao") == 0)
+    {
+        rotaSessaoRemover(cliente, requisicao, &s);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {
         rotaMe(cliente, papel, authPacienteId, authMedicoId);
@@ -2617,6 +2816,48 @@ static void rotear(int cliente, const char *metodo, char *caminho,
 /* Servidor                                                                 */
 /* ----------------------------------------------------------------------- */
 
+/* Le a requisicao inteira (cabecalhos + corpo). Ao achar o fim dos cabecalhos,
+ * usa Content-Length para saber se ainda falta corpo e continua lendo ate
+ * completar (sem bloquear em requisicoes sem corpo). Retorna o total lido. */
+static ssize_t lerRequisicao(int cliente, char *buf, size_t cap)
+{
+    ssize_t total = 0;
+    long contentLength = -1;
+    size_t cabLen = 0;
+
+    while (total < (ssize_t)cap - 1)
+    {
+        ssize_t n = read(cliente, buf + total, cap - 1 - (size_t)total);
+        if (n <= 0)
+        {
+            break;
+        }
+        total += n;
+        buf[total] = '\0';
+
+        if (cabLen == 0)
+        {
+            const char *fimCab = strstr(buf, "\r\n\r\n");
+            if (fimCab != NULL)
+            {
+                const char *cl = aposCabecalho(buf, "Content-Length: ");
+                cabLen = (size_t)(fimCab - buf) + 4;
+                contentLength = cl != NULL ? atol(cl) : 0;
+            }
+        }
+
+        /* Cabecalhos completos e (sem corpo OU corpo ja inteiro): pode parar. */
+        if (cabLen > 0 &&
+            (contentLength <= 0 ||
+             total >= (ssize_t)(cabLen + (size_t)contentLength)))
+        {
+            break;
+        }
+    }
+
+    return total;
+}
+
 int main(int argc, char *argv[])
 {
     int porta = PORTA_PADRAO;
@@ -2677,7 +2918,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        lidos = read(cliente, requisicao, sizeof(requisicao) - 1);
+        lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
         if (lidos <= 0)
         {
             close(cliente);

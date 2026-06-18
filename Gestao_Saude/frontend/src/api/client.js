@@ -1,38 +1,41 @@
 // Cliente HTTP do SIGEH-DF.
 // - Prefixo "/api" e reescrito pelo proxy do Vite para o backend em C.
-// - Autenticacao HTTP Basic: o header vai em toda requisicao.
-// - A API le parametros pela QUERY STRING, inclusive nos POST.
+// - Autenticacao por TOKEN de sessao: o login devolve um token opaco que vai
+//   no header 'Authorization: Bearer <token>' de toda requisicao. A senha so
+//   trafega uma vez, no corpo do POST /sessao (nunca na URL nem no storage).
+// - As demais escritas (POST/DELETE) ainda usam query string (contrato atual).
 
 // Em dev, "/api" e reescrito pelo proxy do Vite para o backend (:8080).
 // Em producao, o proprio servidor C serve o front e a API na mesma origem,
 // entao as chamadas vao para a raiz.
 const BASE = import.meta.env.DEV ? '/api' : ''
 
-// Credencial em memoria; persistida em sessionStorage para sobreviver a reload.
-let credentials = null
+// Token em memoria; persistido em sessionStorage para sobreviver a reload.
+let token = null
 
-export function setCredentials(login, senha) {
-  const basic = 'Basic ' + btoa(`${login}:${senha}`)
-  credentials = { login, basic }
-  sessionStorage.setItem('sigeh_auth', JSON.stringify({ login, senha }))
-}
-
-export function loadCredentials() {
-  const raw = sessionStorage.getItem('sigeh_auth')
-  if (raw) {
-    const { login, senha } = JSON.parse(raw)
-    setCredentials(login, senha)
+export function setToken(novo) {
+  token = novo
+  if (novo) {
+    sessionStorage.setItem('sigeh_token', novo)
+  } else {
+    sessionStorage.removeItem('sigeh_token')
   }
-  return credentials
 }
 
-export function clearCredentials() {
-  credentials = null
-  sessionStorage.removeItem('sigeh_auth')
+export function loadToken() {
+  if (token === null) {
+    token = sessionStorage.getItem('sigeh_token')
+  }
+  return token
+}
+
+export function clearToken() {
+  token = null
+  sessionStorage.removeItem('sigeh_token')
 }
 
 function authHeaders() {
-  return credentials ? { Authorization: credentials.basic } : {}
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export class ApiError extends Error {
@@ -51,6 +54,33 @@ async function safeJson(res) {
   }
 }
 
+// Abre uma sessao: envia login/senha no CORPO (JSON), guarda o token e devolve
+// o perfil retornado pela API ({ papel, login, pacienteId, medicoId }).
+export async function apiLogin(login, senha) {
+  const res = await fetch(BASE + '/sessao', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login, senha }),
+  })
+  if (!res.ok) throw new ApiError(res.status, await safeJson(res))
+  const data = await res.json()
+  setToken(data.token)
+  return data
+}
+
+// Encerra a sessao no servidor (best-effort) e descarta o token local.
+export async function apiLogout() {
+  try {
+    if (token) {
+      await fetch(BASE + '/sessao', { method: 'DELETE', headers: { ...authHeaders() } })
+    }
+  } catch {
+    // logout e best-effort: mesmo offline, limpamos o token local.
+  } finally {
+    clearToken()
+  }
+}
+
 // GET autenticado que devolve o JSON ja parseado.
 export async function apiGet(path) {
   const res = await fetch(BASE + path, { headers: { ...authHeaders() } })
@@ -58,7 +88,7 @@ export async function apiGet(path) {
   return res.json()
 }
 
-// POST/DELETE: os parametros viram query string (contrato do backend).
+// POST/DELETE: os parametros viram query string (contrato atual do backend).
 export async function apiSend(method, path, params = {}) {
   const qs = new URLSearchParams(params).toString()
   const url = BASE + path + (qs ? `?${qs}` : '')

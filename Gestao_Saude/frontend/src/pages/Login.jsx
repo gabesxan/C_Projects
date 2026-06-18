@@ -19,7 +19,9 @@ export default function Login() {
       await login(loginName.trim(), senha)
       navigate('/')
     } catch (err) {
-      setErro(err.status === 401 ? 'Login ou senha invalidos.' : err.message)
+      if (err.status === 401) setErro('Login ou senha invalidos.')
+      else if (err.status === 429) setErro('Acesso bloqueado por tentativas invalidas. Tente novamente em alguns minutos.')
+      else setErro(err.message)
     } finally {
       setCarregando(false)
     }

@@ -206,6 +206,9 @@ CREATE TABLE prescricoes (
 -- Sem FK nesses vinculos: 0 representa "nenhum" e nao existiria como chave.
 -- nome: nome de exibicao do usuario (cadastro de usuario real).
 -- criado_em: carimbo de criacao (UTC) para fins de cadastro/auditoria.
+-- tentativas_invalidas / bloqueado_ate: endurecimento de login. Apos N erros
+-- consecutivos o login fica bloqueado ate o horario (UTC) em bloqueado_ate;
+-- um login bem-sucedido zera ambos.
 CREATE TABLE usuarios (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL DEFAULT '',
@@ -216,7 +219,19 @@ CREATE TABLE usuarios (
     paciente_id INTEGER NOT NULL,
     medico_id INTEGER NOT NULL,
     ativo INTEGER NOT NULL,
+    tentativas_invalidas INTEGER NOT NULL DEFAULT 0,
+    bloqueado_ate TEXT NOT NULL DEFAULT '',
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Sessoes de acesso: cada login bem-sucedido cria um token opaco com validade.
+-- O cliente envia 'Authorization: Bearer <token>' (a senha nao trafega mais a
+-- cada requisicao). Sessoes expiradas/encerradas sao removidas. Reconstruivel.
+CREATE TABLE sessoes (
+    token TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    expira_em TEXT NOT NULL
 );
 
 -- Trilha de auditoria das acoes sensiveis do sistema (req. de seguranca).

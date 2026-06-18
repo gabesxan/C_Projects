@@ -1,11 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import {
-  apiGet,
-  apiSend,
-  setCredentials,
-  clearCredentials,
-  loadCredentials,
-} from '../api/client'
+import { apiGet, apiLogin, apiLogout, loadToken } from '../api/client'
 
 // Estado global de sessao: papel e vinculos do usuario logado (via GET /me).
 const AuthContext = createContext(null)
@@ -14,35 +8,29 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null) // { papel, pacienteId, medicoId }
   const [loading, setLoading] = useState(true)
 
-  // Ao montar, tenta restaurar uma sessao salva e revalida com /me.
+  // Ao montar, tenta restaurar um token salvo e revalida com /me.
   useEffect(() => {
-    const creds = loadCredentials()
-    if (!creds) {
+    const token = loadToken()
+    if (!token) {
       setLoading(false)
       return
     }
     apiGet('/me')
       .then(setUser)
-      .catch(() => clearCredentials())
+      .catch(() => apiLogout())
       .finally(() => setLoading(false))
   }, [])
 
   async function login(loginName, senha) {
-    setCredentials(loginName, senha)
-    try {
-      // POST /login valida a sessao e registra o evento na auditoria.
-      // O retorno e um superconjunto do /me (papel + vinculos).
-      const me = await apiSend('POST', '/login')
-      setUser(me)
-      return me
-    } catch (err) {
-      clearCredentials()
-      throw err
-    }
+    // POST /sessao valida as credenciais, registra a auditoria e devolve o
+    // token (guardado pelo cliente) junto do perfil (papel + vinculos).
+    const me = await apiLogin(loginName, senha)
+    setUser(me)
+    return me
   }
 
-  function logout() {
-    clearCredentials()
+  async function logout() {
+    await apiLogout()
     setUser(null)
   }
 

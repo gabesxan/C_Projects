@@ -147,6 +147,138 @@ int usuario_repo_autenticar(const char *login, const char *senha,
     return autenticado;
 }
 
+/* Politica de bloqueio: apos MAX_TENTATIVAS erros consecutivos, o login fica
+ * bloqueado por BLOQUEIO_MINUTOS. */
+#define MAX_TENTATIVAS 5
+#define BLOQUEIO_MINUTOS 15
+
+int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
+                                         char *papel, int papel_tam,
+                                         int *paciente_id, int *medico_id,
+                                         int *usuario_id, int *bloqueado)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT senha_hash, salt, papel, paciente_id, medico_id, id, "
+        "tentativas_invalidas, "
+        "CASE WHEN bloqueado_ate <> '' AND bloqueado_ate > datetime('now') "
+        "THEN 1 ELSE 0 END "
+        "FROM usuarios WHERE login = ? AND ativo = 1;";
+    int autenticado = 0;
+    int encontrado = 0;
+    int usuarioId = 0;
+    int tentativas = 0;
+    int estaBloqueado = 0;
+
+    if (bloqueado != NULL)
+    {
+        *bloqueado = 0;
+    }
+
+    if (login == NULL || senha == NULL || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, login, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char *hashArmazenado = (const char *)sqlite3_column_text(stmt, 0);
+        const char *salt = (const char *)sqlite3_column_text(stmt, 1);
+        const char *papelArmazenado = (const char *)sqlite3_column_text(stmt, 2);
+        char hashCalculado[65];
+
+        encontrado = 1;
+        usuarioId = sqlite3_column_int(stmt, 5);
+        tentativas = sqlite3_column_int(stmt, 6);
+        estaBloqueado = sqlite3_column_int(stmt, 7);
+
+        if (estaBloqueado == 0 &&
+            salt != NULL && hashArmazenado != NULL &&
+            senha_hash(salt, senha, hashCalculado, sizeof(hashCalculado)) == 1 &&
+            strcmp(hashCalculado, hashArmazenado) == 0)
+        {
+            if (papel != NULL && papel_tam > 0 && papelArmazenado != NULL)
+            {
+                strncpy(papel, papelArmazenado, (size_t)papel_tam - 1);
+                papel[papel_tam - 1] = '\0';
+            }
+            if (paciente_id != NULL) *paciente_id = sqlite3_column_int(stmt, 3);
+            if (medico_id != NULL) *medico_id = sqlite3_column_int(stmt, 4);
+            if (usuario_id != NULL) *usuario_id = usuarioId;
+            autenticado = 1;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (encontrado == 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (autenticado == 1)
+    {
+        /* Acerto: zera o contador e remove qualquer bloqueio. */
+        sqlite3_stmt *up = NULL;
+        if (sqlite3_prepare_v2(db,
+                "UPDATE usuarios SET tentativas_invalidas = 0, bloqueado_ate = '' "
+                "WHERE id = ?;", -1, &up, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(up, 1, usuarioId);
+            sqlite3_step(up);
+            sqlite3_finalize(up);
+        }
+    }
+    else if (estaBloqueado == 1)
+    {
+        if (bloqueado != NULL) *bloqueado = 1;
+    }
+    else
+    {
+        /* Erro de senha: incrementa e, no limite, agenda o bloqueio. */
+        int novas = tentativas + 1;
+        int atingiuLimite = novas >= MAX_TENTATIVAS;
+        sqlite3_stmt *up = NULL;
+        const char *sqlUp = atingiuLimite
+            ? "UPDATE usuarios SET tentativas_invalidas = ?, "
+              "bloqueado_ate = datetime('now', ?) WHERE id = ?;"
+            : "UPDATE usuarios SET tentativas_invalidas = ? WHERE id = ?;";
+
+        if (sqlite3_prepare_v2(db, sqlUp, -1, &up, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(up, 1, novas);
+            if (atingiuLimite)
+            {
+                char janela[32];
+                snprintf(janela, sizeof(janela), "+%d minutes", BLOQUEIO_MINUTOS);
+                sqlite3_bind_text(up, 2, janela, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(up, 3, usuarioId);
+            }
+            else
+            {
+                sqlite3_bind_int(up, 2, usuarioId);
+            }
+            sqlite3_step(up);
+            sqlite3_finalize(up);
+        }
+
+        if (atingiuLimite && bloqueado != NULL) *bloqueado = 1;
+    }
+
+    db_fechar(db);
+    return autenticado;
+}
+
 int usuario_repo_listar_json(char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
