@@ -59,6 +59,11 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
     }
 
     sqlite3_finalize(stmt);
+
+    /* A triagem original e raiz de si mesma (raiz_id = id). */
+    sqlite3_exec(db, "UPDATE triagens SET raiz_id = id WHERE raiz_id = 0;",
+                 NULL, NULL, NULL);
+
     db_fechar(db);
     return 1;
 }
@@ -76,9 +81,19 @@ int triagem_repo_reclassificar(int id, const char *classificacao, int nivel,
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql =
-        "UPDATE triagens SET classificacao = ?, pontuacao = ?, itens = ?, "
-        "justificativa = ? WHERE id = ? AND ativo = 1;";
+    const char *sqlBusca =
+        "SELECT paciente_id, tipo_triagem, queixa, pressao, temperatura, "
+        "freq_cardiaca, saturacao, versao, raiz_id FROM triagens "
+        "WHERE id = ? AND ativo = 1 AND vigente = 1;";
+    const char *sqlInsert =
+        "INSERT INTO triagens "
+        "(paciente_id, tipo_triagem, pontuacao, classificacao, itens, "
+        "justificativa, queixa, pressao, temperatura, freq_cardiaca, saturacao, "
+        "versao, raiz_id, vigente, ativo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1);";
+    int pacienteId = 0, tipo = 0, versao = 0, raiz = 0;
+    char queixa[256] = "", pressao[32] = "", temperatura[32] = "";
+    char freq[32] = "", saturacao[32] = "";
     int ok = 0;
 
     /* Mudanca de classificacao exige justificativa. */
@@ -93,21 +108,67 @@ int triagem_repo_reclassificar(int id, const char *classificacao, int nivel,
         return 0;
     }
 
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    if (sqlite3_prepare_v2(db, sqlBusca, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        pacienteId = sqlite3_column_int(stmt, 0);
+        tipo = sqlite3_column_int(stmt, 1);
+        snprintf(queixa, sizeof(queixa), "%s", (const char *)sqlite3_column_text(stmt, 2));
+        snprintf(pressao, sizeof(pressao), "%s", (const char *)sqlite3_column_text(stmt, 3));
+        snprintf(temperatura, sizeof(temperatura), "%s", (const char *)sqlite3_column_text(stmt, 4));
+        snprintf(freq, sizeof(freq), "%s", (const char *)sqlite3_column_text(stmt, 5));
+        snprintf(saturacao, sizeof(saturacao), "%s", (const char *)sqlite3_column_text(stmt, 6));
+        versao = sqlite3_column_int(stmt, 7);
+        raiz = sqlite3_column_int(stmt, 8);
+    }
+    sqlite3_finalize(stmt);
+
+    if (pacienteId == 0)
     {
         db_fechar(db);
         return 0;
     }
 
-    sqlite3_bind_text(stmt, 1, classificacao, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, nivel);
-    sqlite3_bind_text(stmt, 3, itens != NULL ? itens : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 4, justificativa, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 5, id);
-
-    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
-
+    /* Nova versao vigente com a nova classificacao. */
+    if (sqlite3_prepare_v2(db, sqlInsert, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, pacienteId);
+    sqlite3_bind_int(stmt, 2, tipo);
+    sqlite3_bind_int(stmt, 3, nivel);
+    sqlite3_bind_text(stmt, 4, classificacao, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, itens != NULL ? itens : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, justificativa, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, queixa, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 8, pressao, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, temperatura, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 10, freq, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 11, saturacao, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 12, versao + 1);
+    sqlite3_bind_int(stmt, 13, raiz);
+    ok = sqlite3_step(stmt) == SQLITE_DONE;
     sqlite3_finalize(stmt);
+
+    /* Supera a versao anterior (preservada). */
+    if (ok)
+    {
+        sqlite3_stmt *upd = NULL;
+        if (sqlite3_prepare_v2(db, "UPDATE triagens SET vigente = 0 WHERE id = ?;",
+                               -1, &upd, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(upd, 1, id);
+            sqlite3_step(upd);
+            sqlite3_finalize(upd);
+        }
+    }
+
     db_fechar(db);
     return ok ? 1 : 0;
 }
@@ -117,7 +178,7 @@ int triagem_repo_distribuicao_por_classificacao_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT classificacao, COUNT(*) FROM triagens WHERE ativo = 1 "
+        "SELECT classificacao, COUNT(*) FROM triagens WHERE ativo = 1 AND vigente = 1 "
         "GROUP BY classificacao ORDER BY classificacao;";
     int usado = 0;
     int primeiro = 1;
@@ -189,7 +250,7 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao, queixa, pressao, temperatura, freq_cardiaca, saturacao, itens "
-        "FROM triagens WHERE ativo = 1 ORDER BY pontuacao DESC, id;";
+        "FROM triagens WHERE ativo = 1 AND vigente = 1 ORDER BY pontuacao DESC, id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -327,7 +388,7 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
 
     if (snprintf(sql, sizeof(sql),
                  "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao, queixa, pressao, temperatura, freq_cardiaca, saturacao, itens "
-                 "FROM triagens WHERE ativo = 1 AND tipo_triagem IN (%s) "
+                 "FROM triagens WHERE ativo = 1 AND vigente = 1 AND tipo_triagem IN (%s) "
                  "ORDER BY pontuacao DESC, id;",
                  placeholders) >= (int)sizeof(sql))
     {
@@ -468,7 +529,7 @@ int triagem_repo_ultima_por_paciente(int paciente_id, int *tipo_triagem,
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "SELECT tipo_triagem, pontuacao, classificacao "
-        "FROM triagens WHERE paciente_id = ? AND ativo = 1 "
+        "FROM triagens WHERE paciente_id = ? AND ativo = 1 AND vigente = 1 "
         "ORDER BY id DESC LIMIT 1;";
     int encontrou = 0;
 
@@ -531,7 +592,7 @@ int triagem_repo_contar_por_classificacao(const char *classificacao)
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "SELECT COUNT(*) FROM triagens "
-        "WHERE ativo = 1 AND classificacao = ?;";
+        "WHERE ativo = 1 AND vigente = 1 AND classificacao = ?;";
     int total = -1;
 
     if (classificacao == NULL)
@@ -566,7 +627,7 @@ int triagem_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql = "SELECT COUNT(*) FROM triagens WHERE ativo = 1;";
+    const char *sql = "SELECT COUNT(*) FROM triagens WHERE ativo = 1 AND vigente = 1;";
     int total = -1;
 
     if (db_abrir(&db) == 0)

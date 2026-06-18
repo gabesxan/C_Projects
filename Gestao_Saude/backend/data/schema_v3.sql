@@ -56,6 +56,9 @@ CREATE TABLE triagens (
     temperatura TEXT NOT NULL DEFAULT '',
     freq_cardiaca TEXT NOT NULL DEFAULT '',
     saturacao TEXT NOT NULL DEFAULT '',
+    versao INTEGER NOT NULL DEFAULT 1,
+    raiz_id INTEGER NOT NULL DEFAULT 0,
+    vigente INTEGER NOT NULL DEFAULT 1,
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
@@ -170,6 +173,10 @@ CREATE TABLE exames (
     urgente INTEGER NOT NULL,
     resultado_critico INTEGER NOT NULL DEFAULT 0,
     motivo_cancelamento TEXT NOT NULL DEFAULT '',
+    versao INTEGER NOT NULL DEFAULT 1,
+    raiz_id INTEGER NOT NULL DEFAULT 0,
+    vigente INTEGER NOT NULL DEFAULT 1,
+    justificativa TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (medico_id) REFERENCES medicos(id),
@@ -224,6 +231,34 @@ CREATE TABLE auditoria (
     entidade_id INTEGER NOT NULL,
     detalhe TEXT NOT NULL,
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Administracao de medicamentos pela enfermagem (MAR). Cada linha registra
+-- que uma prescricao foi aplicada, por quem e quando. Nunca e apagada.
+CREATE TABLE administracoes (
+    id INTEGER PRIMARY KEY,
+    prescricao_id INTEGER NOT NULL,
+    paciente_id INTEGER NOT NULL,
+    usuario_id INTEGER NOT NULL,
+    usuario_login TEXT NOT NULL DEFAULT '',
+    observacao TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (prescricao_id) REFERENCES prescricoes(id),
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+);
+
+-- Evolucao de enfermagem: nota clinica + sinais vitais ao longo da estadia.
+CREATE TABLE evolucoes_enfermagem (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    autor_login TEXT NOT NULL DEFAULT '',
+    texto TEXT NOT NULL,
+    pressao TEXT NOT NULL DEFAULT '',
+    temperatura TEXT NOT NULL DEFAULT '',
+    freq_cardiaca TEXT NOT NULL DEFAULT '',
+    saturacao TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
 
 -- Indices das buscas mais frequentes (listagens por vinculo e por paciente).

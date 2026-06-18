@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { apiGet } from '../api/client'
+import { apiGet, apiSend } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import DataTable from '../components/DataTable'
 import {
   PageHeader,
@@ -11,6 +12,63 @@ import {
   Badge,
   StatusBadge,
 } from '../components/ui'
+
+const inputEvo =
+  'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 outline-none'
+
+// Formulario de evolucao de enfermagem (texto + sinais vitais).
+function FormEvolucao({ pacienteId, onSalvo }) {
+  const [aberto, setAberto] = useState(false)
+  const [v, setV] = useState({ texto: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '' })
+  const [erro, setErro] = useState('')
+
+  function set(k, val) { setV((s) => ({ ...s, [k]: val })) }
+
+  async function submit(e) {
+    e.preventDefault()
+    setErro('')
+    if (!v.texto.trim()) { setErro('Texto da evolucao e obrigatorio.'); return }
+    try {
+      await apiSend('POST', `/pacientes/${pacienteId}/evolucao`, v)
+      setV({ texto: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '' })
+      setAberto(false)
+      onSalvo()
+    } catch (err) {
+      setErro(err.message)
+    }
+  }
+
+  if (!aberto) return <Button variant="secondary" onClick={() => setAberto(true)}>+ Evolucao de enfermagem</Button>
+
+  return (
+    <Card className="p-5">
+      <form onSubmit={submit} className="space-y-3">
+        {erro && <Alert>{erro}</Alert>}
+        <label className="text-sm text-slate-600">Evolucao
+          <textarea className={inputEvo} rows={2} value={v.texto} onChange={(e) => set('texto', e.target.value)} />
+        </label>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <label className="text-sm text-slate-600">PA
+            <input className={inputEvo} placeholder="120/80" value={v.pressao} onChange={(e) => set('pressao', e.target.value)} />
+          </label>
+          <label className="text-sm text-slate-600">Temp
+            <input className={inputEvo} placeholder="36.5" value={v.temperatura} onChange={(e) => set('temperatura', e.target.value)} />
+          </label>
+          <label className="text-sm text-slate-600">FC
+            <input className={inputEvo} placeholder="80" value={v.freq_cardiaca} onChange={(e) => set('freq_cardiaca', e.target.value)} />
+          </label>
+          <label className="text-sm text-slate-600">Sat
+            <input className={inputEvo} placeholder="98" value={v.saturacao} onChange={(e) => set('saturacao', e.target.value)} />
+          </label>
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit">Salvar</Button>
+          <Button type="button" variant="secondary" onClick={() => setAberto(false)}>Cancelar</Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
 
 const RISCO = {
   Vermelho: 'red',
@@ -76,7 +134,31 @@ const SECOES = [
       { key: 'medicamento', label: 'Medicamento' },
       { key: 'dosagem', label: 'Dosagem' },
       { key: 'frequencia', label: 'Frequencia' },
+      { key: 'via', label: 'Via' },
       { key: 'observacoes', label: 'Observacoes' },
+    ],
+  },
+  {
+    titulo: 'Medicamentos administrados (enfermagem)',
+    chave: 'administracoes',
+    columns: [
+      { key: 'criadoEm', label: 'Quando' },
+      { key: 'medicamento', label: 'Medicamento' },
+      { key: 'por', label: 'Por' },
+      { key: 'observacao', label: 'Observacao' },
+    ],
+  },
+  {
+    titulo: 'Evolucao de enfermagem',
+    chave: 'evolucoes',
+    columns: [
+      { key: 'criadoEm', label: 'Quando' },
+      { key: 'autor', label: 'Autor' },
+      { key: 'texto', label: 'Evolucao' },
+      { key: 'pressao', label: 'PA' },
+      { key: 'temperatura', label: 'Temp' },
+      { key: 'freqCardiaca', label: 'FC' },
+      { key: 'saturacao', label: 'Sat' },
     ],
   },
 ]
@@ -93,21 +175,29 @@ function Info({ label, value }) {
 export default function PacienteDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [paciente, setPaciente] = useState(null)
   const [historico, setHistorico] = useState(null)
   const [erro, setErro] = useState('')
   const [semHistorico, setSemHistorico] = useState(false)
 
-  useEffect(() => {
-    apiGet(`/pacientes/${id}`)
-      .then(setPaciente)
-      .catch((e) => setErro(e.status === 404 ? 'Paciente nao encontrado.' : e.message))
+  const podeEvoluir = ['ADMIN', 'MEDICO', 'ENFERMAGEM'].includes(user.papel)
+
+  function carregarHistorico() {
     apiGet(`/pacientes/${id}/historico`)
       .then(setHistorico)
       .catch((e) => {
         if (e.status === 403) setSemHistorico(true)
         else setErro(e.message)
       })
+  }
+
+  useEffect(() => {
+    apiGet(`/pacientes/${id}`)
+      .then(setPaciente)
+      .catch((e) => setErro(e.status === 404 ? 'Paciente nao encontrado.' : e.message))
+    carregarHistorico()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   if (erro) return <Alert>{erro}</Alert>
@@ -153,7 +243,12 @@ export default function PacienteDetalhe() {
       </Card>
 
       <div>
-        <h2 className="mb-3 text-lg font-bold text-slate-900">Historico clinico</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900">Historico clinico</h2>
+          {!semHistorico && podeEvoluir && (
+            <FormEvolucao pacienteId={paciente.id} onSalvo={carregarHistorico} />
+          )}
+        </div>
         {semHistorico ? (
           <Alert tone="amber">
             Seu papel nao tem acesso ao historico clinico deste paciente.

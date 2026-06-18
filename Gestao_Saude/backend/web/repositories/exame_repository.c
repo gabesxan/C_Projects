@@ -52,8 +52,108 @@ int exame_repo_criar(int paciente_id, int medico_id, int prontuario_id,
     }
 
     sqlite3_finalize(stmt);
+
+    /* O exame original e raiz de si mesmo (raiz_id = id). */
+    sqlite3_exec(db, "UPDATE exames SET raiz_id = id WHERE raiz_id = 0;",
+                 NULL, NULL, NULL);
+
     db_fechar(db);
     return 1;
+}
+
+/* Retifica o resultado de um exame CONCLUIDO criando uma NOVA versao (vigente)
+ * e preservando a anterior. Exige justificativa. 1 = ok, 0 = falha. */
+int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
+                                   const char *justificativa)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sqlBusca =
+        "SELECT paciente_id, medico_id, prontuario_id, tipo_exame, "
+        "data_solicitacao, urgente, versao, raiz_id, status FROM exames "
+        "WHERE id = ? AND ativo = 1 AND vigente = 1;";
+    const char *sqlInsert =
+        "INSERT INTO exames "
+        "(paciente_id, medico_id, prontuario_id, tipo_exame, data_solicitacao, "
+        "data_resultado, resultado, status, urgente, resultado_critico, "
+        "versao, raiz_id, vigente, justificativa, ativo) "
+        "VALUES (?, ?, ?, ?, ?, datetime('now'), ?, 'CONCLUIDO', ?, ?, ?, ?, 1, ?, 1);";
+    int pac = 0, med = 0, pront = 0, tipo = 0, urgente = 0, versao = 0, raiz = 0;
+    char dataSolic[32] = "";
+    char status[32] = "";
+    int ok = 0;
+
+    if (resultado == NULL || resultado[0] == '\0' ||
+        justificativa == NULL || justificativa[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sqlBusca, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        pac = sqlite3_column_int(stmt, 0);
+        med = sqlite3_column_int(stmt, 1);
+        pront = sqlite3_column_int(stmt, 2);
+        tipo = sqlite3_column_int(stmt, 3);
+        snprintf(dataSolic, sizeof(dataSolic), "%s", (const char *)sqlite3_column_text(stmt, 4));
+        urgente = sqlite3_column_int(stmt, 5);
+        versao = sqlite3_column_int(stmt, 6);
+        raiz = sqlite3_column_int(stmt, 7);
+        snprintf(status, sizeof(status), "%s", (const char *)sqlite3_column_text(stmt, 8));
+    }
+    sqlite3_finalize(stmt);
+
+    /* So retifica resultado de exame ja concluido. */
+    if (pac == 0 || strcmp(status, "CONCLUIDO") != 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sqlInsert, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, pac);
+    sqlite3_bind_int(stmt, 2, med);
+    sqlite3_bind_int(stmt, 3, pront);
+    sqlite3_bind_int(stmt, 4, tipo);
+    sqlite3_bind_text(stmt, 5, dataSolic, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, resultado, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 7, urgente);
+    sqlite3_bind_int(stmt, 8, critico ? 1 : 0);
+    sqlite3_bind_int(stmt, 9, versao + 1);
+    sqlite3_bind_int(stmt, 10, raiz);
+    sqlite3_bind_text(stmt, 11, justificativa, -1, SQLITE_STATIC);
+    ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+
+    if (ok)
+    {
+        sqlite3_stmt *upd = NULL;
+        if (sqlite3_prepare_v2(db, "UPDATE exames SET vigente = 0 WHERE id = ?;",
+                               -1, &upd, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(upd, 1, id);
+            sqlite3_step(upd);
+            sqlite3_finalize(upd);
+        }
+    }
+
+    db_fechar(db);
+    return ok ? 1 : 0;
 }
 
 int exame_repo_listar_json(char *buffer, int tamanho)
@@ -63,7 +163,7 @@ int exame_repo_listar_json(char *buffer, int tamanho)
     const char *sql =
         "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
         "data_solicitacao, data_resultado, resultado, status, urgente "
-        "FROM exames WHERE ativo = 1 ORDER BY id;";
+        "FROM exames WHERE ativo = 1 AND vigente = 1 ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -165,7 +265,7 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
     const char *sql =
         "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
         "data_solicitacao, data_resultado, resultado, status, urgente "
-        "FROM exames WHERE medico_id = ? AND ativo = 1 ORDER BY id;";
+        "FROM exames WHERE medico_id = ? AND ativo = 1 AND vigente = 1 ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -269,7 +369,7 @@ int exame_repo_listar_por_paciente_json(int paciente_id, char *buffer, int taman
     const char *sql =
         "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
         "data_solicitacao, data_resultado, resultado, status, urgente "
-        "FROM exames WHERE paciente_id = ? AND ativo = 1 ORDER BY id;";
+        "FROM exames WHERE paciente_id = ? AND ativo = 1 AND vigente = 1 ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -391,7 +491,7 @@ static int statusAtual(int id, char *destino, int tam)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql = "SELECT status FROM exames WHERE id = ? AND ativo = 1;";
+    const char *sql = "SELECT status FROM exames WHERE id = ? AND ativo = 1 AND vigente = 1;";
     int ok = 0;
 
     if (db_abrir(&db) == 0)
@@ -423,7 +523,7 @@ int exame_repo_atualizar_status(int id, const char *novo_status)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql = "UPDATE exames SET status = ? WHERE id = ? AND ativo = 1;";
+    const char *sql = "UPDATE exames SET status = ? WHERE id = ? AND ativo = 1 AND vigente = 1;";
     char atual[32];
     int ok = 0;
 
@@ -467,7 +567,7 @@ int exame_repo_registrar_resultado(int id, const char *resultado, int critico)
     const char *sql =
         "UPDATE exames SET resultado = ?, resultado_critico = ?, "
         "status = 'CONCLUIDO', data_resultado = datetime('now') "
-        "WHERE id = ? AND ativo = 1;";
+        "WHERE id = ? AND ativo = 1 AND vigente = 1;";
     char atual[32];
     int ok = 0;
 
@@ -510,7 +610,7 @@ int exame_repo_cancelar(int id, const char *motivo)
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "UPDATE exames SET status = 'CANCELADO', motivo_cancelamento = ?, "
-        "ativo = 0 WHERE id = ? AND ativo = 1 AND status != 'CONCLUIDO';";
+        "ativo = 0 WHERE id = ? AND ativo = 1 AND vigente = 1 AND status != 'CONCLUIDO';";
     int ok = 0;
 
     /* Cancelamento exige motivo; exame concluido nao se cancela. */
@@ -543,7 +643,7 @@ int exame_repo_desativar(int id)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql = "UPDATE exames SET ativo = 0 WHERE id = ? AND ativo = 1;";
+    const char *sql = "UPDATE exames SET ativo = 0 WHERE id = ? AND ativo = 1 AND vigente = 1;";
     int alteradas;
 
     if (db_abrir(&db) == 0)
@@ -578,7 +678,7 @@ int exame_repo_contar_por_medico(int medico_id)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT COUNT(*) FROM exames WHERE medico_id = ? AND ativo = 1;";
+        "SELECT COUNT(*) FROM exames WHERE medico_id = ? AND ativo = 1 AND vigente = 1;";
     int total = -1;
 
     if (medico_id <= 0)
@@ -613,7 +713,7 @@ int exame_repo_contar_ativos(void)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql = "SELECT COUNT(*) FROM exames WHERE ativo = 1;";
+    const char *sql = "SELECT COUNT(*) FROM exames WHERE ativo = 1 AND vigente = 1;";
     int total = -1;
 
     if (db_abrir(&db) == 0)

@@ -10,6 +10,7 @@
 #include "internacao_repository.h"
 #include "usuario_repository.h"
 #include "auditoria_repository.h"
+#include "enfermagem_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -414,11 +415,17 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
                    (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/transferir"));
         }
 
-        /* Acompanhamento de alas/medicos/prescricoes: somente leitura. */
+        /* Enfermagem administra medicamentos (marca a prescricao como aplicada). */
+        if (comecaCom(caminho, "/prescricoes"))
+        {
+            return strcmp(metodo, "GET") == 0 ||
+                   (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/administrar"));
+        }
+
+        /* Acompanhamento de alas/medicos: somente leitura. */
         return strcmp(metodo, "GET") == 0 &&
                (comecaCom(caminho, "/alas") ||
-                comecaCom(caminho, "/medicos") ||
-                comecaCom(caminho, "/prescricoes"));
+                comecaCom(caminho, "/medicos"));
     }
 
     /* PACIENTE: somente as rotas sob /me (ja liberadas acima). */
@@ -623,6 +630,8 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
     char *prescricoes = malloc(TAM_JSON);
     char *triagens = malloc(TAM_JSON);
     char *agendamentos = malloc(TAM_JSON);
+    char *administracoes = malloc(TAM_JSON);
+    char *evolucoes = malloc(TAM_JSON);
     char *saida = malloc(TAM_JSON);
     int ok = 0;
 
@@ -635,21 +644,28 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
         free(prescricoes);
         free(triagens);
         free(agendamentos);
+        free(administracoes);
+        free(evolucoes);
         free(saida);
         return;
     }
 
-    if (prontuarios && exames && prescricoes && triagens && agendamentos && saida &&
+    if (prontuarios && exames && prescricoes && triagens && agendamentos &&
+        administracoes && evolucoes && saida &&
         prontuario_repo_listar_por_paciente_json(id, prontuarios, TAM_JSON) == 1 &&
         exame_repo_listar_por_paciente_json(id, exames, TAM_JSON) == 1 &&
         prescricao_repo_listar_por_paciente_json(id, prescricoes, TAM_JSON) == 1 &&
         triagem_service_historico_json(id, triagens, TAM_JSON) == 1 &&
-        agendamento_repo_listar_por_paciente_json(id, agendamentos, TAM_JSON) == 1)
+        agendamento_repo_listar_por_paciente_json(id, agendamentos, TAM_JSON) == 1 &&
+        administracao_listar_por_paciente_json(id, administracoes, TAM_JSON) == 1 &&
+        evolucao_listar_por_paciente_json(id, evolucoes, TAM_JSON) == 1)
     {
         int n = snprintf(saida, TAM_JSON,
                          "{\"prontuarios\":%s,\"exames\":%s,\"prescricoes\":%s,"
-                         "\"triagens\":%s,\"agendamentos\":%s}",
-                         prontuarios, exames, prescricoes, triagens, agendamentos);
+                         "\"triagens\":%s,\"agendamentos\":%s,\"administracoes\":%s,"
+                         "\"evolucoes\":%s}",
+                         prontuarios, exames, prescricoes, triagens, agendamentos,
+                         administracoes, evolucoes);
         ok = (n > 0 && n < TAM_JSON);
     }
 
@@ -668,6 +684,8 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
     free(prescricoes);
     free(triagens);
     free(agendamentos);
+    free(administracoes);
+    free(evolucoes);
     free(saida);
 }
 
@@ -1957,6 +1975,42 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaHistoricoPaciente(cliente, id, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "evolucoes") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && evolucao_listar_por_paciente_json(id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar evolucoes\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "administracoes") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && administracao_listar_por_paciente_json(id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar administracoes\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "evolucao") == 0)
+    {
+        char texto[1024];
+        char pressao[32], temperatura[32], freq[32], saturacao[32];
+        int ok;
+        extrairParam(consulta, "texto", texto, sizeof(texto));
+        extrairParam(consulta, "pressao", pressao, sizeof(pressao));
+        extrairParam(consulta, "temperatura", temperatura, sizeof(temperatura));
+        extrairParam(consulta, "freq_cardiaca", freq, sizeof(freq));
+        extrairParam(consulta, "saturacao", saturacao, sizeof(saturacao));
+        ok = evolucao_criar(id, s.login, texto, pressao, temperatura, freq, saturacao) == 1;
+        if (ok)
+            auditar(&s, "EVOLUCAO", "paciente", id, "");
+        responderCriacao(cliente, ok, "{\"erro\":\"evolucao exige texto\"}");
+    }
     else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d", &id) == 1)
     {
         rotaDetalhePaciente(cliente, id);
@@ -2182,6 +2236,23 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         responderRemocao(cliente, ok,
                          "{\"erro\":\"nao foi possivel registrar resultado (status/coleta)\"}");
     }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "retificar") == 0)
+    {
+        char resultado[512];
+        char critico[8];
+        char justificativa[256];
+        int ok;
+        extrairParam(consulta, "resultado", resultado, sizeof(resultado));
+        extrairParam(consulta, "critico", critico, sizeof(critico));
+        extrairParam(consulta, "justificativa", justificativa, sizeof(justificativa));
+        ok = exame_repo_retificar_resultado(id, resultado, atoi(critico),
+                                            justificativa) == 1;
+        if (ok)
+            auditar(&s, "RETIFICAR", "exame", id, justificativa);
+        responderRemocao(cliente, ok,
+                         "{\"erro\":\"retificacao invalida (justificativa ou exame nao concluido)\"}");
+    }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/exames/%d", &id) == 1)
     {
         char motivo[256];
@@ -2226,6 +2297,18 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/prescricoes") == 0)
     {
         rotaCriarPrescricao(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/prescricoes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "administrar") == 0)
+    {
+        char obs[256];
+        int ok;
+        extrairParam(consulta, "observacao", obs, sizeof(obs));
+        ok = administracao_criar(id, s.usuario_id, s.login, obs) == 1;
+        if (ok)
+            auditar(&s, "ADMINISTRAR", "prescricao", id, obs);
+        responderRemocao(cliente, ok,
+                         "{\"erro\":\"prescricao nao encontrada ou inativa\"}");
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/prescricoes/%d", &id) == 1)
     {

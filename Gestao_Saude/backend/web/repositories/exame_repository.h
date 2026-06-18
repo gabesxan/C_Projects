@@ -24,6 +24,11 @@ int exame_repo_registrar_resultado(int id, const char *resultado, int critico);
 /* Cancela o exame; exige motivo e nao cancela exame concluido. 1 = ok, 0 = falha. */
 int exame_repo_cancelar(int id, const char *motivo);
 
+/* Retifica o resultado de um exame concluido criando uma nova versao (vigente)
+ * e preservando a anterior; exige justificativa. 1 = ok, 0 = falha. */
+int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
+                                   const char *justificativa);
+
 int exame_repo_desativar(int id);
 int exame_repo_contar_ativos(void);
 

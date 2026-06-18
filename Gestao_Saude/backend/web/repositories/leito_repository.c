@@ -8,17 +8,16 @@
 /* Status validos de um leito. */
 static int statusValido(const char *s)
 {
-    return s != NULL && (
-        strcmp(s, "DISPONIVEL") == 0 ||
-        strcmp(s, "OCUPADO") == 0 ||
-        strcmp(s, "HIGIENIZACAO") == 0 ||
-        strcmp(s, "MANUTENCAO") == 0 ||
-        strcmp(s, "BLOQUEADO") == 0);
+    return s != NULL && (strcmp(s, "DISPONIVEL") == 0 ||
+                         strcmp(s, "OCUPADO") == 0 ||
+                         strcmp(s, "HIGIENIZACAO") == 0 ||
+                         strcmp(s, "MANUTENCAO") == 0 ||
+                         strcmp(s, "BLOQUEADO") == 0);
 }
 
 /* Insere uma linha no historico de status usando uma conexao ja aberta. */
 static void inserirHistorico(sqlite3 *db, int leito_id, const char *status,
-                            const char *responsavel)
+                             const char *responsavel)
 {
     sqlite3_stmt *stmt = NULL;
     const char *sql =
@@ -374,9 +373,9 @@ int leito_repo_ocupacao_json(char *buffer, int tamanho)
     }
 
     escrito = snprintf(buffer, (size_t)tamanho,
-        "{\"total\":%d,\"ocupados\":%d,\"disponiveis\":%d,"
-        "\"higienizacao\":%d,\"indisponiveis\":%d,\"taxaOcupacao\":%d}",
-        total, ocupados, disponiveis, higienizacao, indisponiveis, taxa);
+                       "{\"total\":%d,\"ocupados\":%d,\"disponiveis\":%d,"
+                       "\"higienizacao\":%d,\"indisponiveis\":%d,\"taxaOcupacao\":%d}",
+                       total, ocupados, disponiveis, higienizacao, indisponiveis, taxa);
 
     return (escrito > 0 && escrito < tamanho) ? 1 : 0;
 }

@@ -181,6 +181,8 @@ export const RESOURCES = [
     deleteRoles: ['ADMIN', 'MEDICO'],
     deleteLabel: 'Suspender',
     requireReason: true,
+    // Enfermagem registra a administracao (MAR) do medicamento.
+    administravel: true,
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },

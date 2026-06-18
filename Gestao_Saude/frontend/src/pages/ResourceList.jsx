@@ -44,6 +44,20 @@ export default function ResourceList() {
   const podeCriar = recurso.createRoles?.includes(user.papel)
   const podeDeletar = recurso.deleteRoles?.includes(user.papel)
   const podeRetificar = recurso.retificavel && podeCriar
+  const podeAdministrar =
+    recurso.administravel && ['ADMIN', 'MEDICO', 'ENFERMAGEM'].includes(user.papel)
+
+  async function administrar(row) {
+    const observacao = window.prompt(`Confirmar administracao de "${row.medicamento}". Observacao (opcional):`)
+    if (observacao === null) return
+    try {
+      await apiSend('POST', `${recurso.path}/${row.id}/administrar`, { observacao })
+      setErro('')
+      window.alert('Administracao registrada.')
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
 
   async function retificar(row) {
     const diagnostico = window.prompt('Diagnostico (corrigido):', row.diagnostico || '')
@@ -132,8 +146,8 @@ export default function ResourceList() {
           columns={recurso.columns}
           rows={rows}
           onDelete={podeDeletar ? remover : undefined}
-          onAction={podeRetificar ? retificar : undefined}
-          actionLabel="Retificar"
+          onAction={podeRetificar ? retificar : podeAdministrar ? administrar : undefined}
+          actionLabel={podeRetificar ? 'Retificar' : 'Administrar'}
           onRowClick={recurso.detail ? (row) => navigate(recurso.detail(row)) : undefined}
           deleteLabel={recurso.deleteLabel}
         />

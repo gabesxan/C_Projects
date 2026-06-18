@@ -66,6 +66,15 @@ int main(void)
     assert(exame_repo_atualizar_status(1, "EM_ANALISE") == 0);
     assert(exame_repo_cancelar(1, "tentativa") == 0);
 
+    /* Retificacao de resultado versionada: exame 1 esta CONCLUIDO. */
+    assert(exame_repo_retificar_resultado(1, "Reanalisado", 0, "") == 0); /* sem justificativa */
+    assert(exame_repo_retificar_resultado(1, "Reanalisado", 0, "Erro de laudo") == 1);
+    /* A lista vigente mostra o resultado corrigido. */
+    assert(exame_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "Reanalisado") != NULL);
+    /* Retificar exame nao concluido (ex.: 2, solicitado) falha. */
+    assert(exame_repo_retificar_resultado(2, "X", 0, "j") == 0);
+
     /* Cancelamento exige motivo; com motivo, sai dos ativos. */
     assert(exame_repo_cancelar(2, "") == 0);
     assert(exame_repo_cancelar(2, "Duplicado") == 1);

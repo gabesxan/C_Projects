@@ -59,6 +59,18 @@ int main(void)
         assert(strcmp(json, "[]") == 0);
     }
 
+    /* Reclassificacao versionada: nova versao vigente preserva a anterior. */
+    /* Triagem 2 (Prioritario, nivel 4) piora para Emergencia (nivel 5). */
+    assert(triagem_repo_reclassificar(2, "", 5, "dor_toracica", "x") == 0); /* classe vazia */
+    assert(triagem_repo_reclassificar(2, "Vermelho", 5, "dor_toracica", "") == 0); /* sem justificativa */
+    assert(triagem_repo_reclassificar(2, "Vermelho", 5, "dor_toracica", "Piora do quadro") == 1);
+    /* Contagem de vigentes nao muda (substitui a versao). */
+    assert(triagem_repo_contar_ativos() == antes);
+    /* A fila vigente mostra a nova classificacao. */
+    assert(triagem_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "Vermelho") != NULL);
+    assert(strstr(json, "Prioritario") == NULL); /* versao antiga saiu do vigente */
+
     assert(triagem_repo_desativar(1) == 1);
     assert(triagem_repo_contar_ativos() == antes - 1);
     assert(triagem_repo_desativar(9999) == 0);

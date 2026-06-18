@@ -288,8 +288,8 @@ int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT ala_id FROM leitos WHERE id = ? AND ativo = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "SELECT ala_id FROM leitos WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, novo_leito_id);
         if (sqlite3_step(stmt) == SQLITE_ROW)
@@ -309,10 +309,11 @@ int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
     leitoOrigem = leitoDaInternacao(id, "INTERNADO");
     {
         int pacienteId = 0;
-        if (db_abrir(&db) == 0) return 0;
+        if (db_abrir(&db) == 0)
+            return 0;
         if (sqlite3_prepare_v2(db,
-                "SELECT paciente_id FROM internacoes WHERE id = ?;",
-                -1, &stmt, NULL) == SQLITE_OK)
+                               "SELECT paciente_id FROM internacoes WHERE id = ?;",
+                               -1, &stmt, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int(stmt, 1, id);
             if (sqlite3_step(stmt) == SQLITE_ROW)
@@ -338,8 +339,8 @@ int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
     }
 
     if (sqlite3_prepare_v2(db,
-            "UPDATE internacoes SET leito_id = ?, ala_id = ? WHERE id = ?;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "UPDATE internacoes SET leito_id = ?, ala_id = ? WHERE id = ?;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -351,9 +352,10 @@ int internacao_repo_transferir(int id, int novo_leito_id, const char *data,
     sqlite3_finalize(stmt);
 
     if (ok && sqlite3_prepare_v2(db,
-            "INSERT INTO transferencias "
-            "(internacao_id, leito_origem, leito_destino, data, responsavel) "
-            "VALUES (?, ?, ?, ?, ?);", -1, &stmt, NULL) == SQLITE_OK)
+                                 "INSERT INTO transferencias "
+                                 "(internacao_id, leito_origem, leito_destino, data, responsavel) "
+                                 "VALUES (?, ?, ?, ?, ?);",
+                                 -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, id);
         sqlite3_bind_int(stmt, 2, leitoOrigem);
