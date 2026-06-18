@@ -51,6 +51,11 @@ int db_abrir(sqlite3 **db)
      * explicitamente a cada abertura. */
     sqlite3_exec(*db, "PRAGMA foreign_keys = ON;", NULL, NULL, NULL);
 
+    /* Servidor concorrente: varias conexoes simultaneas disputam a escrita no
+     * SQLite. O busy_timeout faz uma conexao esperar (em vez de falhar com
+     * SQLITE_BUSY) enquanto outra mantem o lock de escrita. */
+    sqlite3_busy_timeout(*db, 5000);
+
     return 1;
 }
 

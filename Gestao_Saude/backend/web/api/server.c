@@ -24,6 +24,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <signal.h>
+#include <pthread.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -45,6 +47,11 @@
 #define PORTA_PADRAO 8080
 #define TAM_REQUISICAO 2048
 #define TAM_JSON 65536
+
+/* Concorrencia: pool fixo de threads consumindo uma fila limitada de conexoes
+ * aceitas. Mantem o uso de recursos previsivel sob varios usuarios simultaneos. */
+#define NUM_WORKERS 8
+#define FILA_CAP 128
 
 /* Validade de uma sessao (token Bearer) em horas. */
 #define SESSAO_VALIDADE_HORAS 8
@@ -2914,12 +2921,97 @@ static ssize_t lerRequisicao(int cliente, char *buf, size_t cap)
     return total;
 }
 
+/* Trata uma conexao ja aceita: le a requisicao, roteia e fecha o socket.
+ * Cada chamada usa apenas buffers locais (seguro para execucao concorrente);
+ * os repositories abrem/fecham a propria conexao SQLite por request. */
+static void tratarCliente(int cliente)
+{
+    char requisicao[TAM_REQUISICAO];
+    char metodo[8];
+    char caminho[256];
+    ssize_t lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
+
+    if (lidos <= 0)
+    {
+        close(cliente);
+        return;
+    }
+
+    requisicao[lidos] = '\0';
+
+    if (sscanf(requisicao, "%7s %255s", metodo, caminho) != 2)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"requisicao invalida\"}");
+        close(cliente);
+        return;
+    }
+
+    rotear(cliente, metodo, caminho, requisicao);
+    close(cliente);
+}
+
+/* Fila limitada (produtor = accept; consumidores = workers) de descritores. */
+static int filaClientes[FILA_CAP];
+static int filaInicio = 0;
+static int filaFim = 0;
+static int filaCount = 0;
+static pthread_mutex_t filaMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t filaNaoVazia = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t filaNaoCheia = PTHREAD_COND_INITIALIZER;
+
+static void filaEnfileirar(int cliente)
+{
+    pthread_mutex_lock(&filaMutex);
+    while (filaCount == FILA_CAP)
+    {
+        pthread_cond_wait(&filaNaoCheia, &filaMutex);
+    }
+    filaClientes[filaFim] = cliente;
+    filaFim = (filaFim + 1) % FILA_CAP;
+    filaCount++;
+    pthread_cond_signal(&filaNaoVazia);
+    pthread_mutex_unlock(&filaMutex);
+}
+
+static int filaDesenfileirar(void)
+{
+    int cliente;
+    pthread_mutex_lock(&filaMutex);
+    while (filaCount == 0)
+    {
+        pthread_cond_wait(&filaNaoVazia, &filaMutex);
+    }
+    cliente = filaClientes[filaInicio];
+    filaInicio = (filaInicio + 1) % FILA_CAP;
+    filaCount--;
+    pthread_cond_signal(&filaNaoCheia);
+    pthread_mutex_unlock(&filaMutex);
+    return cliente;
+}
+
+/* Loop do worker: pega uma conexao da fila e a atende, indefinidamente. */
+static void *worker(void *arg)
+{
+    (void)arg;
+    for (;;)
+    {
+        tratarCliente(filaDesenfileirar());
+    }
+    return NULL;
+}
+
 int main(int argc, char *argv[])
 {
     int porta = PORTA_PADRAO;
     int servidor;
     int opcao = 1;
     struct sockaddr_in endereco;
+    pthread_t workers[NUM_WORKERS];
+    int i;
+
+    /* Cliente que desconecta no meio da escrita nao deve derrubar o servidor. */
+    signal(SIGPIPE, SIG_IGN);
 
     if (argc > 1)
     {
@@ -2958,41 +3050,32 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("SIGEH-DF API ouvindo em http://localhost:%d\n", porta);
+    /* Sobe o pool de workers que atendem as conexoes aceitas. */
+    for (i = 0; i < NUM_WORKERS; i++)
+    {
+        if (pthread_create(&workers[i], NULL, worker, NULL) != 0)
+        {
+            perror("pthread_create");
+            close(servidor);
+            return 1;
+        }
+    }
+
+    printf("SIGEH-DF API ouvindo em http://localhost:%d (%d workers)\n",
+           porta, NUM_WORKERS);
     fflush(stdout);
 
+    /* Produtor: aceita conexoes e as entrega aos workers pela fila. */
     for (;;)
     {
-        char requisicao[TAM_REQUISICAO];
-        char metodo[8];
-        char caminho[256];
         int cliente = accept(servidor, NULL, NULL);
-        ssize_t lidos;
 
         if (cliente < 0)
         {
             continue;
         }
 
-        lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
-        if (lidos <= 0)
-        {
-            close(cliente);
-            continue;
-        }
-
-        requisicao[lidos] = '\0';
-
-        if (sscanf(requisicao, "%7s %255s", metodo, caminho) != 2)
-        {
-            responder(cliente, "400 Bad Request",
-                      "{\"erro\":\"requisicao invalida\"}");
-            close(cliente);
-            continue;
-        }
-
-        rotear(cliente, metodo, caminho, requisicao);
-        close(cliente);
+        filaEnfileirar(cliente);
     }
 
     close(servidor);

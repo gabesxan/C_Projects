@@ -13,6 +13,8 @@ CFLAGS = -Wall -Wextra -pedantic \
 LDLIBS = -lsqlite3
 MATH_LIB = -lm
 CRYPTO_LIBS = -L$(OPENSSL_DIR)/lib -lcrypto
+# Servidor concorrente (pool de threads).
+THREAD_LIB = -pthread
 
 # Diretorio de saida para binarios e bancos de teste (gerado, ignorado no git).
 BUILD = build
@@ -88,7 +90,7 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS) | $(BUILD)
-	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(MATH_LIB)
+	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(MATH_LIB) $(THREAD_LIB)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
