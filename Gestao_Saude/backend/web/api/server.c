@@ -3013,6 +3013,13 @@ int main(int argc, char *argv[])
     /* Cliente que desconecta no meio da escrita nao deve derrubar o servidor. */
     signal(SIGPIPE, SIG_IGN);
 
+    /* Aplica migracoes de schema pendentes (atualiza bancos antigos sem perder
+     * dados). Num banco ja na ultima versao, e um no-op. */
+    if (db_migrar() == 0)
+    {
+        fprintf(stderr, "[AVISO] falha ao aplicar migracoes de schema\n");
+    }
+
     if (argc > 1)
     {
         porta = atoi(argv[1]);

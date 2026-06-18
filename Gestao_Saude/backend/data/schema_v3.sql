@@ -333,3 +333,12 @@ CREATE INDEX idx_auditoria_entidade ON auditoria(entidade, entidade_id);
 CREATE UNIQUE INDEX idx_pacientes_cpf_ativo
     ON pacientes(documento)
     WHERE ativo = 1 AND tipo_documento = 'CPF';
+
+-- Indices das features mais recentes (financeiro e sessoes). Tambem aplicados
+-- a bancos antigos pela migracao v2 (ver backend/web/database/migracoes.c).
+CREATE INDEX idx_cobrancas_paciente ON cobrancas(paciente_id);
+CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
+
+-- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
+-- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
+PRAGMA user_version = 2;

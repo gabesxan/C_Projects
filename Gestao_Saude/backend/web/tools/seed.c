@@ -95,6 +95,13 @@ int main(int argc, char *argv[])
      * usuarios criados depois pelo admin. */
     db_executar("UPDATE usuarios SET trocar_senha = 0;");
 
+    /* Garante o banco na ultima versao de schema (no-op se ja estiver). */
+    if (db_migrar() != 1)
+    {
+        fprintf(stderr, "falha ao aplicar migracoes de schema\n");
+        return 1;
+    }
+
     printf("Seed concluido.\n");
     return 0;
 }

@@ -27,4 +27,9 @@ int db_executar(const char *sql);
 /* Remove o .db atual e aplica o arquivo de schema informado. Retorna 1/0. */
 int db_resetar_com_schema(const char *caminho_schema);
 
+/* Aplica, em ordem, as migracoes de schema pendentes (versao > user_version
+ * atual), preservando os dados. Idempotente e seguro em banco ja atualizado.
+ * Bancos sem o schema base (nao semeados) sao ignorados. Retorna 1/0. */
+int db_migrar(void);
+
 #endif

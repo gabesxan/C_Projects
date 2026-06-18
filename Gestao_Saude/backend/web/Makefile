@@ -20,6 +20,7 @@ THREAD_LIB = -pthread
 BUILD = build
 
 DB_SRC = database/database.c
+MIG_SRC = database/migracoes.c
 JSON_SRC = util/repo_json.c
 SENHA_SRC = util/senha_util.c
 CRED_SRC = util/credencial_util.c
@@ -65,6 +66,7 @@ TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC
 TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_SESSAO = tests/test_sessao_repository.c $(SESSAO_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_MIG = tests/test_migracoes.c $(MIG_SRC) $(DB_SRC)
 TEST_AUDIT = tests/test_auditoria_repository.c $(AUDIT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_CRED = tests/test_credencial_util.c $(CRED_SRC)
 TEST_ENF = tests/test_enfermagem_repository.c $(ENF_SRC) $(PRESC_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
@@ -87,14 +89,14 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
 	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(SENHA_SRC) \
 	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) \
-	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
+	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(MATH_LIB) $(THREAD_LIB)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
-	$(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC)
+	$(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 seed: $(SEED_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(SEED_DEPS) -o $(BUILD)/seed $(LDLIBS) $(CRYPTO_LIBS)
@@ -132,7 +134,7 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository \
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
-	test_sessao_repository
+	test_sessao_repository test_migracoes
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -210,6 +212,10 @@ test_sessao_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_SESSAO) -o $(BUILD)/test_sessao_repository $(LDLIBS) $(CRYPTO_LIBS)
 	./$(BUILD)/test_sessao_repository
 
+test_migracoes: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_MIG) -o $(BUILD)/test_migracoes $(LDLIBS)
+	./$(BUILD)/test_migracoes
+
 clean:
 	rm -rf $(BUILD)
 
@@ -220,4 +226,4 @@ clean:
 	test_triagem_service test_relatorio_service test_usuario_repository \
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
-	test_sessao_repository
+	test_sessao_repository test_migracoes
