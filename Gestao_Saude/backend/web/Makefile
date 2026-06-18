@@ -119,6 +119,11 @@ api-smoke-test:
 	# Executa o smoke test que sobe a API, valida rotas e encerra ao final.
 	./tests/api_smoke_test.sh
 
+# Teste de integracao HTTP: fluxos ponta-a-ponta encadeados (alem do smoke).
+api-integration-test:
+	chmod +x tests/api_integration_test.sh
+	./tests/api_integration_test.sh
+
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
@@ -206,7 +211,7 @@ test_sessao_repository: | $(BUILD)
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all api frontend run api-smoke-test seed db-reset test clean \
+.PHONY: all api frontend run api-smoke-test api-integration-test seed db-reset test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
