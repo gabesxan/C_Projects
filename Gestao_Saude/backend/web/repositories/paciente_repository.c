@@ -503,6 +503,39 @@ int paciente_repo_desativar(int id)
     return alteradas > 0 ? 1 : 0;
 }
 
+int paciente_repo_atualizar_contato(int id, const char *telefone)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE pacientes SET telefone = ? WHERE id = ? AND ativo = 1;";
+    int ok = 0;
+
+    if (id <= 0 || telefone == NULL || telefone[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, telefone, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
 int paciente_repo_regiao(int id)
 {
     sqlite3 *db = NULL;

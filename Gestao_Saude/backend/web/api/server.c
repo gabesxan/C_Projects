@@ -2038,6 +2038,16 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         free(json);
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "contato") == 0)
+    {
+        char telefone[32];
+        int ok;
+        extrairParam(consulta, "telefone", telefone, sizeof(telefone));
+        ok = paciente_repo_atualizar_contato(id, telefone) == 1;
+        if (ok) auditar(&s, "ATUALIZAR", "paciente", id, telefone);
+        responderRemocao(cliente, ok, "{\"erro\":\"paciente nao encontrado ou telefone vazio\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "evolucao") == 0)
     {
         char texto[1024];

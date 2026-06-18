@@ -48,6 +48,18 @@ function CheckinForm({ onFeito }) {
     }
   }
 
+  // Atualiza um dado cadastral basico (telefone) na recepcao.
+  async function atualizarTel(p) {
+    const telefone = window.prompt(`Novo telefone de ${p.nome}:`, p.telefone || '')
+    if (telefone === null || !telefone.trim()) return
+    try {
+      await apiSend('POST', `/pacientes/${p.id}/contato`, { telefone })
+      window.alert('Contato atualizado.')
+    } catch (err) {
+      setErro(err.message)
+    }
+  }
+
   return (
     <Card className="p-5">
       <p className="text-sm font-semibold text-slate-700">Confirmar chegada</p>
@@ -82,9 +94,12 @@ function CheckinForm({ onFeito }) {
           {resultados.map((p) => (
             <li key={p.id} className="flex items-center justify-between py-2">
               <span className="text-sm text-slate-700">
-                {p.nome} <span className="text-slate-400">• {p.tipoDocumento} {p.documento}</span>
+                {p.nome} <span className="text-slate-400">• {p.tipoDocumento} {p.documento} • {p.telefone}</span>
               </span>
-              <Button variant="secondary" onClick={() => checkin(p)}>Gerar senha</Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => atualizarTel(p)}>Atualizar tel.</Button>
+                <Button onClick={() => checkin(p)}>Gerar senha</Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -148,7 +163,10 @@ export default function Recepcao() {
                 <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
                   <td className="px-4 py-3 font-bold text-slate-900">{c.senha}</td>
                   <td className="px-4 py-3 text-slate-700">{c.pacienteNome || `#${c.pacienteId}`}</td>
-                  <td className="px-4 py-3"><Badge tone="sky">{c.destino}</Badge></td>
+                  <td className="px-4 py-3">
+                    <Badge tone="sky">{c.destino}</Badge>
+                    {c.prioridade >= 4 && <span className="ml-1"><Badge tone="red">prioridade {c.prioridade}</Badge></span>}
+                  </td>
                   <td className="px-4 py-3"><Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge></td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">

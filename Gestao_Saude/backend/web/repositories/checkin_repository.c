@@ -75,11 +75,18 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
+    /* Fila ordenada por PRIORIDADE da triagem vigente (urgentes no topo) e,
+     * em empate, por ordem de chegada. Pacientes sem triagem tem prioridade 0. */
     const char *sql =
         "SELECT c.id, c.paciente_id, p.nome, c.senha, c.destino, c.status, "
-        "c.criado_em FROM checkins c "
+        "c.criado_em, COALESCE(("
+        "  SELECT t.pontuacao FROM triagens t "
+        "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
+        "  ORDER BY t.id DESC LIMIT 1), 0) AS prioridade "
+        "FROM checkins c "
         "LEFT JOIN pacientes p ON p.id = c.paciente_id "
-        "WHERE c.status != 'ENCERRADO' ORDER BY c.id;";
+        "WHERE c.status != 'ENCERRADO' "
+        "ORDER BY prioridade DESC, c.id ASC;";
     int usado = 0;
     int primeiro = 1;
 
@@ -118,6 +125,7 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         char objeto[760];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
+        int prioridade = sqlite3_column_int(stmt, 7);
         int escrito;
 
         if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
@@ -133,9 +141,10 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
             "%s{\"id\":%d,\"pacienteId\":%d,\"pacienteNome\":%s,\"senha\":%s,"
-            "\"destino\":%s,\"status\":%s,\"criadoEm\":%s}",
+            "\"destino\":%s,\"status\":%s,\"prioridade\":%d,\"criadoEm\":%s}",
             primeiro ? "" : ",",
-            id, pacienteId, nomeJson, senhaJson, destinoJson, statusJson, criadoJson);
+            id, pacienteId, nomeJson, senhaJson, destinoJson, statusJson,
+            prioridade, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
