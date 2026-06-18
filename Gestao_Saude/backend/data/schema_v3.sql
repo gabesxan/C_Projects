@@ -135,6 +135,10 @@ CREATE TABLE transferencias (
     FOREIGN KEY (internacao_id) REFERENCES internacoes(id)
 );
 
+-- Prontuarios versionados: registro clinico imutavel. Uma retificacao NAO
+-- altera nem apaga a linha original; cria uma nova versao (vigente = 1) e marca
+-- a anterior como vigente = 0 (preservada). 'raiz_id' agrupa as versoes de um
+-- mesmo registro; 'justificativa' explica a retificacao.
 CREATE TABLE prontuarios (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
@@ -144,6 +148,10 @@ CREATE TABLE prontuarios (
     diagnostico TEXT NOT NULL,
     conduta TEXT NOT NULL,
     alerta_importante INTEGER NOT NULL,
+    versao INTEGER NOT NULL DEFAULT 1,
+    raiz_id INTEGER NOT NULL DEFAULT 0,
+    vigente INTEGER NOT NULL DEFAULT 1,
+    justificativa TEXT NOT NULL DEFAULT '',
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
     FOREIGN KEY (medico_id) REFERENCES medicos(id)

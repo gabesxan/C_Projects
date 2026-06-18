@@ -55,9 +55,28 @@ int main(void)
     assert(strstr(json, "Dor toracica") != NULL);
     assert(strstr(json, "Gripe") == NULL);
 
-    assert(prontuario_repo_desativar(1) == 1);
-    assert(prontuario_repo_contar_ativos() == antes - 1);
-    assert(prontuario_repo_desativar(9999) == 0);
+    /* Retificacao versionada: cria nova versao vigente, preserva a anterior. */
+    assert(prontuario_repo_retificar(1, "2026-06-17", "Reavaliacao",
+                                     "Gripe (corrigido)", "Repouso e antitermico",
+                                     0, "Erro de digitacao no diagnostico") == 1);
+    /* Sem justificativa -> recusa. */
+    assert(prontuario_repo_retificar(1, "2026-06-17", "x", "y", "z", 0, "") == 0);
+
+    /* O total VIGENTE nao muda (a retificacao substitui a versao, nao soma). */
+    assert(prontuario_repo_contar_ativos() == antes);
+
+    /* A lista vigente mostra o texto corrigido, nao o antigo. */
+    assert(prontuario_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "Gripe (corrigido)") != NULL);
+
+    /* O historico do paciente preserva AMBAS as versoes (trilha imutavel). */
+    assert(prontuario_repo_listar_por_paciente_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"versao\":1") != NULL);
+    assert(strstr(json, "\"versao\":2") != NULL);
+    assert(strstr(json, "Erro de digitacao no diagnostico") != NULL);
+
+    /* Retificar id inexistente/nao vigente falha. */
+    assert(prontuario_repo_retificar(9999, "2026-06-17", "x", "y", "z", 0, "j") == 0);
 
     printf("test_prontuario_repository: OK\n");
     return 0;

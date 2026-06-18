@@ -45,14 +45,16 @@ const SECOES = [
     ],
   },
   {
-    titulo: 'Prontuarios',
+    titulo: 'Prontuarios (todas as versoes)',
     chave: 'prontuarios',
     columns: [
       { key: 'id', label: 'ID' },
-      { key: 'medicoId', label: 'Medico' },
       { key: 'data', label: 'Data' },
       { key: 'diagnostico', label: 'Diagnostico' },
       { key: 'conduta', label: 'Conduta' },
+      { key: 'versao', label: 'Versao' },
+      { key: 'vigente', label: 'Vigente', type: 'status' },
+      { key: 'justificativa', label: 'Justificativa' },
     ],
   },
   {

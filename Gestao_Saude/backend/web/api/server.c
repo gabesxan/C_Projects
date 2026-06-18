@@ -1423,6 +1423,36 @@ static void rotaCriarProntuario(int cliente, const char *consulta, const Sessao 
                      "{\"erro\":\"dados invalidos para prontuario\"}");
 }
 
+static void rotaRetificarProntuario(int cliente, int id, const char *consulta,
+                                    const Sessao *s)
+{
+    char data[32];
+    char observacoes[512];
+    char diagnostico[256];
+    char conduta[256];
+    char alerta[16];
+    char justificativa[256];
+    int ok;
+
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
+    extrairParam(consulta, "diagnostico", diagnostico, sizeof(diagnostico));
+    extrairParam(consulta, "conduta", conduta, sizeof(conduta));
+    extrairParam(consulta, "alerta_importante", alerta, sizeof(alerta));
+    extrairParam(consulta, "justificativa", justificativa, sizeof(justificativa));
+
+    ok = prontuario_repo_retificar(id, data, observacoes, diagnostico, conduta,
+                                   atoi(alerta), justificativa) == 1;
+
+    if (ok)
+    {
+        auditar(s, "RETIFICAR", "prontuario", id, justificativa);
+    }
+
+    responderRemocao(cliente, ok,
+        "{\"erro\":\"retificacao invalida (conduta/justificativa ou prontuario nao vigente)\"}");
+}
+
 static void rotaCriarExame(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
@@ -2104,7 +2134,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarProntuario(cliente, consulta, &s);
     }
-    /* Sem rota de remocao de prontuario: registro clinico nao e apagado. */
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/prontuarios/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "retificar") == 0)
+    {
+        rotaRetificarProntuario(cliente, id, consulta, &s);
+    }
+    /* Sem rota de remocao de prontuario: registro clinico nao e apagado
+     * (a correcao e por retificacao versionada). */
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/exames") == 0)
     {
         rotaListarExames(cliente, papel, authMedicoId);

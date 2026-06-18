@@ -124,6 +124,8 @@ export const RESOURCES = [
     roles: ['ADMIN', 'MEDICO'],
     createRoles: ['ADMIN', 'MEDICO'],
     deleteRoles: [],
+    // Registro clinico imutavel: a correcao e por retificacao versionada.
+    retificavel: true,
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
@@ -132,6 +134,7 @@ export const RESOURCES = [
       { key: 'data', label: 'Data' },
       { key: 'diagnostico', label: 'Diagnostico' },
       { key: 'conduta', label: 'Conduta' },
+      { key: 'versao', label: 'Versao' },
     ],
     createFields: [
       { name: 'paciente_id', label: 'Paciente ID', type: 'number' },

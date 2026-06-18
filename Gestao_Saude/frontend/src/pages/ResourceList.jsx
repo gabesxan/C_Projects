@@ -43,6 +43,37 @@ export default function ResourceList() {
 
   const podeCriar = recurso.createRoles?.includes(user.papel)
   const podeDeletar = recurso.deleteRoles?.includes(user.papel)
+  const podeRetificar = recurso.retificavel && podeCriar
+
+  async function retificar(row) {
+    const diagnostico = window.prompt('Diagnostico (corrigido):', row.diagnostico || '')
+    if (diagnostico === null) return
+    const conduta = window.prompt('Conduta (corrigida):', row.conduta || '')
+    if (conduta === null || !conduta.trim()) {
+      setErro('Conduta e obrigatoria na retificacao.')
+      return
+    }
+    const justificativa = window.prompt('Justificativa da retificacao:')
+    if (justificativa === null) return
+    if (!justificativa.trim()) {
+      setErro('Justificativa e obrigatoria.')
+      return
+    }
+    const data = new Date().toISOString().slice(0, 10)
+    try {
+      await apiSend('POST', `${recurso.path}/${row.id}/retificar`, {
+        data,
+        observacoes: row.observacoes || '',
+        diagnostico,
+        conduta,
+        alerta_importante: row.alertaImportante ? '1' : '0',
+        justificativa,
+      })
+      carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
 
   async function remover(row) {
     let params = {}
@@ -101,6 +132,8 @@ export default function ResourceList() {
           columns={recurso.columns}
           rows={rows}
           onDelete={podeDeletar ? remover : undefined}
+          onAction={podeRetificar ? retificar : undefined}
+          actionLabel="Retificar"
           onRowClick={recurso.detail ? (row) => navigate(recurso.detail(row)) : undefined}
           deleteLabel={recurso.deleteLabel}
         />

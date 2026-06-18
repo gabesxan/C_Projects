@@ -27,7 +27,15 @@ function Cell({ col, row }) {
   return formatCell(value)
 }
 
-export default function DataTable({ columns, rows, onDelete, onRowClick, deleteLabel = 'Remover' }) {
+export default function DataTable({
+  columns,
+  rows,
+  onDelete,
+  onRowClick,
+  onAction,
+  actionLabel = 'Acao',
+  deleteLabel = 'Remover',
+}) {
   return (
     <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
       <table className="min-w-full text-sm">
@@ -38,7 +46,7 @@ export default function DataTable({ columns, rows, onDelete, onRowClick, deleteL
                 {col.label}
               </th>
             ))}
-            {onDelete && <th className="px-4 py-3 font-semibold">Acoes</th>}
+            {(onDelete || onAction) && <th className="px-4 py-3 font-semibold">Acoes</th>}
           </tr>
         </thead>
         <tbody>
@@ -56,18 +64,34 @@ export default function DataTable({ columns, rows, onDelete, onRowClick, deleteL
                   <Cell col={col} row={row} />
                 </td>
               ))}
-              {onDelete && (
+              {(onDelete || onAction) && (
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Button
-                    variant="danger"
-                    className="px-3 py-1"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(row)
-                    }}
-                  >
-                    {deleteLabel}
-                  </Button>
+                  <div className="flex gap-2">
+                    {onAction && (
+                      <Button
+                        variant="secondary"
+                        className="px-3 py-1"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAction(row)
+                        }}
+                      >
+                        {actionLabel}
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button
+                        variant="danger"
+                        className="px-3 py-1"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(row)
+                        }}
+                      >
+                        {deleteLabel}
+                      </Button>
+                    )}
+                  </div>
                 </td>
               )}
             </tr>
