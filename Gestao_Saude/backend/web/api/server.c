@@ -11,6 +11,7 @@
 #include "usuario_repository.h"
 #include "auditoria_repository.h"
 #include "enfermagem_repository.h"
+#include "checkin_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -347,7 +348,8 @@ static int ehRotaMe(const char *caminho)
 static int ehCadastro(const char *caminho)
 {
     return comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
-           comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos");
+           comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
+           comecaCom(caminho, "/checkins");
 }
 
 static int ehClinico(const char *caminho)
@@ -384,6 +386,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         {
             return 1;
         }
+        /* Consome a fila: pode chamar/encerrar um check-in. */
+        if (comecaCom(caminho, "/checkins") && strcmp(metodo, "POST") == 0 &&
+            (terminaCom(caminho, "/chamar") || terminaCom(caminho, "/encerrar")))
+        {
+            return 1;
+        }
         return ehClinico(caminho);
     }
 
@@ -413,6 +421,14 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         {
             return strcmp(metodo, "GET") == 0 ||
                    (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/transferir"));
+        }
+
+        /* Fila de recepcao: enfermagem ve e chama/encerra senhas (triagem). */
+        if (comecaCom(caminho, "/checkins"))
+        {
+            return strcmp(metodo, "GET") == 0 ||
+                   (strcmp(metodo, "POST") == 0 &&
+                    (terminaCom(caminho, "/chamar") || terminaCom(caminho, "/encerrar")));
         }
 
         /* Enfermagem administra medicamentos (marca a prescricao como aplicada). */
@@ -1337,6 +1353,31 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para triagem\"}");
 }
 
+static void rotaCriarCheckin(int cliente, const char *consulta, const Sessao *s)
+{
+    char pacienteId[16];
+    char destino[16];
+    char senha[16];
+
+    extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+    extrairParam(consulta, "destino", destino, sizeof(destino));
+
+    if (checkin_repo_criar(atoi(pacienteId), destino, senha, sizeof(senha)) == 1)
+    {
+        char corpo[128];
+        auditar(s, "CHECKIN", "checkin", atoi(pacienteId), destino);
+        snprintf(corpo, sizeof(corpo),
+                 "{\"status\":\"check-in\",\"senha\":\"%s\",\"destino\":\"%s\"}",
+                 senha, destino);
+        responder(cliente, "201 Created", corpo);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"paciente/destino invalido (TRIAGEM ou CONSULTA)\"}");
+    }
+}
+
 static void rotaReclassificarTriagem(int cliente, int id, const char *consulta,
                                      const Sessao *s)
 {
@@ -1893,7 +1934,8 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/exames") || comecaCom(caminho, "/internacoes") ||
            comecaCom(caminho, "/prescricoes") ||
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
-           comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/me");
+           comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/checkins") ||
+           comecaCom(caminho, "/me");
 }
 
 /* ----------------------------------------------------------------------- */
@@ -2444,6 +2486,32 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria/contar") == 0)
     {
         responderContagem(cliente, auditoria_contar);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/checkins") == 0)
+    {
+        responderLista(cliente, checkin_repo_listar_json, "{\"erro\":\"falha ao listar fila\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/checkins/contar") == 0)
+    {
+        responderContagem(cliente, checkin_repo_contar_aguardando);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/checkins") == 0)
+    {
+        rotaCriarCheckin(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "chamar") == 0)
+    {
+        int ok = checkin_repo_chamar(id) == 1;
+        if (ok) auditar(&s, "CHAMAR", "checkin", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado ou ja chamado\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "encerrar") == 0)
+    {
+        int ok = checkin_repo_encerrar(id) == 1;
+        if (ok) auditar(&s, "ENCERRAR", "checkin", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado\"}");
     }
     else
     {

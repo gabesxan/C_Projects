@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import ResourceList from './pages/ResourceList'
 import PacienteDetalhe from './pages/PacienteDetalhe'
 import Triagem from './pages/Triagem'
+import Recepcao from './pages/Recepcao'
 import Leitos from './pages/Leitos'
 import Internacoes from './pages/Internacoes'
 import Relatorios from './pages/Relatorios'
@@ -59,6 +60,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'MEDICO', 'ENFERMAGEM']}>
               <Triagem />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/recepcao"
+          element={
+            <RequireRole roles={['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM']}>
+              <Recepcao />
             </RequireRole>
           }
         />

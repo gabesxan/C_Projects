@@ -5,6 +5,7 @@
 const NAV = [
   { to: '/', label: 'Painel', icon: '🏠', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM', 'PACIENTE'], end: true },
   { to: '/minha-saude', label: 'Meus dados', icon: '💜', roles: ['PACIENTE'] },
+  { to: '/recepcao', label: 'Recepcao', icon: '🎫', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/r/pacientes', label: 'Pacientes', icon: '🧑‍⚕️', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/r/medicos', label: 'Médicos', icon: '🩺', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/triagem', label: 'Triagem', icon: '🚑', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },

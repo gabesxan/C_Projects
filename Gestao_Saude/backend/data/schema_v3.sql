@@ -233,6 +233,19 @@ CREATE TABLE auditoria (
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Check-in / recepcao: confirma a chegada do paciente, gera uma senha de fila
+-- e o direciona para TRIAGEM ou CONSULTA. status: AGUARDANDO, EM_ATENDIMENTO,
+-- ENCERRADO. Nunca apagado (historico de fluxo).
+CREATE TABLE checkins (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    senha TEXT NOT NULL,
+    destino TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'AGUARDANDO',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+);
+
 -- Administracao de medicamentos pela enfermagem (MAR). Cada linha registra
 -- que uma prescricao foi aplicada, por quem e quando. Nunca e apagada.
 CREATE TABLE administracoes (
