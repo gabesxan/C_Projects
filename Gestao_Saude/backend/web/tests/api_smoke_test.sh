@@ -317,19 +317,24 @@ request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "
 request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_AUTH}"
 
 # --- Escopo de dados por papel: o MEDICO ve apenas os proprios dados ---
-# Endereco base reutilizado nas criacoes via POST (parametros vao na query string).
+# Endereco base reutilizado nas criacoes via POST (parametros vao no CORPO JSON).
 BASE="http://localhost:8080"
+# Helper: POST autenticado (Basic) enviando o corpo como JSON.
+post_json() {
+    curl -sS -u "${ADMIN_AUTH}" -H 'Content-Type: application/json' \
+        -X POST "${BASE}$1" -d "$2" >/dev/null
+}
 # Informa o inicio da preparacao do cenario de escopo.
 echo "[INFO] Preparando cenario de escopo por papel (MEDICO)"
 # Cria um medico (sera o id 1 no banco recem-resetado).
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/medicos?nome=DrSmoke&crm=CRM-SMOKE&especialidade=Cardiologia&regiao=1" >/dev/null
+post_json "/medicos" '{"nome":"DrSmoke","crm":"CRM-SMOKE","especialidade":"Cardiologia","regiao":"1"}'
 # Cria dois pacientes: o primeiro sera vinculado ao medico, o segundo nao.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=AnaSmoke&nascimento=1990-01-01&documento=900900&tipo_documento=CPF&telefone=61&sexo=F&regiao=1" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/pacientes?nome=BiaSmoke&nascimento=1980-01-01&documento=900901&tipo_documento=CPF&telefone=61&sexo=F&regiao=2" >/dev/null
+post_json "/pacientes" '{"nome":"AnaSmoke","nascimento":"1990-01-01","documento":"900900","tipo_documento":"CPF","telefone":"61","sexo":"F","regiao":"1"}'
+post_json "/pacientes" '{"nome":"BiaSmoke","nascimento":"1980-01-01","documento":"900901","tipo_documento":"CPF","telefone":"61","sexo":"F","regiao":"2"}'
 # Agenda a paciente 1 (Ana) com o medico 1, criando o vinculo de escopo.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/agendamentos?paciente_id=1&medico_id=1&data=2026-06-14&horario=09:00" >/dev/null
+post_json "/agendamentos" '{"paciente_id":"1","medico_id":"1","data":"2026-06-14","horario":"09:00"}'
 # Cria um usuario MEDICO ligado ao medico 1 para autenticar com escopo.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=MedSmoke&login=medsmoke&senha=med123&papel=MEDICO&medico_id=1" >/dev/null
+post_json "/usuarios" '{"nome":"MedSmoke","login":"medsmoke","senha":"med123","papel":"MEDICO","medico_id":"1"}'
 # Credencial do medico recem-criado.
 MED_AUTH="medsmoke:med123"
 
@@ -346,13 +351,13 @@ echo "[OK] /pacientes escopado por papel (MEDICO nao ve paciente de fora)"
 request_and_assert "/agendamentos" "200" "/agendamentos (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
 
 # Cria um segundo medico (id 2) para gerar registros fora do escopo do primeiro.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/medicos?nome=DrOutro&crm=CRM-OUTRO&especialidade=Ortopedia&regiao=2" >/dev/null
+post_json "/medicos" '{"nome":"DrOutro","crm":"CRM-OUTRO","especialidade":"Ortopedia","regiao":"2"}'
 # Prontuario do medico 1 (escopo do MEDICO logado) e do medico 2 (fora do escopo).
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prontuarios?paciente_id=1&medico_id=1&data=2026-06-14&observacoes=obs&diagnostico=DiagMed1&conduta=c&alerta_importante=0" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prontuarios?paciente_id=2&medico_id=2&data=2026-06-14&observacoes=obs&diagnostico=DiagMed2&conduta=c&alerta_importante=0" >/dev/null
+post_json "/prontuarios" '{"paciente_id":"1","medico_id":"1","data":"2026-06-14","observacoes":"obs","diagnostico":"DiagMed1","conduta":"c","alerta_importante":"0"}'
+post_json "/prontuarios" '{"paciente_id":"2","medico_id":"2","data":"2026-06-14","observacoes":"obs","diagnostico":"DiagMed2","conduta":"c","alerta_importante":"0"}'
 # Exame do medico 1 e do medico 2 (vinculados aos prontuarios 1 e 2).
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/exames?paciente_id=1&medico_id=1&prontuario_id=1&tipo=1&data_solicitacao=2026-06-14&urgente=0" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/exames?paciente_id=2&medico_id=2&prontuario_id=2&tipo=5&data_solicitacao=2026-06-14&urgente=1" >/dev/null
+post_json "/exames" '{"paciente_id":"1","medico_id":"1","prontuario_id":"1","tipo":"1","data_solicitacao":"2026-06-14","urgente":"0"}'
+post_json "/exames" '{"paciente_id":"2","medico_id":"2","prontuario_id":"2","tipo":"5","data_solicitacao":"2026-06-14","urgente":"1"}'
 
 # O MEDICO ve o proprio prontuario (DiagMed1) e nao o do outro medico (DiagMed2).
 request_and_assert "/prontuarios" "200" "/prontuarios (MEDICO escopado)" "${MED_AUTH}" contains 'DiagMed1'
@@ -373,8 +378,8 @@ fi
 echo "[OK] /exames escopado por papel (MEDICO nao ve exame de outro)"
 
 # Triagens de tipos diferentes: tipo 3 -> Cardiologia (do DrSmoke), tipo 2 -> Ortopedia.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=1&tipo=3&itens=dor_toracica" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=2&tipo=2&itens=dor_moderada" >/dev/null
+post_json "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}'
+post_json "/triagens" '{"paciente_id":"2","tipo":"2","itens":"dor_moderada"}'
 
 # O MEDICO (Cardiologia) ve a triagem cardiologica (tipo 3) na fila escopada.
 request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_AUTH}" contains '"tipoTriagem":3'
@@ -393,10 +398,10 @@ request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_AUT
 
 # --- Prescricoes / medicacao: matriz de papeis ---
 # Medico 1 prescreve para a paciente 1.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/prescricoes?paciente_id=1&medico_id=1&medicamento=DipironaSmoke&dosagem=500mg&frequencia=8/8h&observacoes=apos+refeicoes" >/dev/null
+post_json "/prescricoes" '{"paciente_id":"1","medico_id":"1","medicamento":"DipironaSmoke","dosagem":"500mg","frequencia":"8/8h","observacoes":"apos refeicoes"}'
 # Usuarios de enfermagem e do proprio paciente para validar os acessos.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=EnfSmoke&login=enfsmoke&senha=enf123&papel=ENFERMAGEM" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/usuarios?nome=PacSmoke&login=pacsmoke&senha=pac123&papel=PACIENTE&paciente_id=1" >/dev/null
+post_json "/usuarios" '{"nome":"EnfSmoke","login":"enfsmoke","senha":"enf123","papel":"ENFERMAGEM"}'
+post_json "/usuarios" '{"nome":"PacSmoke","login":"pacsmoke","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
 ENF_AUTH="enfsmoke:enf123"
 PAC_AUTH="pacsmoke:pac123"
 

@@ -197,6 +197,133 @@ static int extrairParam(const char *consulta, const char *chave,
     return 0;
 }
 
+/* Anexa 'origem' (len bytes) a 'destino' em percent-encoding seguro para query
+ * string (mantem [A-Za-z0-9-_.~], demais viram %XX). Retorna 1 se coube. */
+static int urlEncodeAnexar(char *destino, int tamanho, int *usado,
+                           const char *origem, int len)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    int i;
+
+    for (i = 0; i < len; i++)
+    {
+        unsigned char c = (unsigned char)origem[i];
+        int seguro = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                     (c >= '0' && c <= '9') ||
+                     c == '-' || c == '_' || c == '.' || c == '~';
+
+        if (seguro)
+        {
+            if (*usado >= tamanho - 1) return 0;
+            destino[(*usado)++] = (char)c;
+        }
+        else
+        {
+            if (*usado >= tamanho - 3) return 0;
+            destino[(*usado)++] = '%';
+            destino[(*usado)++] = hex[(c >> 4) & 0xF];
+            destino[(*usado)++] = hex[c & 0xF];
+        }
+    }
+
+    destino[*usado] = '\0';
+    return 1;
+}
+
+/* Converte um corpo JSON plano ({"k":"v","n":1,"b":true}) para o formato de
+ * query string ("k=v&n=1&b=true") que os handlers ja sabem ler via
+ * extrairParam. Assim a migracao para corpo JSON nao exige tocar cada rota:
+ * strings tem os escapes basicos resolvidos; valores crus (numero/booleano/
+ * null) passam direto. Suporta apenas objetos planos. Retorna 1 em sucesso. */
+static int jsonParaQuery(const char *corpo, char *destino, int tamanho)
+{
+    const char *p = corpo;
+    int usado = 0;
+    int primeiro = 1;
+
+    if (corpo == NULL || destino == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+    destino[0] = '\0';
+
+    while (*p != '\0')
+    {
+        char chave[64];
+        char valor[1024];
+        int ci = 0;
+        int vi = 0;
+
+        /* Proxima chave: string entre aspas. */
+        while (*p != '\0' && *p != '"') p++;
+        if (*p != '"') break;
+        p++;
+        while (*p != '\0' && *p != '"' && ci < (int)sizeof(chave) - 1)
+        {
+            chave[ci++] = *p++;
+        }
+        chave[ci] = '\0';
+        if (*p != '"') break;
+        p++;
+
+        while (*p == ' ' || *p == '\t' || *p == ':') p++;
+        if (*p == '\0') break;
+
+        if (*p == '"')
+        {
+            /* Valor string: resolve escapes basicos. */
+            p++;
+            while (*p != '\0' && *p != '"' && vi < (int)sizeof(valor) - 1)
+            {
+                if (*p == '\\' && *(p + 1) != '\0')
+                {
+                    p++;
+                    if (*p == 'n') valor[vi++] = '\n';
+                    else if (*p == 't') valor[vi++] = '\t';
+                    else valor[vi++] = *p;
+                }
+                else
+                {
+                    valor[vi++] = *p;
+                }
+                p++;
+            }
+            valor[vi] = '\0';
+            if (*p == '"') p++;
+        }
+        else
+        {
+            /* Valor cru (numero/booleano/null): ate ',' '}' ou espaco. */
+            while (*p != '\0' && *p != ',' && *p != '}' &&
+                   *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r' &&
+                   vi < (int)sizeof(valor) - 1)
+            {
+                valor[vi++] = *p++;
+            }
+            valor[vi] = '\0';
+        }
+
+        if (!primeiro)
+        {
+            if (usado >= tamanho - 1) return 0;
+            destino[usado++] = '&';
+            destino[usado] = '\0';
+        }
+        if (urlEncodeAnexar(destino, tamanho, &usado, chave, (int)strlen(chave)) == 0) return 0;
+        if (usado >= tamanho - 1) return 0;
+        destino[usado++] = '=';
+        destino[usado] = '\0';
+        if (urlEncodeAnexar(destino, tamanho, &usado, valor, (int)strlen(valor)) == 0) return 0;
+        primeiro = 0;
+
+        /* Avanca ate o proximo par. */
+        while (*p != '\0' && *p != ',') p++;
+        if (*p == ',') p++;
+    }
+
+    return 1;
+}
+
 /* Devolve o ponteiro para o corpo da requisicao (apos o "\r\n\r\n"), ou NULL
  * se nao houver corpo. Nao copia: aponta dentro do proprio buffer. */
 static const char *corpoRequisicao(const char *requisicao)
@@ -2137,6 +2264,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
                    const char *requisicao)
 {
     char *consulta = strchr(caminho, '?');
+    char corpoQuery[TAM_REQUISICAO];
     char acao[32];
     Sessao s;
     char *papel = s.papel;
@@ -2192,6 +2320,21 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         responder(cliente, "403 Forbidden", "{\"erro\":\"acesso negado\"}");
         return;
+    }
+
+    /* Migracao para corpo JSON: nas escritas com corpo, convertemos o JSON
+     * para o formato de query string e seguimos usando os handlers atuais
+     * (que leem por extrairParam). Sem corpo, mantem a query da URL (GETs e
+     * acoes sem parametros, como /checkins/{id}/chamar). */
+    if (strcmp(metodo, "POST") == 0 || strcmp(metodo, "DELETE") == 0)
+    {
+        const char *corpo = corpoRequisicao(requisicao);
+        if (corpo != NULL &&
+            jsonParaQuery(corpo, corpoQuery, sizeof(corpoQuery)) == 1 &&
+            corpoQuery[0] != '\0')
+        {
+            consulta = corpoQuery;
+        }
     }
 
     if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/pacientes") == 0)

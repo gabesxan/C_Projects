@@ -88,11 +88,18 @@ export async function apiGet(path) {
   return res.json()
 }
 
-// POST/DELETE: os parametros viram query string (contrato atual do backend).
+// POST/DELETE: os parametros vao no CORPO como JSON (nunca na URL). Quando nao
+// ha parametros (acoes simples como /checkins/{id}/chamar), envia sem corpo.
 export async function apiSend(method, path, params = {}) {
-  const qs = new URLSearchParams(params).toString()
-  const url = BASE + path + (qs ? `?${qs}` : '')
-  const res = await fetch(url, { method, headers: { ...authHeaders() } })
+  const temCorpo = params && Object.keys(params).length > 0
+  const res = await fetch(BASE + path, {
+    method,
+    headers: {
+      ...authHeaders(),
+      ...(temCorpo ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: temCorpo ? JSON.stringify(params) : undefined,
+  })
   if (!res.ok) throw new ApiError(res.status, await safeJson(res))
   return safeJson(res)
 }
