@@ -172,6 +172,65 @@ function Info({ label, value }) {
   )
 }
 
+// Mostra o convenio atual do paciente e permite (ADMIN/CADASTRO) defini-lo.
+function ConvenioPaciente({ pacienteId, convenioId, podeEditar, onAtualizado }) {
+  const [convenios, setConvenios] = useState([])
+  const [editando, setEditando] = useState(false)
+  const [sel, setSel] = useState('')
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    apiGet('/convenios').then(setConvenios).catch(() => setConvenios([]))
+  }, [])
+
+  const atual = convenios.find((c) => c.id === convenioId)
+  const nome = convenioId ? (atual ? atual.nome : `#${convenioId}`) : 'Particular (sem convenio)'
+
+  async function salvar() {
+    setErro('')
+    try {
+      await apiSend('POST', `/pacientes/${pacienteId}/convenio`, { convenio_id: sel || 0 })
+      setEditando(false)
+      onAtualizado()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Convenio</p>
+          <p className="text-sm font-medium text-slate-800">{nome}</p>
+        </div>
+        {podeEditar && !editando && (
+          <Button variant="secondary" onClick={() => { setSel(convenioId ? String(convenioId) : ''); setEditando(true) }}>
+            Definir convenio
+          </Button>
+        )}
+      </div>
+      {editando && (
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <select
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 outline-none"
+            value={sel}
+            onChange={(e) => setSel(e.target.value)}
+          >
+            <option value="">Particular (sem convenio)</option>
+            {convenios.map((c) => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+          <Button onClick={salvar}>Salvar</Button>
+          <Button variant="secondary" onClick={() => setEditando(false)}>Cancelar</Button>
+        </div>
+      )}
+      {erro && <p className="mt-2 text-sm text-red-600">{erro}</p>}
+    </Card>
+  )
+}
+
 export default function PacienteDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -182,6 +241,13 @@ export default function PacienteDetalhe() {
   const [semHistorico, setSemHistorico] = useState(false)
 
   const podeEvoluir = ['ADMIN', 'MEDICO', 'ENFERMAGEM'].includes(user.papel)
+  const podeConvenio = ['ADMIN', 'CADASTRO'].includes(user.papel)
+
+  function carregarPaciente() {
+    apiGet(`/pacientes/${id}`)
+      .then(setPaciente)
+      .catch((e) => setErro(e.status === 404 ? 'Paciente nao encontrado.' : e.message))
+  }
 
   function carregarHistorico() {
     apiGet(`/pacientes/${id}/historico`)
@@ -193,9 +259,7 @@ export default function PacienteDetalhe() {
   }
 
   useEffect(() => {
-    apiGet(`/pacientes/${id}`)
-      .then(setPaciente)
-      .catch((e) => setErro(e.status === 404 ? 'Paciente nao encontrado.' : e.message))
+    carregarPaciente()
     carregarHistorico()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
@@ -241,6 +305,13 @@ export default function PacienteDetalhe() {
           {menor && <Info label="Responsavel" value={paciente.responsavel} />}
         </div>
       </Card>
+
+      <ConvenioPaciente
+        pacienteId={paciente.id}
+        convenioId={paciente.convenioId}
+        podeEditar={podeConvenio}
+        onAtualizado={carregarPaciente}
+      />
 
       <div>
         <div className="mb-3 flex items-center justify-between">

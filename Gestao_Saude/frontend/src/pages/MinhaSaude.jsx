@@ -1,7 +1,57 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api/client'
+import { formatReais } from '../money'
 import DataTable from '../components/DataTable'
 import { PageHeader, Spinner, Card, Badge } from '../components/ui'
+
+const STATUS_COBRANCA_TONE = {
+  PENDENTE: 'amber',
+  AUTORIZADA: 'sky',
+  PAGA: 'green',
+  GLOSADA: 'red',
+  CANCELADA: 'slate',
+}
+
+// Cobrancas do proprio paciente: valor formatado em R$ e status como badge.
+function MinhasCobrancas() {
+  const [rows, setRows] = useState(null)
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    apiGet('/me/cobrancas').then(setRows).catch((e) => setErro(e.message))
+  }, [])
+
+  return (
+    <section className="space-y-2">
+      <h2 className="text-sm font-semibold text-slate-600">Minhas cobrancas</h2>
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {!erro && rows === null && <Spinner />}
+      {!erro && Array.isArray(rows) && rows.length === 0 && (
+        <p className="text-sm text-slate-500">Nenhuma cobranca.</p>
+      )}
+      {!erro && Array.isArray(rows) && rows.length > 0 && (
+        <ul className="divide-y divide-slate-100 rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+          {rows.map((c) => (
+            <li key={c.id} className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-800">
+                  {c.descricao || c.origem || `Cobranca #${c.id}`}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {c.forma}{c.criadoEm ? ` • ${c.criadoEm}` : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-900">{formatReais(c.valorCentavos)}</span>
+                <Badge tone={STATUS_COBRANCA_TONE[c.status]}>{c.status}</Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
 
 // Secoes do paciente, todas servidas pelas rotas /me/... (escopadas ao proprio).
 const SECOES = [
@@ -115,6 +165,7 @@ export default function MinhaSaude() {
       {SECOES.map((s) => (
         <Secao key={s.path} {...s} />
       ))}
+      <MinhasCobrancas />
     </div>
   )
 }

@@ -15,6 +15,7 @@ const NAV = [
   { to: '/r/prescricoes', label: 'Prescrições', icon: '💊', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/internacao', label: 'Internações', icon: '🏥', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/enfermagem', label: 'Leitos', icon: '🛏️', roles: ['ADMIN', 'ENFERMAGEM', 'CADASTRO'] },
+  { to: '/financeiro', label: 'Financeiro', icon: '💰', roles: ['ADMIN', 'CADASTRO'] },
   { to: '/relatorios', label: 'Relatórios', icon: '📊', roles: ['ADMIN', 'MEDICO'] },
   { to: '/admin/usuarios', label: 'Usuários', icon: '👥', roles: ['ADMIN'] },
   { to: '/admin/auditoria', label: 'Auditoria', icon: '🛡️', roles: ['ADMIN'] },

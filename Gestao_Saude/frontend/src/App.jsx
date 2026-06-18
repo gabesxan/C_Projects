@@ -10,6 +10,7 @@ import Recepcao from './pages/Recepcao'
 import Leitos from './pages/Leitos'
 import Internacoes from './pages/Internacoes'
 import Relatorios from './pages/Relatorios'
+import Financeiro from './pages/Financeiro'
 import MinhaSaude from './pages/MinhaSaude'
 import Usuarios from './pages/Usuarios'
 import Auditoria from './pages/Auditoria'
@@ -92,6 +93,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'MEDICO']}>
               <Relatorios />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/financeiro"
+          element={
+            <RequireRole roles={['ADMIN', 'CADASTRO']}>
+              <Financeiro />
             </RequireRole>
           }
         />
