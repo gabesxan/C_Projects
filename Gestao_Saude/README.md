@@ -11,7 +11,7 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 ![OpenSSL](https://img.shields.io/badge/Hash-PBKDF2--HMAC--SHA256-721412?logo=openssl&logoColor=white)
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Testes](https://img.shields.io/badge/testes-15%2F15-brightgreen)
+![Testes](https://img.shields.io/badge/testes-20%2F20-brightgreen)
 ![Warnings](https://img.shields.io/badge/warnings-0-brightgreen)
 ![Licença](https://img.shields.io/badge/uso-acadêmico-blue)
 
@@ -67,9 +67,10 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 - 🧱 **Arquitetura em camadas** clara: `database → repositories → services → api`.
 - 🔒 **Segurança de dados**: prepared statements em toda entrada, integridade referencial no banco (FK), senhas com **hash PBKDF2-HMAC-SHA256 + salt**.
 - 👥 **Login por papéis** criado pelo administrador: `ADMIN`, `CADASTRO`, `MEDICO`, `ENFERMAGEM`, `PACIENTE`.
-- 🌐 **API REST** em C puro com sockets POSIX (sem framework).
-- ✅ **15 suítes de teste** automatizadas com `assert.h`, build sem warnings em `-Wall -Wextra -pedantic`.
-- ♻️ **Banco reconstruível**: o schema é a fonte da verdade; o `.db` é descartável.
+- 🔑 **Sessão por token** (Bearer): credenciais só no corpo do login, bloqueio por tentativas e troca de senha (obrigatória no 1º acesso).
+- 🌐 **API REST** em C puro com sockets POSIX (sem framework), **servidor concorrente** (pool de threads) e escritas via **corpo JSON**.
+- ✅ **20 suítes de teste** automatizadas com `assert.h` (+ smoke e integração HTTP), build sem warnings em `-Wall -Wextra -pedantic`.
+- ♻️ **Banco reconstruível e versionado**: o schema é a fonte da verdade, o `.db` é descartável e **migrações** atualizam bancos antigos sem perder dados.
 
 ---
 
@@ -88,7 +89,7 @@ O backend web segue uma arquitetura em camadas, de baixo para cima. Cada camada 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
 │  api/          Servidor HTTP (sockets POSIX), roteamento,       │
-│                autenticação HTTP Basic e autorização por papel   │
+│                sessão por token (Bearer) e autorização por papel │
 ├───────────────────────────────────────────────────────────────┤
 │  services/     Regras de negócio: triagem inteligente e          │
 │                relatórios. Orquestram vários repositories.       │
@@ -121,7 +122,7 @@ Cliente HTTP
    │
    ├─▶ /health?  → responde direto (rota pública)
    │
-   ├─▶ autentica (HTTP Basic) ──── falhou ─▶ 401 Unauthorized
+   ├─▶ autentica (token Bearer) ── falhou ─▶ 401 Unauthorized
    │
    ├─▶ autorizado(método, rota, papel)? ── não ─▶ 403 Forbidden
    │
@@ -222,8 +223,13 @@ make run        # sobe o servidor HTTP na porta 8080
 Ao subir, o servidor imprime `SIGEH-DF API ouvindo em http://localhost:8080` e **fica aguardando requisições** (é um servidor — não tem tela própria). Para interagir, use `curl` ou um navegador em outro terminal. Para encerrar, `Ctrl+C`.
 
 ```sh
-curl -i http://localhost:8080/health          # rota pública
-curl -u admin:secreta http://localhost:8080/me # rota autenticada
+curl -i http://localhost:8080/health           # rota pública
+# login -> token, depois use o token nas rotas autenticadas
+TOKEN=$(curl -s -X POST http://localhost:8080/sessao \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"admin","senha":"admin123"}' \
+  | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p')
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/me
 ```
 
 > ⚠️ O servidor abre o banco em `../data/sigeh_v3.db` por **caminho relativo** — execute sempre **de dentro de `backend/web/`**.
@@ -236,9 +242,10 @@ curl -u admin:secreta http://localhost:8080/me # rota autenticada
 | `make api` | Compila apenas o servidor da API |
 | `make run` | Compila e sobe o servidor na porta 8080 |
 | `make frontend` | Builda o frontend (Vite) e publica em `public/` para o servidor servir |
-| `make test` | Compila e roda as 15 suítes de teste |
+| `make test` | Compila e roda as 20 suítes de teste |
 | `make test_<nome>` | Roda uma suíte específica (ex.: `make test_triagem_service`) |
-| `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (testes de ponta a ponta via `curl`) |
+| `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (liveness, auth e escopo por papel via `curl`) |
+| `make api-integration-test` | Executa `tests/api_integration_test.sh` (fluxos ponta a ponta encadeados) |
 | `make clean` | Remove o diretório `build/` (binários, objetos e banco de teste) |
 
 > Todos os artefatos compilados vão para `backend/web/build/` (binários, `database.o` e o banco de teste), mantido fora do versionamento.
@@ -264,31 +271,42 @@ cd backend/web
 make test
 ```
 
-São **15 suítes** com `assert.h`. Cada uma **recria um banco de teste isolado** (`build/test_sigeh_repository.db`) a partir do schema, de modo que **não dependem de dados antigos nem do banco de produção**.
+São **20 suítes** com `assert.h`. Cada uma **recria um banco de teste isolado** (`build/test_sigeh_repository.db`) a partir do schema, de modo que **não dependem de dados antigos nem do banco de produção**.
 
 | Camada | Suítes |
 |---|---|
-| **Repositories** | paciente · medico · ala · leito · triagem · agendamento · prontuario · exame · internacao · usuario |
+| **Repositories** | paciente · medico · ala · leito · triagem · agendamento · prontuario · exame · internacao · usuario · prescricao · auditoria · enfermagem · checkin · financeiro · sessao |
 | **Services** | triagem_service · relatorio_service |
+| **Infra** | credencial_util · migracoes |
 
 **Detalhes relevantes:**
 
 - Como o banco roda com **chaves estrangeiras ativas**, os testes **semeiam os registros-pai** antes dos filhos (ex.: criam a ala antes do leito, o paciente antes da triagem).
 - O `triagem_service` é testado de ponta a ponta: avaliação, sugestão de médicos, histórico, sugestão de exames, agendamento (incluindo conflito de horário) e encaminhamento.
 - O `usuario_repository` valida criação, login único, autenticação correta/incorreta e — importante — que a **listagem nunca expõe senha/hash/salt**.
+- `sessao` cobre token de sessão, bloqueio por tentativas e troca de senha; `migracoes` valida a atualização de um banco antigo (preservando dados) e a idempotência.
 
-Para validar a API em execução (rotas, auth, papéis), há o **smoke test**:
+Para validar a API em execução há dois níveis: o **smoke test** (liveness, auth e escopo por papel) e o **teste de integração** (fluxos ponta a ponta encadeados):
 
 ```sh
 make api-smoke-test
+make api-integration-test
 ```
 
 ---
 
 ## 🔐 Autenticação
 
-A API usa **HTTP Basic**: o cliente envia, em cada requisição, o cabeçalho
-`Authorization: Basic base64(login:senha)`. O servidor decodifica, separa `login:senha` e valida contra a tabela `usuarios` — **a cada requisição** (stateless, sem sessão em memória).
+A API usa **sessão por token (Bearer)**. O login é um `POST /sessao` que recebe
+`{login, senha}` **no corpo** (a senha nunca vai na URL); em caso de sucesso o
+servidor cria uma sessão (token opaco, validade de 8h) e devolve o token. As
+demais requisições enviam `Authorization: Bearer <token>`; `DELETE /sessao`
+encerra a sessão.
+
+**Endurecimento de acesso:**
+
+- **Bloqueio por tentativas**: após 5 senhas erradas o login fica bloqueado por 15 minutos (`429`).
+- **Troca de senha** (`POST /me/senha`) e **troca obrigatória no 1º acesso**: contas criadas pelo administrador nascem exigindo nova senha antes de usar o sistema.
 
 **Como as senhas são guardadas** (nunca em texto puro):
 
@@ -300,9 +318,15 @@ login:      senha + salt guardado ─▶ PBKDF2 ─▶ compara com o hash guarda
 O hashing usa **OpenSSL (PBKDF2-HMAC-SHA256)** com salt por usuário. Os **logins são criados pelo administrador** (`POST /usuarios`), nunca por auto-cadastro.
 
 ```sh
-# uso do HTTP Basic com curl (-u login:senha)
-curl -u admin:secreta http://localhost:8080/me
-# -> {"papel":"ADMIN","pacienteId":0,"medicoId":0}
+# login: credenciais no corpo JSON -> recebe o token
+TOKEN=$(curl -s -X POST http://localhost:8080/sessao \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"admin","senha":"admin123"}' \
+  | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p')
+
+# requisições autenticadas usam o token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/me
+# -> {"papel":"ADMIN","pacienteId":0,"medicoId":0,"trocarSenha":false}
 ```
 
 ---
@@ -354,14 +378,17 @@ Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 
 ## 🌐 Referência da API
 
-> Todas as rotas exigem autenticação, **exceto** `GET /health`. Os parâmetros de criação vão na **query string**.
+> Todas as rotas exigem autenticação (token Bearer), **exceto** `GET /health` e `POST /sessao`. Os parâmetros de escrita (`POST`/`DELETE`) vão no **corpo JSON**.
 
 ### Saúde e sessão
 
 | Método | Rota | Papel | Descrição |
 |---|---|---|---|
 | `GET` | `/health` | público | Status do serviço e do banco |
-| `GET` | `/me` | autenticado | Papel e vínculos do usuário logado |
+| `POST` | `/sessao` | público | Login: `{login, senha}` no corpo → token de sessão |
+| `DELETE` | `/sessao` | autenticado | Encerra a sessão atual |
+| `GET` | `/me` | autenticado | Papel e vínculos do usuário logado (e `trocarSenha`) |
+| `POST` | `/me/senha` | autenticado | Troca a senha: `{senha_atual, senha_nova}` |
 | `GET` | `/me/exames` | PACIENTE | Exames do próprio paciente |
 | `GET` | `/me/prontuarios` | PACIENTE | Prontuários do próprio paciente |
 | `GET` | `/me/agenda` | MEDICO | Agenda do próprio médico |
@@ -450,43 +477,57 @@ Exemplo de resposta de `/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-3
 
 ## 🧭 Walkthrough completo
 
-Um roteiro de ponta a ponta, do cadastro à decisão. (Assume um usuário `admin/secreta` já existente.)
+Um roteiro de ponta a ponta, do cadastro à decisão. (Assume o `admin` do seed.)
 
 ```sh
 B=http://localhost:8080
 
-# 1) Admin cadastra um médico e um paciente
-curl -u admin:secreta -X POST \
-  "$B/medicos?nome=Dra+Helena&crm=CRM123&especialidade=Cardiologia&regiao=7"
-curl -u admin:secreta -X POST \
-  "$B/pacientes?nome=Maria&cpf=12345678900&idade=62&telefone=6199990000&sexo=F&regiao=7"
+# Helper: faz login e devolve o token de sessão.
+tok() { curl -s -X POST "$B/sessao" -H 'Content-Type: application/json' \
+  -d "{\"login\":\"$1\",\"senha\":\"$2\"}" \
+  | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p'; }
+
+ADMIN=$(tok admin admin123)
+
+# 1) Admin cadastra um médico e um paciente (parâmetros no corpo JSON)
+curl -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -X POST \
+  "$B/medicos" -d '{"nome":"Dra Helena","crm":"CRM123","especialidade":"Cardiologia","regiao":"7"}'
+curl -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -X POST \
+  "$B/pacientes" -d '{"nome":"Maria","documento":"12345678900","tipo_documento":"CPF","nascimento":"1964-05-01","telefone":"6199990000","sexo":"F","regiao":"7"}'
 
 # 2) Admin cria os logins (médico vinculado ao médico #1, paciente ao paciente #1)
-curl -u admin:secreta -X POST "$B/usuarios?login=helena&senha=h123&papel=MEDICO&medico_id=1"
-curl -u admin:secreta -X POST "$B/usuarios?login=maria&senha=m123&papel=PACIENTE&paciente_id=1"
+#    Contas criadas pelo admin exigem troca de senha no 1º acesso.
+curl -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -X POST \
+  "$B/usuarios" -d '{"nome":"Helena","login":"helena","senha":"h123","papel":"MEDICO","medico_id":"1"}'
+curl -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -X POST \
+  "$B/usuarios" -d '{"nome":"Maria","login":"maria","senha":"m123","papel":"PACIENTE","paciente_id":"1"}'
 
-# 3) Registra a triagem da paciente (cardiologia, emergência)
-curl -u helena:h123 -X POST \
-  "$B/triagens?paciente_id=1&tipo=3&pontuacao=8&classificacao=Emergencia"
+HELENA=$(tok helena h123)
+
+# 3) Registra a triagem da paciente (checklist define a classificação)
+curl -H "Authorization: Bearer $HELENA" -H 'Content-Type: application/json' -X POST \
+  "$B/triagens" -d '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}'
 
 # 4) Avaliação inteligente da triagem
-curl -u helena:h123 "$B/triagem/1/avaliacao"
+curl -H "Authorization: Bearer $HELENA" "$B/triagem/1/avaliacao"
 # -> {"pacienteId":1,"classificacao":"Emergencia","prioridade":5,"especialidadeProvavel":"Cardiologia"}
 
 # 5) Exames sugeridos e médicos disponíveis
-curl -u helena:h123 "$B/triagem/1/exames"   # -> ["Eletrocardiograma","Hemograma"]
-curl -u helena:h123 "$B/triagem/1/medicos"
+curl -H "Authorization: Bearer $HELENA" "$B/triagem/1/exames"   # -> ["Eletrocardiograma","Hemograma"]
+curl -H "Authorization: Bearer $HELENA" "$B/triagem/1/medicos"
 
 # 6) Agendamento automático (slot válido na grade/expediente)
-curl -u helena:h123 -X POST "$B/triagem/1/agendar?data=2026-07-01&horario=09:00"
+curl -H "Authorization: Bearer $HELENA" -H 'Content-Type: application/json' -X POST \
+  "$B/triagem/1/agendar" -d '{"data":"2026-07-01","horario":"09:00"}'
 # -> {"agendado":true,"pacienteId":1,"medicoId":1,"data":"2026-07-01","horario":"09:00"}
 
 # 7) A paciente acessa só os próprios dados
-curl -u maria:m123 "$B/me/exames"
-curl -u maria:m123 "$B/pacientes"     # -> 403 Forbidden
+MARIA=$(tok maria m123)
+curl -H "Authorization: Bearer $MARIA" "$B/me/exames"
+curl -H "Authorization: Bearer $MARIA" "$B/pacientes"     # -> 403 Forbidden
 
 # 8) Indicadores gerenciais
-curl -u helena:h123 "$B/relatorios/indicadores"
+curl -H "Authorization: Bearer $HELENA" "$B/relatorios/indicadores"
 ```
 
 ---
@@ -591,10 +632,11 @@ Exclusão lógica (ativo 1→0): paciente, médico, ala, leito, triagem, prontu�
 | `200 OK` | Leitura/operação bem-sucedida |
 | `201 Created` | Recurso criado |
 | `400 Bad Request` | Dados inválidos / requisição malformada |
-| `401 Unauthorized` | Sem credencial válida (HTTP Basic) |
+| `401 Unauthorized` | Sem token de sessão válido (Bearer) |
 | `403 Forbidden` | Autenticado, mas o papel não permite |
 | `404 Not Found` | Rota ou recurso inexistente |
 | `409 Conflict` | Conflito de regra (ex.: sem médico disponível, horário inválido) |
+| `429 Too Many Requests` | Login bloqueado por tentativas inválidas |
 | `500 Internal Server Error` | Falha ao gerar resposta |
 
 ---
@@ -621,7 +663,8 @@ Adicionar uma **nova entidade** com endpoint segue sempre o mesmo padrão:
 - ✅ **Identidade do autor** dos registros clínicos derivada da sessão (um MÉDICO não registra em nome de outro).
 - ✅ **Auditoria** das ações sensíveis (login, alta, prescrição, internação, mudança de leito, cancelamentos) — `GET /auditoria`, restrito a ADMIN.
 - ✅ **Integridade referencial** no banco (FK) e **acesso por papel** centralizado, negando por padrão.
-- ⚠️ **Limitações acadêmicas conhecidas:** o servidor é HTTP (sem TLS) e single-thread; os parâmetros (inclusive senha em criação de usuário) trafegam por query string — num cenário real iriam no corpo sobre **HTTPS**.
+- ✅ **Sessão por token** (Bearer) com expiração, **bloqueio por tentativas**, troca de senha e troca obrigatória no 1º acesso; credenciais e parâmetros de escrita trafegam no **corpo JSON** (nunca na URL).
+- ⚠️ **Limitação acadêmica conhecida:** o servidor ainda é **HTTP sem TLS** — num cenário real o token e o corpo das requisições iriam sobre **HTTPS**.
 
 ---
 
@@ -636,13 +679,17 @@ Concluído nas etapas v3:
 - 🗓️ **Regras clínicas** — conflito de agenda, cancelamento/suspensão com motivo, conduta obrigatória, máquina de estados de exame, checagem de alergia na prescrição.
 - 🛏️ **Internações e leitos** — status de leito com histórico, ocupação, admissão/transferência/alta acopladas ao leito.
 - 📈 **Relatórios** — ocupação de leitos, triagens por classificação, internações por status, distribuição e período.
+- 💳 **Financeiro** — convênios, cobranças com máquina de status (valores em centavos) e demonstrativo.
+- 📝 **Retificação versionada** de prontuário, triagem e exame (preserva a versão anterior).
+- 🔒 **Endurecimento de auth** — sessão por token, login/escritas no corpo JSON, bloqueio por tentativas e troca de senha (com 1º acesso obrigatório).
+- 🧵 **Servidor concorrente** — pool de threads (escritas SQLite serializadas com `busy_timeout`).
+- 🧪 **Testes de integração** da API (fluxos ponta a ponta) além do smoke test.
+- 🗃️ **Migrações de schema** versionadas (`PRAGMA user_version`), atualizando bancos antigos sem perda de dados.
 
 Próximos passos (fora do escopo atual):
 
-- 🧵 **Servidor concorrente** (hoje single-thread/bloqueante) e **HTTPS**.
-- 📝 **Retificação versionada de prontuário** (hoje o registro é imutável, sem nova versão).
-- 🧪 **Testes de integração** da API mais amplos, além do smoke test.
-- 🔎 Migrar parâmetros de escrita de query string para **corpo JSON**.
+- 🔐 **HTTPS/TLS** — hoje o servidor é HTTP puro; em produção o tráfego iria sobre TLS.
+- 💊 **Interações medicamentosas** na prescrição.
 
 ---
 
@@ -651,8 +698,8 @@ Próximos passos (fora do escopo atual):
 - Projeto construído para **clareza didática**, priorizando legibilidade e regras de negócio sobre performance.
 - O backend web demonstra, em C básico, conceitos de **arquitetura em camadas, acesso a dados, regras de negócio, API HTTP e autenticação** — sem frameworks.
 - A primeira versão era um app de **terminal** (CLI, dados em memória); a triagem já alimentava o agendamento por especialidade, região e disponibilidade — a semente da triagem inteligente que a V2 expandiu para a web. Esse protótipo foi descontinuado e seu histórico está preservado no git.
-- Artefatos gerados (binários, `*.db`, `*.o`) ficam **fora** do versionamento; o **schema** é a fonte da verdade e o banco é sempre reconstruível a partir dele.
-- Todo o código compila com `-Wall -Wextra -pedantic` **sem warnings**, e as 15 suítes de teste unitário passam (mais o smoke test HTTP).
+- Artefatos gerados (binários, `*.db`, `*.o`) ficam **fora** do versionamento; o **schema** é a fonte da verdade e o banco é sempre reconstruível a partir dele — com **migrações versionadas** que atualizam bancos existentes sem perder dados.
+- Todo o código compila com `-Wall -Wextra -pedantic` **sem warnings**, e as 20 suítes de teste unitário passam (mais o smoke test e o teste de integração HTTP).
 
 ### 🔑 Credenciais de exemplo (apos `make seed`)
 
