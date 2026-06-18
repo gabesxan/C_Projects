@@ -373,8 +373,8 @@ fi
 echo "[OK] /exames escopado por papel (MEDICO nao ve exame de outro)"
 
 # Triagens de tipos diferentes: tipo 3 -> Cardiologia (do DrSmoke), tipo 2 -> Ortopedia.
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=1&tipo=3&pontuacao=8&classificacao=Emergencia" >/dev/null
-curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=2&tipo=2&pontuacao=4&classificacao=Prioritario" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=1&tipo=3&itens=dor_toracica" >/dev/null
+curl -sS -u "${ADMIN_AUTH}" -X POST "${BASE}/triagens?paciente_id=2&tipo=2&itens=dor_moderada" >/dev/null
 
 # O MEDICO (Cardiologia) ve a triagem cardiologica (tipo 3) na fila escopada.
 request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_AUTH}" contains '"tipoTriagem":3'

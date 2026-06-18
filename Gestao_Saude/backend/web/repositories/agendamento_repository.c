@@ -171,7 +171,7 @@ int agendamento_repo_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, data, horario, status "
+        "SELECT id, paciente_id, medico_id, data, horario, status, motivo_cancelamento "
         "FROM agendamentos ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
@@ -206,18 +206,21 @@ int agendamento_repo_listar_json(char *buffer, int tamanho)
         char dataJson[32];
         char horarioJson[24];
         char statusJson[48];
-        char objeto[384];
+        char motivoJson[280];
+        char objeto[640];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
         const char *data = (const char *)sqlite3_column_text(stmt, 3);
         const char *horario = (const char *)sqlite3_column_text(stmt, 4);
         const char *status = (const char *)sqlite3_column_text(stmt, 5);
+        const char *motivo = (const char *)sqlite3_column_text(stmt, 6);
         int escrito;
 
         if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
             repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0 ||
-            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0 ||
+            repo_json_escapar(motivoJson, sizeof(motivoJson), motivo) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -226,9 +229,11 @@ int agendamento_repo_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           "\"data\":%s,\"horario\":%s,\"status\":%s,"
+                           "\"motivoCancelamento\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson,
+                           motivoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -263,7 +268,7 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, data, horario, status "
+        "SELECT id, paciente_id, medico_id, data, horario, status, motivo_cancelamento "
         "FROM agendamentos WHERE medico_id = ? ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
@@ -300,18 +305,21 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
         char dataJson[32];
         char horarioJson[24];
         char statusJson[48];
-        char objeto[384];
+        char motivoJson[280];
+        char objeto[640];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
         const char *data = (const char *)sqlite3_column_text(stmt, 3);
         const char *horario = (const char *)sqlite3_column_text(stmt, 4);
         const char *status = (const char *)sqlite3_column_text(stmt, 5);
+        const char *motivo = (const char *)sqlite3_column_text(stmt, 6);
         int escrito;
 
         if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
             repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0 ||
-            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0 ||
+            repo_json_escapar(motivoJson, sizeof(motivoJson), motivo) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -320,9 +328,11 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           "\"data\":%s,\"horario\":%s,\"status\":%s,"
+                           "\"motivoCancelamento\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson,
+                           motivoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -358,7 +368,7 @@ int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer,
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, data, horario, status "
+        "SELECT id, paciente_id, medico_id, data, horario, status, motivo_cancelamento "
         "FROM agendamentos WHERE paciente_id = ? ORDER BY id;";
     int usado = 0;
     int primeiro = 1;
@@ -395,18 +405,21 @@ int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer,
         char dataJson[32];
         char horarioJson[24];
         char statusJson[48];
-        char objeto[384];
+        char motivoJson[280];
+        char objeto[640];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
         const char *data = (const char *)sqlite3_column_text(stmt, 3);
         const char *horario = (const char *)sqlite3_column_text(stmt, 4);
         const char *status = (const char *)sqlite3_column_text(stmt, 5);
+        const char *motivo = (const char *)sqlite3_column_text(stmt, 6);
         int escrito;
 
         if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
             repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0 ||
-            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0 ||
+            repo_json_escapar(motivoJson, sizeof(motivoJson), motivo) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -415,9 +428,11 @@ int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer,
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
-                           "\"data\":%s,\"horario\":%s,\"status\":%s}",
+                           "\"data\":%s,\"horario\":%s,\"status\":%s,"
+                           "\"motivoCancelamento\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson);
+                           id, pacienteId, medicoId, dataJson, horarioJson, statusJson,
+                           motivoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

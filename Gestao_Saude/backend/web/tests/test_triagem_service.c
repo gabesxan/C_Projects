@@ -164,6 +164,31 @@ int main(void)
     assert(triagem_service_listar_por_especialidade_json("Neurologia", json, sizeof(json)) == 1);
     assert(strcmp(json, "[]") == 0);
 
+    /* Classificacao por checklist: o discriminador mais grave vence. */
+    {
+        char classe[32];
+        int nivel = 0;
+
+        /* Item de nivel 5 presente -> Vermelho, mesmo com itens leves juntos. */
+        assert(triagem_service_classificar("sintomas_leves,dor_toracica", classe,
+                                           sizeof(classe), &nivel) == 1);
+        assert(strcmp(classe, "Vermelho") == 0 && nivel == 5);
+
+        /* So itens moderados -> Amarelo. */
+        assert(triagem_service_classificar("febre,dor_moderada", classe,
+                                           sizeof(classe), &nivel) == 1);
+        assert(strcmp(classe, "Amarelo") == 0 && nivel == 3);
+
+        /* Nenhum item -> Azul (nao urgente). */
+        assert(triagem_service_classificar("", classe, sizeof(classe), &nivel) == 1);
+        assert(strcmp(classe, "Azul") == 0 && nivel == 1);
+
+        /* Checklist exposto em JSON contem chave e classificacao. */
+        assert(triagem_service_checklist_json(json, sizeof(json)) == 1);
+        assert(strstr(json, "dor_toracica") != NULL);
+        assert(strstr(json, "Vermelho") != NULL);
+    }
+
     printf("test_triagem_service: OK\n");
     return 0;
 }

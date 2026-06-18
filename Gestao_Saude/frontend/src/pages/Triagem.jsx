@@ -186,23 +186,38 @@ function Credenciais({ cred }) {
   )
 }
 
-// --- Passo 2: registrar triagem ----------------------------------------
+// --- Passo 2: registrar triagem (checklist -> classificacao automatica) -
 function FormTriagem({ paciente, onRegistrada }) {
+  const [checklist, setChecklist] = useState(null)
+  const [marcados, setMarcados] = useState({}) // { chave: true }
   const [v, setV] = useState({
-    tipo: 1, classificacao: 'Verde', pontuacao: 3,
-    queixa: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '',
+    tipo: 1, queixa: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '',
   })
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
 
+  // Checklist e a fonte de verdade (vem do backend, com nivel por item).
+  useEffect(() => {
+    apiGet('/triagem/checklist').then(setChecklist).catch((e) => setErro(e.message))
+  }, [])
+
   function set(k, val) { setV((s) => ({ ...s, [k]: val })) }
+  function toggle(chave) { setMarcados((m) => ({ ...m, [chave]: !m[chave] })) }
+
+  // Sugestao do sistema: o discriminador mais grave marcado vence.
+  const nivelSugerido = checklist
+    ? checklist.filter((i) => marcados[i.chave]).reduce((max, i) => Math.max(max, i.nivel), 0)
+    : 0
+  const NIVEL_CLASSE = { 5: 'Vermelho', 4: 'Laranja', 3: 'Amarelo', 2: 'Verde', 1: 'Azul', 0: 'Azul' }
+  const classeSugerida = NIVEL_CLASSE[nivelSugerido]
 
   async function submit(e) {
     e.preventDefault()
     setErro('')
     setSalvando(true)
     try {
-      await apiSend('POST', '/triagens', { paciente_id: paciente.id, ...v })
+      const itens = Object.keys(marcados).filter((k) => marcados[k]).join(',')
+      await apiSend('POST', '/triagens', { paciente_id: paciente.id, ...v, itens })
       onRegistrada()
     } catch (err) {
       setErro(err.message)
@@ -211,26 +226,50 @@ function FormTriagem({ paciente, onRegistrada }) {
     }
   }
 
+  if (!checklist) return <Spinner label="Carregando checklist..." />
+
   return (
     <Card className="p-5">
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm font-semibold text-slate-700">Registrar triagem</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-slate-700">Registrar triagem</p>
+          <span className="text-sm text-slate-500">
+            Classificacao sugerida:{' '}
+            <Badge tone={tomRisco(classeSugerida)}>{classeSugerida}</Badge>
+          </span>
+        </div>
         {erro && <Alert>{erro}</Alert>}
+
+        <div>
+          <p className="mb-2 text-sm text-slate-600">
+            Marque os sinais/sintomas presentes — o sistema classifica o risco
+            automaticamente.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {checklist.map((i) => (
+              <label
+                key={i.chave}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!marcados[i.chave]}
+                  onChange={() => toggle(i.chave)}
+                />
+                <span className="flex-1">{i.rotulo}</span>
+                <Badge tone={tomRisco(NIVEL_CLASSE[i.nivel])}>{NIVEL_CLASSE[i.nivel]}</Badge>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm text-slate-600">Tipo
+          <label className="text-sm text-slate-600">Especialidade provavel
             <select className={inputCls} value={v.tipo} onChange={(e) => set('tipo', Number(e.target.value))}>
               {TIPOS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
             </select>
           </label>
-          <label className="text-sm text-slate-600">Classificacao de risco
-            <select className={inputCls} value={v.classificacao} onChange={(e) => set('classificacao', e.target.value)}>
-              {Object.keys(RISCO).map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </label>
-          <label className="text-sm text-slate-600">Pontuacao
-            <input type="number" className={inputCls} value={v.pontuacao} onChange={(e) => set('pontuacao', Number(e.target.value))} />
-          </label>
-          <label className="text-sm text-slate-600 lg:col-span-3">Queixa principal
+          <label className="text-sm text-slate-600 lg:col-span-2">Queixa principal
             <input className={inputCls} value={v.queixa} onChange={(e) => set('queixa', e.target.value)} />
           </label>
           <label className="text-sm text-slate-600">Pressao

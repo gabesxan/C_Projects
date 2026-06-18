@@ -42,31 +42,173 @@ static const char *especialidade_provavel(int tipo_triagem)
     }
 }
 
-/* Fonte unica do mapa classificacao -> nivel de prioridade. */
+/* Fonte unica do mapa classificacao -> nivel de prioridade.
+ * Reconhece as cores do protocolo de Manchester (usadas pela triagem por
+ * checklist) e tambem os nomes legados, para compatibilidade. */
 static int prioridade_de(const char *classificacao)
 {
-    if (strcmp(classificacao, "Emergencia") == 0)
+    if (strcmp(classificacao, "Vermelho") == 0 ||
+        strcmp(classificacao, "Emergencia") == 0)
     {
         return 5;
     }
-    if (strcmp(classificacao, "Muito prioritario") == 0)
+    if (strcmp(classificacao, "Laranja") == 0 ||
+        strcmp(classificacao, "Muito prioritario") == 0)
     {
         return 4;
     }
-    if (strcmp(classificacao, "Prioritario") == 0)
+    if (strcmp(classificacao, "Amarelo") == 0 ||
+        strcmp(classificacao, "Prioritario") == 0)
     {
         return 3;
     }
-    if (strcmp(classificacao, "Comum") == 0)
+    if (strcmp(classificacao, "Verde") == 0 ||
+        strcmp(classificacao, "Comum") == 0)
     {
         return 2;
     }
-    if (strcmp(classificacao, "Orientacao basica") == 0)
+    if (strcmp(classificacao, "Azul") == 0 ||
+        strcmp(classificacao, "Orientacao basica") == 0)
     {
         return 1;
     }
 
     return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Checklist de triagem (protocolo de Manchester simplificado).
+ * O usuario apenas MARCA os sinais/sintomas presentes; o sistema deriva a
+ * classificacao de risco pela regra "o discriminador mais grave vence".
+ * Nada de pontuacao digitada manualmente.
+ * ------------------------------------------------------------------------- */
+typedef struct
+{
+    const char *chave;
+    const char *rotulo;
+    int nivel; /* 5=Vermelho .. 1=Azul */
+} ItemTriagem;
+
+static const ItemTriagem CHECKLIST[] = {
+    {"inconsciente", "Inconsciente / nao responde", 5},
+    {"parada_respiratoria", "Parada respiratoria / engasgo grave", 5},
+    {"dor_toracica", "Dor no peito intensa", 5},
+    {"hemorragia", "Hemorragia intensa", 5},
+    {"convulsao", "Convulsao em curso", 5},
+    {"falta_ar", "Falta de ar", 4},
+    {"dor_intensa", "Dor intensa (8-10)", 4},
+    {"confusao", "Confusao mental / desmaio", 4},
+    {"febre_alta", "Febre alta (>= 39,5 C)", 4},
+    {"dor_moderada", "Dor moderada (4-7)", 3},
+    {"vomito", "Vomito ou diarreia persistente", 3},
+    {"febre", "Febre (38-39 C)", 3},
+    {"sintomas_leves", "Sintomas leves (resfriado, dor leve)", 2},
+    {"administrativo", "Receita / atestado / reavaliacao", 1},
+};
+static const int CHECKLIST_N = (int)(sizeof(CHECKLIST) / sizeof(CHECKLIST[0]));
+
+/* Nome (cor Manchester) da classificacao a partir do nivel 1-5. */
+static const char *classificacao_de_nivel(int nivel)
+{
+    switch (nivel)
+    {
+    case 5:
+        return "Vermelho";
+    case 4:
+        return "Laranja";
+    case 3:
+        return "Amarelo";
+    case 2:
+        return "Verde";
+    default:
+        return "Azul";
+    }
+}
+
+int triagem_service_checklist_json(char *buffer, int tamanho)
+{
+    int usado = 0;
+    int i;
+
+    if (buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        return 0;
+    }
+
+    for (i = 0; i < CHECKLIST_N; i++)
+    {
+        char objeto[256];
+        int escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"chave\":\"%s\",\"rotulo\":\"%s\",\"nivel\":%d,"
+            "\"classificacao\":\"%s\"}",
+            i == 0 ? "" : ",",
+            CHECKLIST[i].chave, CHECKLIST[i].rotulo, CHECKLIST[i].nivel,
+            classificacao_de_nivel(CHECKLIST[i].nivel));
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            return 0;
+        }
+    }
+
+    return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
+int triagem_service_classificar(const char *itens, char *classificacao,
+                                int classificacao_tam, int *nivel_out)
+{
+    char copia[512];
+    char *token;
+    char *saveptr = NULL;
+    int maxNivel = 0;
+
+    if (classificacao == NULL || classificacao_tam <= 0)
+    {
+        return 0;
+    }
+
+    /* Sem itens marcados: caso nao urgente (Azul). */
+    snprintf(copia, sizeof(copia), "%s", itens != NULL ? itens : "");
+
+    token = strtok_r(copia, ",", &saveptr);
+    while (token != NULL)
+    {
+        int i;
+        for (i = 0; i < CHECKLIST_N; i++)
+        {
+            if (strcmp(token, CHECKLIST[i].chave) == 0)
+            {
+                if (CHECKLIST[i].nivel > maxNivel)
+                {
+                    maxNivel = CHECKLIST[i].nivel;
+                }
+                break;
+            }
+        }
+        token = strtok_r(NULL, ",", &saveptr);
+    }
+
+    if (maxNivel == 0)
+    {
+        maxNivel = 1; /* nenhum item reconhecido -> Azul */
+    }
+
+    snprintf(classificacao, (size_t)classificacao_tam, "%s",
+             classificacao_de_nivel(maxNivel));
+
+    if (nivel_out != NULL)
+    {
+        *nivel_out = maxNivel;
+    }
+
+    return 1;
 }
 
 /* Fonte unica do mapa tipo de triagem -> exames iniciais sugeridos (JSON). */

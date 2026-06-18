@@ -103,26 +103,18 @@ export const RESOURCES = [
     label: 'Triagens',
     path: '/triagens',
     roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
-    createRoles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'],
+    // A triagem e registrada pelo fluxo guiado (/triagem), que deriva a
+    // classificacao do checklist; nao ha criacao manual nesta lista.
+    createRoles: [],
     deleteRoles: [],
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'pacienteId', label: 'Paciente' },
       { key: 'tipoTriagem', label: 'Tipo' },
-      { key: 'pontuacao', label: 'Pontuacao' },
+      { key: 'queixa', label: 'Queixa' },
+      { key: 'pontuacao', label: 'Nivel' },
       { key: 'classificacao', label: 'Classificacao', type: 'badge', tone: tomRisco },
-    ],
-    createFields: [
-      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'tipo', label: 'Tipo (1-5)', type: 'number' },
-      { name: 'pontuacao', label: 'Pontuacao', type: 'number' },
-      {
-        name: 'classificacao',
-        label: 'Classificacao',
-        type: 'select',
-        options: ['Vermelho', 'Laranja', 'Amarelo', 'Verde', 'Azul'],
-      },
     ],
   },
   {

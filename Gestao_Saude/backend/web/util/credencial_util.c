@@ -135,13 +135,13 @@ int credencial_gerar_senha(const char *nome, const char *nascimento,
         return 0;
     }
 
-    /* 3 primeiras letras do nome (completa com 'x' se o nome for curto). */
+    /* Ate 3 primeiras letras do nome (usa o que houver, sem completar). */
     len = (int)strlen(normalizado);
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3 && i < len; i++)
     {
-        prefixo[i] = i < len ? normalizado[i] : 'x';
+        prefixo[i] = normalizado[i];
     }
-    prefixo[3] = '\0';
+    prefixo[i] = '\0';
 
     /* Data de nascimento sem separadores (apenas digitos). */
     for (i = 0; nascimento[i] != '\0' && d < (int)sizeof(digitos) - 1; i++)

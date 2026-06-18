@@ -9,12 +9,14 @@
 int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                        const char *classificacao);
 
-/* Como triagem_repo_criar, porem registra tambem a queixa principal e os
- * sinais vitais (texto livre; podem ser ""). 1 = ok, 0 = falha. */
+/* Como triagem_repo_criar, porem registra tambem os itens do checklist, a
+ * queixa principal e os sinais vitais (texto livre; podem ser ""). A pontuacao
+ * recebida e o nivel derivado do checklist. 1 = ok, 0 = falha. */
 int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao,
-                                const char *classificacao, const char *queixa,
-                                const char *pressao, const char *temperatura,
-                                const char *freq_cardiaca, const char *saturacao);
+                                const char *classificacao, const char *itens,
+                                const char *queixa, const char *pressao,
+                                const char *temperatura, const char *freq_cardiaca,
+                                const char *saturacao);
 int triagem_repo_listar_json(char *buffer, int tamanho);
 
 /* Escreve (JSON) a distribuicao de triagens ativas por classificacao, no

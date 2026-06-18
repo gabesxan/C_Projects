@@ -6,17 +6,18 @@
 #include <string.h>
 
 int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao,
-                                const char *classificacao, const char *queixa,
-                                const char *pressao, const char *temperatura,
-                                const char *freq_cardiaca, const char *saturacao)
+                                const char *classificacao, const char *itens,
+                                const char *queixa, const char *pressao,
+                                const char *temperatura, const char *freq_cardiaca,
+                                const char *saturacao)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "INSERT INTO triagens "
-        "(paciente_id, tipo_triagem, pontuacao, classificacao, queixa, "
+        "(paciente_id, tipo_triagem, pontuacao, classificacao, itens, queixa, "
         "pressao, temperatura, freq_cardiaca, saturacao, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1);";
 
     if (paciente_id <= 0 || tipo_triagem <= 0)
     {
@@ -43,11 +44,12 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
     sqlite3_bind_int(stmt, 2, tipo_triagem);
     sqlite3_bind_int(stmt, 3, pontuacao);
     sqlite3_bind_text(stmt, 4, classificacao, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, queixa != NULL ? queixa : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 6, pressao != NULL ? pressao : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 7, temperatura != NULL ? temperatura : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 8, freq_cardiaca != NULL ? freq_cardiaca : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 9, saturacao != NULL ? saturacao : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 5, itens != NULL ? itens : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, queixa != NULL ? queixa : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 7, pressao != NULL ? pressao : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 8, temperatura != NULL ? temperatura : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, freq_cardiaca != NULL ? freq_cardiaca : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 10, saturacao != NULL ? saturacao : "", -1, SQLITE_STATIC);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
@@ -61,12 +63,12 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
     return 1;
 }
 
-/* Versao simples (sem sinais vitais): mantida para compatibilidade. */
+/* Versao simples (sem sinais vitais/itens): mantida para compatibilidade. */
 int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                        const char *classificacao)
 {
     return triagem_repo_criar_completa(paciente_id, tipo_triagem, pontuacao,
-                                       classificacao, "", "", "", "", "");
+                                       classificacao, "", "", "", "", "", "");
 }
 
 int triagem_repo_distribuicao_por_classificacao_json(char *buffer, int tamanho)
@@ -145,8 +147,8 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao "
-        "FROM triagens WHERE ativo = 1 ORDER BY id;";
+        "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao, queixa, pressao, temperatura, freq_cardiaca, saturacao, itens "
+        "FROM triagens WHERE ativo = 1 ORDER BY pontuacao DESC, id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -178,7 +180,13 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         char classificacaoJson[128];
-        char objeto[384];
+        char queixaJson[256];
+        char pressaoJson[32];
+        char temperaturaJson[32];
+        char freqJson[32];
+        char saturacaoJson[32];
+        char itensJson[512];
+        char objeto[1280];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int tipo = sqlite3_column_int(stmt, 2);
@@ -186,8 +194,13 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
         const char *classificacao = (const char *)sqlite3_column_text(stmt, 4);
         int escrito;
 
-        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson),
-                              classificacao) == 0)
+        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson), classificacao) == 0 ||
+            repo_json_escapar(queixaJson, sizeof(queixaJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
+            repo_json_escapar(pressaoJson, sizeof(pressaoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
+            repo_json_escapar(temperaturaJson, sizeof(temperaturaJson), (const char *)sqlite3_column_text(stmt, 7)) == 0 ||
+            repo_json_escapar(freqJson, sizeof(freqJson), (const char *)sqlite3_column_text(stmt, 8)) == 0 ||
+            repo_json_escapar(saturacaoJson, sizeof(saturacaoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0 ||
+            repo_json_escapar(itensJson, sizeof(itensJson), (const char *)sqlite3_column_text(stmt, 10)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -196,9 +209,12 @@ int triagem_repo_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
-                           "\"pontuacao\":%d,\"classificacao\":%s}",
+                           "\"pontuacao\":%d,\"classificacao\":%s,\"queixa\":%s,"
+                           "\"pressao\":%s,\"temperatura\":%s,\"freqCardiaca\":%s,"
+                           "\"saturacao\":%s,\"itens\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, tipo, pontuacao, classificacaoJson);
+                           id, pacienteId, tipo, pontuacao, classificacaoJson, queixaJson,
+                           pressaoJson, temperaturaJson, freqJson, saturacaoJson, itensJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {
@@ -234,7 +250,7 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     char placeholders[64];
-    char sql[256];
+    char sql[512];
     int usado = 0;
     int primeiro = 1;
     int i;
@@ -269,9 +285,9 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
     }
 
     if (snprintf(sql, sizeof(sql),
-                 "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao "
+                 "SELECT id, paciente_id, tipo_triagem, pontuacao, classificacao, queixa, pressao, temperatura, freq_cardiaca, saturacao, itens "
                  "FROM triagens WHERE ativo = 1 AND tipo_triagem IN (%s) "
-                 "ORDER BY id;",
+                 "ORDER BY pontuacao DESC, id;",
                  placeholders) >= (int)sizeof(sql))
     {
         return 0;
@@ -305,7 +321,13 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         char classificacaoJson[128];
-        char objeto[384];
+        char queixaJson[256];
+        char pressaoJson[32];
+        char temperaturaJson[32];
+        char freqJson[32];
+        char saturacaoJson[32];
+        char itensJson[512];
+        char objeto[1280];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int tipo = sqlite3_column_int(stmt, 2);
@@ -313,8 +335,13 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
         const char *classificacao = (const char *)sqlite3_column_text(stmt, 4);
         int escrito;
 
-        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson),
-                              classificacao) == 0)
+        if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson), classificacao) == 0 ||
+            repo_json_escapar(queixaJson, sizeof(queixaJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
+            repo_json_escapar(pressaoJson, sizeof(pressaoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
+            repo_json_escapar(temperaturaJson, sizeof(temperaturaJson), (const char *)sqlite3_column_text(stmt, 7)) == 0 ||
+            repo_json_escapar(freqJson, sizeof(freqJson), (const char *)sqlite3_column_text(stmt, 8)) == 0 ||
+            repo_json_escapar(saturacaoJson, sizeof(saturacaoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0 ||
+            repo_json_escapar(itensJson, sizeof(itensJson), (const char *)sqlite3_column_text(stmt, 10)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -323,9 +350,12 @@ int triagem_repo_listar_por_tipos_json(const int *tipos, int n,
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"tipoTriagem\":%d,"
-                           "\"pontuacao\":%d,\"classificacao\":%s}",
+                           "\"pontuacao\":%d,\"classificacao\":%s,\"queixa\":%s,"
+                           "\"pressao\":%s,\"temperatura\":%s,\"freqCardiaca\":%s,"
+                           "\"saturacao\":%s,\"itens\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, tipo, pontuacao, classificacaoJson);
+                           id, pacienteId, tipo, pontuacao, classificacaoJson, queixaJson,
+                           pressaoJson, temperaturaJson, freqJson, saturacaoJson, itensJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))
         {

@@ -49,6 +49,7 @@ CREATE TABLE triagens (
     tipo_triagem INTEGER NOT NULL,
     pontuacao INTEGER NOT NULL,
     classificacao TEXT NOT NULL,
+    itens TEXT NOT NULL DEFAULT '',
     queixa TEXT NOT NULL DEFAULT '',
     pressao TEXT NOT NULL DEFAULT '',
     temperatura TEXT NOT NULL DEFAULT '',

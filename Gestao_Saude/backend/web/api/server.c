@@ -1283,28 +1283,33 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char tipo[16];
-    char pontuacao[16];
-    char classificacao[64];
+    char itens[512];
     char queixa[256];
     char pressao[32];
     char temperatura[32];
     char freqCardiaca[32];
     char saturacao[32];
+    char classificacao[32];
+    int nivel = 0;
     int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "tipo", tipo, sizeof(tipo));
-    extrairParam(consulta, "pontuacao", pontuacao, sizeof(pontuacao));
-    extrairParam(consulta, "classificacao", classificacao, sizeof(classificacao));
+    extrairParam(consulta, "itens", itens, sizeof(itens));
     extrairParam(consulta, "queixa", queixa, sizeof(queixa));
     extrairParam(consulta, "pressao", pressao, sizeof(pressao));
     extrairParam(consulta, "temperatura", temperatura, sizeof(temperatura));
     extrairParam(consulta, "freq_cardiaca", freqCardiaca, sizeof(freqCardiaca));
     extrairParam(consulta, "saturacao", saturacao, sizeof(saturacao));
 
-    ok = triagem_repo_criar_completa(atoi(pacienteId), atoi(tipo),
-                                     atoi(pontuacao), classificacao, queixa, pressao, temperatura,
-                                     freqCardiaca, saturacao) == 1;
+    /* O sistema DERIVA a classificacao do checklist (sem pontuacao digitada);
+     * a pontuacao armazenada e o nivel resultante, que ordena a fila. */
+    triagem_service_classificar(itens, classificacao, sizeof(classificacao),
+                                &nivel);
+
+    ok = triagem_repo_criar_completa(atoi(pacienteId), atoi(tipo), nivel,
+                                     classificacao, itens, queixa, pressao,
+                                     temperatura, freqCardiaca, saturacao) == 1;
 
     if (ok)
     {
@@ -1314,20 +1319,29 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para triagem\"}");
 }
 
-static void rotaCriarAgendamento(int cliente, const char *consulta)
+static void rotaCriarAgendamento(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char medicoId[16];
     char data[32];
     char horario[16];
+    int ok;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "medico_id", medicoId, sizeof(medicoId));
     extrairParam(consulta, "data", data, sizeof(data));
     extrairParam(consulta, "horario", horario, sizeof(horario));
 
-    responderCriacao(cliente,
-                     agendamento_repo_criar(atoi(pacienteId), atoi(medicoId), data, horario) == 1,
+    ok = agendamento_repo_criar(atoi(pacienteId), atoi(medicoId), data, horario) == 1;
+
+    if (ok)
+    {
+        char detalhe[64];
+        snprintf(detalhe, sizeof(detalhe), "%s %s", data, horario);
+        auditar(s, "AGENDAR", "agendamento", atoi(pacienteId), detalhe);
+    }
+
+    responderCriacao(cliente, ok,
                      "{\"erro\":\"dados invalidos para agendamento\"}");
 }
 
@@ -1901,6 +1915,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaDesativarMedico(cliente, id);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagem/checklist") == 0)
+    {
+        responderLista(cliente, triagem_service_checklist_json,
+                       "{\"erro\":\"falha ao carregar checklist\"}");
+    }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/triagem/pacientes") == 0)
     {
         rotaTriagemCadastrarPaciente(cliente, consulta, &s);
@@ -2005,7 +2024,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/agendamentos") == 0)
     {
-        rotaCriarAgendamento(cliente, consulta);
+        rotaCriarAgendamento(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/agendamentos/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "reagendar") == 0)

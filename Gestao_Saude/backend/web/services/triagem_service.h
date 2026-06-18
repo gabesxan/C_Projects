@@ -7,6 +7,16 @@
  * a recomendacao consolidada da triagem. Nao escreve no banco.
  */
 
+/* Escreve (JSON) o checklist de triagem (chave, rotulo, nivel, classificacao)
+ * — fonte unica usada pela UI e pela classificacao automatica. 1/0. */
+int triagem_service_checklist_json(char *buffer, int tamanho);
+
+/* Deriva a classificacao de risco a partir dos itens marcados (chaves
+ * separadas por virgula), pela regra "discriminador mais grave vence".
+ * Escreve a cor em 'classificacao' e o nivel (1-5) em *nivel_out. 1/0. */
+int triagem_service_classificar(const char *itens, char *classificacao,
+                                int classificacao_tam, int *nivel_out);
+
 /* Avalia a triagem ativa mais recente do paciente e escreve em 'buffer' um
  * JSON com pacienteId, classificacao, prioridade e especialidadeProvavel.
  * Retorna 1 em sucesso; 0 se o paciente nao tem triagem ativa ou em erro. */
