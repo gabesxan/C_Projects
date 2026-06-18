@@ -221,6 +221,9 @@ CREATE TABLE usuarios (
     ativo INTEGER NOT NULL,
     tentativas_invalidas INTEGER NOT NULL DEFAULT 0,
     bloqueado_ate TEXT NOT NULL DEFAULT '',
+    -- trocar_senha: usuario criado pelo admin comeca com 1 e precisa definir uma
+    -- nova senha no primeiro acesso; zera apos a troca.
+    trocar_senha INTEGER NOT NULL DEFAULT 0,
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

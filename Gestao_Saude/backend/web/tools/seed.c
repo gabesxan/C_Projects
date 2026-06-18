@@ -90,6 +90,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* Contas de demonstracao nao forcam troca no 1o acesso (mantem as
+     * credenciais documentadas utilizaveis). A troca obrigatoria vale para
+     * usuarios criados depois pelo admin. */
+    db_executar("UPDATE usuarios SET trocar_senha = 0;");
+
     printf("Seed concluido.\n");
     return 0;
 }

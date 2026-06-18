@@ -89,6 +89,28 @@ int main(void)
     assert(sessao_repo_criar(usuarioId, 8, token2, sizeof(token2)) == 1);
     assert(sessao_repo_validar(token2, NULL, 0, NULL, NULL, NULL, NULL, 0) == 1);
 
+    /* Troca de senha e exigencia de troca no 1o acesso. */
+    {
+        int carolId = 0;
+        assert(usuario_repo_criar("Carol", "carol", "inicial1", "CADASTRO", 0, 0) == 1);
+        /* Usuario criado pelo admin comeca exigindo troca. */
+        assert(usuario_repo_autenticar_com_bloqueio("carol", "inicial1", NULL, 0,
+                                                    NULL, NULL, &carolId, NULL) == 1);
+        assert(usuario_repo_precisa_trocar_senha(carolId) == 1);
+
+        /* Senha atual errada nao troca. */
+        assert(usuario_repo_trocar_senha(carolId, "errada", "novaSenha2") == 0);
+        /* Troca valida zera a exigencia. */
+        assert(usuario_repo_trocar_senha(carolId, "inicial1", "novaSenha2") == 1);
+        assert(usuario_repo_precisa_trocar_senha(carolId) == 0);
+
+        /* A senha antiga deixa de valer; a nova autentica. */
+        assert(usuario_repo_autenticar_com_bloqueio("carol", "inicial1", NULL, 0,
+                                                    NULL, NULL, NULL, NULL) == 0);
+        assert(usuario_repo_autenticar_com_bloqueio("carol", "novaSenha2", NULL, 0,
+                                                    NULL, NULL, NULL, NULL) == 1);
+    }
+
     printf("test_sessao_repository: OK\n");
     return 0;
 }

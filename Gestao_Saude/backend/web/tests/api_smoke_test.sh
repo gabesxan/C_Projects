@@ -120,6 +120,16 @@ assert_matches() {
     fi
 }
 
+# Faz login via POST /sessao (corpo JSON) e ecoa o token de sessao retornado.
+obter_token() {
+    local login="$1"
+    local senha="$2"
+    curl -sS -X POST "http://localhost:8080/sessao" \
+        -H 'Content-Type: application/json' \
+        -d "{\"login\":\"${login}\",\"senha\":\"${senha}\"}" \
+        | sed -n 's/.*"token":"\([0-9a-f]*\)".*/\1/p'
+}
+
 # Executa uma requisicao HTTP e valida status e conteudo minimo.
 request_and_assert() {
     # Caminho da rota a ser testada.
@@ -128,8 +138,8 @@ request_and_assert() {
     local expected_status="$2"
     # Rotulo mostrado nas mensagens de sucesso ou erro.
     local label="$3"
-    # Credencial Basic opcional no formato usuario:senha.
-    local auth="${4:-}"
+    # Token de sessao opcional (Authorization: Bearer).
+    local token="${4:-}"
     # Tipo de validacao do corpo: contains, matches ou vazio.
     local body_check_type="${5:-}"
     # Valor associado ao tipo de validacao escolhido.
@@ -140,9 +150,9 @@ request_and_assert() {
     # Remove qualquer resposta anterior antes de chamar a proxima rota.
     rm -f "${RESP_FILE}"
 
-    # Se houver autenticacao, chama o curl com -u usuario:senha.
-    if [[ -n "${auth}" ]]; then
-        http_code="$(curl -sS -o "${RESP_FILE}" -w "%{http_code}" -u "${auth}" "http://localhost:8080${path}" || true)"
+    # Se houver token, envia no cabecalho Authorization: Bearer.
+    if [[ -n "${token}" ]]; then
+        http_code="$(curl -sS -o "${RESP_FILE}" -w "%{http_code}" -H "Authorization: Bearer ${token}" "http://localhost:8080${path}" || true)"
     else
         # Caso contrario, chama a rota sem credenciais.
         http_code="$(curl -sS -o "${RESP_FILE}" -w "%{http_code}" "http://localhost:8080${path}" || true)"
@@ -296,32 +306,32 @@ API_PID=$!
 # Espera o servidor ficar pronto antes de testar as demais rotas.
 wait_for_api
 
-# Define a credencial admin documentada usada nas rotas autenticadas.
-ADMIN_AUTH="admin:secreta"
+# Faz login do admin e guarda o token de sessao usado nas rotas autenticadas.
+ADMIN_TOKEN="$(obter_token admin secreta)"
 
 # Testa a rota publica de saude e exige o campo status.
 request_and_assert "/health" "200" "/health" "" contains '"status"'
 # Testa a rota de sessao autenticada e exige o papel ADMIN no JSON.
-request_and_assert "/me" "200" "/me" "${ADMIN_AUTH}" contains '"papel":"ADMIN"'
+request_and_assert "/me" "200" "/me" "${ADMIN_TOKEN}" contains '"papel":"ADMIN"'
 # Testa a listagem de pacientes e exige um JSON em formato de array.
-request_and_assert "/pacientes" "200" "/pacientes" "${ADMIN_AUTH}" matches '^\[[^[:cntrl:]]*\]$'
+request_and_assert "/pacientes" "200" "/pacientes" "${ADMIN_TOKEN}" matches '^\[[^[:cntrl:]]*\]$'
 # Testa a listagem de medicos e exige um JSON em formato de array.
-request_and_assert "/medicos" "200" "/medicos" "${ADMIN_AUTH}" matches '^\[[^[:cntrl:]]*\]$'
+request_and_assert "/medicos" "200" "/medicos" "${ADMIN_TOKEN}" matches '^\[[^[:cntrl:]]*\]$'
 # Testa o relatorio de indicadores e exige um campo chave do JSON retornado.
-request_and_assert "/relatorios/indicadores" "200" "/relatorios/indicadores" "${ADMIN_AUTH}" contains '"pacientesAtivos"'
+request_and_assert "/relatorios/indicadores" "200" "/relatorios/indicadores" "${ADMIN_TOKEN}" contains '"pacientesAtivos"'
 # Testa o relatorio de distribuicao e exige um campo chave do JSON retornado.
-request_and_assert "/relatorios/distribuicao" "200" "/relatorios/distribuicao" "${ADMIN_AUTH}" contains '"pacientesPorRegiao"'
+request_and_assert "/relatorios/distribuicao" "200" "/relatorios/distribuicao" "${ADMIN_TOKEN}" contains '"pacientesPorRegiao"'
 # Testa o relatorio por periodo com datas e exige o total no JSON retornado.
-request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "200" "/relatorios/agendamentos" "${ADMIN_AUTH}" contains '"total"'
+request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "200" "/relatorios/agendamentos" "${ADMIN_TOKEN}" contains '"total"'
 # Testa que o relatorio por periodo sem datas retorna 400.
-request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_AUTH}"
+request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_TOKEN}"
 
 # --- Escopo de dados por papel: o MEDICO ve apenas os proprios dados ---
 # Endereco base reutilizado nas criacoes via POST (parametros vao no CORPO JSON).
 BASE="http://localhost:8080"
 # Helper: POST autenticado (Basic) enviando o corpo como JSON.
 post_json() {
-    curl -sS -u "${ADMIN_AUTH}" -H 'Content-Type: application/json' \
+    curl -sS -H "Authorization: Bearer ${ADMIN_TOKEN}" -H 'Content-Type: application/json' \
         -X POST "${BASE}$1" -d "$2" >/dev/null
 }
 # Informa o inicio da preparacao do cenario de escopo.
@@ -336,19 +346,19 @@ post_json "/agendamentos" '{"paciente_id":"1","medico_id":"1","data":"2026-06-14
 # Cria um usuario MEDICO ligado ao medico 1 para autenticar com escopo.
 post_json "/usuarios" '{"nome":"MedSmoke","login":"medsmoke","senha":"med123","papel":"MEDICO","medico_id":"1"}'
 # Credencial do medico recem-criado.
-MED_AUTH="medsmoke:med123"
+MED_TOKEN="$(obter_token medsmoke med123)"
 
 # O MEDICO deve ver a propria paciente (Ana) na listagem ampla de pacientes.
-request_and_assert "/pacientes" "200" "/pacientes (MEDICO escopado)" "${MED_AUTH}" contains 'AnaSmoke'
+request_and_assert "/pacientes" "200" "/pacientes (MEDICO escopado)" "${MED_TOKEN}" contains 'AnaSmoke'
 # Valida que a paciente fora do escopo (Bia) NAO aparece para o medico.
 rm -f "${RESP_FILE}"
-curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/pacientes" >/dev/null
+curl -sS -o "${RESP_FILE}" -H "Authorization: Bearer ${MED_TOKEN}" "${BASE}/pacientes" >/dev/null
 if grep -Fq 'BiaSmoke' "${RESP_FILE}"; then
     fail "/pacientes (MEDICO) vazou paciente fora do escopo"
 fi
 echo "[OK] /pacientes escopado por papel (MEDICO nao ve paciente de fora)"
 # O MEDICO deve ver o proprio agendamento na listagem ampla de agendamentos.
-request_and_assert "/agendamentos" "200" "/agendamentos (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
+request_and_assert "/agendamentos" "200" "/agendamentos (MEDICO escopado)" "${MED_TOKEN}" contains '"medicoId":1'
 
 # Cria um segundo medico (id 2) para gerar registros fora do escopo do primeiro.
 post_json "/medicos" '{"nome":"DrOutro","crm":"CRM-OUTRO","especialidade":"Ortopedia","regiao":"2"}'
@@ -360,18 +370,18 @@ post_json "/exames" '{"paciente_id":"1","medico_id":"1","prontuario_id":"1","tip
 post_json "/exames" '{"paciente_id":"2","medico_id":"2","prontuario_id":"2","tipo":"5","data_solicitacao":"2026-06-14","urgente":"1"}'
 
 # O MEDICO ve o proprio prontuario (DiagMed1) e nao o do outro medico (DiagMed2).
-request_and_assert "/prontuarios" "200" "/prontuarios (MEDICO escopado)" "${MED_AUTH}" contains 'DiagMed1'
+request_and_assert "/prontuarios" "200" "/prontuarios (MEDICO escopado)" "${MED_TOKEN}" contains 'DiagMed1'
 rm -f "${RESP_FILE}"
-curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/prontuarios" >/dev/null
+curl -sS -o "${RESP_FILE}" -H "Authorization: Bearer ${MED_TOKEN}" "${BASE}/prontuarios" >/dev/null
 if grep -Fq 'DiagMed2' "${RESP_FILE}"; then
     fail "/prontuarios (MEDICO) vazou prontuario de outro medico"
 fi
 echo "[OK] /prontuarios escopado por papel (MEDICO nao ve prontuario de outro)"
 
 # O MEDICO ve o proprio exame (medicoId 1) e nao o do outro medico (medicoId 2).
-request_and_assert "/exames" "200" "/exames (MEDICO escopado)" "${MED_AUTH}" contains '"medicoId":1'
+request_and_assert "/exames" "200" "/exames (MEDICO escopado)" "${MED_TOKEN}" contains '"medicoId":1'
 rm -f "${RESP_FILE}"
-curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/exames" >/dev/null
+curl -sS -o "${RESP_FILE}" -H "Authorization: Bearer ${MED_TOKEN}" "${BASE}/exames" >/dev/null
 if grep -Fq '"medicoId":2' "${RESP_FILE}"; then
     fail "/exames (MEDICO) vazou exame de outro medico"
 fi
@@ -382,19 +392,19 @@ post_json "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}'
 post_json "/triagens" '{"paciente_id":"2","tipo":"2","itens":"dor_moderada"}'
 
 # O MEDICO (Cardiologia) ve a triagem cardiologica (tipo 3) na fila escopada.
-request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_AUTH}" contains '"tipoTriagem":3'
+request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_TOKEN}" contains '"tipoTriagem":3'
 # Valida que a triagem de outra especialidade (tipo 2) NAO aparece para ele.
 rm -f "${RESP_FILE}"
-curl -sS -o "${RESP_FILE}" -u "${MED_AUTH}" "${BASE}/triagens" >/dev/null
+curl -sS -o "${RESP_FILE}" -H "Authorization: Bearer ${MED_TOKEN}" "${BASE}/triagens" >/dev/null
 if grep -Fq '"tipoTriagem":2' "${RESP_FILE}"; then
     fail "/triagens (MEDICO) vazou triagem de outra especialidade"
 fi
 echo "[OK] /triagens escopado por especialidade (MEDICO nao ve fora da sua area)"
 
 # Resumo do proprio medico: contagens escopadas (1 paciente, 1 prontuario, etc.).
-request_and_assert "/me/resumo" "200" "/me/resumo (contagens do MEDICO)" "${MED_AUTH}" contains '"medicoId":1'
+request_and_assert "/me/resumo" "200" "/me/resumo (contagens do MEDICO)" "${MED_TOKEN}" contains '"medicoId":1'
 # Reforca que o resumo traz os totais do medico (prontuarios assinados por ele).
-request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_AUTH}" contains '"prontuarios":1'
+request_and_assert "/me/resumo" "200" "/me/resumo (totais do MEDICO)" "${MED_TOKEN}" contains '"prontuarios":1'
 
 # --- Prescricoes / medicacao: matriz de papeis ---
 # Medico 1 prescreve para a paciente 1.
@@ -402,17 +412,17 @@ post_json "/prescricoes" '{"paciente_id":"1","medico_id":"1","medicamento":"Dipi
 # Usuarios de enfermagem e do proprio paciente para validar os acessos.
 post_json "/usuarios" '{"nome":"EnfSmoke","login":"enfsmoke","senha":"enf123","papel":"ENFERMAGEM"}'
 post_json "/usuarios" '{"nome":"PacSmoke","login":"pacsmoke","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
-ENF_AUTH="enfsmoke:enf123"
-PAC_AUTH="pacsmoke:pac123"
+ENF_TOKEN="$(obter_token enfsmoke enf123)"
+PAC_TOKEN="$(obter_token pacsmoke pac123)"
 
 # ADMIN ve todas as prescricoes.
-request_and_assert "/prescricoes" "200" "/prescricoes (ADMIN)" "${ADMIN_AUTH}" contains 'DipironaSmoke'
+request_and_assert "/prescricoes" "200" "/prescricoes (ADMIN)" "${ADMIN_TOKEN}" contains 'DipironaSmoke'
 # MEDICO ve as proprias prescricoes (escopo por identidade).
-request_and_assert "/prescricoes" "200" "/prescricoes (MEDICO)" "${MED_AUTH}" contains 'DipironaSmoke'
+request_and_assert "/prescricoes" "200" "/prescricoes (MEDICO)" "${MED_TOKEN}" contains 'DipironaSmoke'
 # ENFERMAGEM ve as prescricoes ativas (remedios a aplicar).
-request_and_assert "/prescricoes" "200" "/prescricoes (ENFERMAGEM)" "${ENF_AUTH}" contains 'DipironaSmoke'
+request_and_assert "/prescricoes" "200" "/prescricoes (ENFERMAGEM)" "${ENF_TOKEN}" contains 'DipironaSmoke'
 # PACIENTE ve as proprias receitas via /me/receitas.
-request_and_assert "/me/receitas" "200" "/me/receitas (PACIENTE)" "${PAC_AUTH}" contains 'DipironaSmoke'
+request_and_assert "/me/receitas" "200" "/me/receitas (PACIENTE)" "${PAC_TOKEN}" contains 'DipironaSmoke'
 
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

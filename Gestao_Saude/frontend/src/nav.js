@@ -19,6 +19,7 @@ const NAV = [
   { to: '/relatorios', label: 'Relatórios', icon: '📊', roles: ['ADMIN', 'MEDICO'] },
   { to: '/admin/usuarios', label: 'Usuários', icon: '👥', roles: ['ADMIN'] },
   { to: '/admin/auditoria', label: 'Auditoria', icon: '🛡️', roles: ['ADMIN'] },
+  { to: '/trocar-senha', label: 'Trocar senha', icon: '🔐', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM', 'PACIENTE'] },
 ]
 
 export function navForRole(papel) {

@@ -34,8 +34,13 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  // Apos a troca de senha, libera o app (some a exigencia de troca).
+  function confirmarTrocaSenha() {
+    setUser((u) => (u ? { ...u, trocarSenha: false } : u))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, confirmarTrocaSenha }}>
       {children}
     </AuthContext.Provider>
   )

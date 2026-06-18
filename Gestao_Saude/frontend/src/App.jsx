@@ -11,6 +11,8 @@ import Leitos from './pages/Leitos'
 import Internacoes from './pages/Internacoes'
 import Relatorios from './pages/Relatorios'
 import Financeiro from './pages/Financeiro'
+import TrocarSenha from './pages/TrocarSenha'
+import TrocarSenhaObrigatoria from './pages/TrocarSenhaObrigatoria'
 import MinhaSaude from './pages/MinhaSaude'
 import Usuarios from './pages/Usuarios'
 import Auditoria from './pages/Auditoria'
@@ -24,6 +26,10 @@ function RequireAuth({ children }) {
   }
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+  // Primeiro acesso: bloqueia o app ate a troca da senha inicial.
+  if (user.trocarSenha) {
+    return <TrocarSenhaObrigatoria />
   }
   return children
 }
@@ -128,6 +134,7 @@ export default function App() {
             </RequireRole>
           }
         />
+        <Route path="/trocar-senha" element={<TrocarSenha />} />
         <Route path="/acesso-negado" element={<AcessoNegado />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

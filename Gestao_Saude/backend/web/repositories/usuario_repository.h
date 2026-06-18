@@ -40,4 +40,13 @@ int usuario_repo_listar_json(char *buffer, int tamanho);
 int usuario_repo_desativar(int id);
 int usuario_repo_contar_ativos(void);
 
+/* Troca a senha do usuario: confere a senha atual, gera novo salt+hash e zera
+ * a flag de troca obrigatoria. Retorna 1 em sucesso; 0 se a senha atual estiver
+ * errada ou a nova for invalida. */
+int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
+                              const char *senha_nova);
+
+/* 1 se o usuario ainda precisa trocar a senha (1o acesso); 0 caso contrario. */
+int usuario_repo_precisa_trocar_senha(int usuario_id);
+
 #endif

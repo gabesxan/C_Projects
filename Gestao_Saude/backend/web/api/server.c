@@ -396,64 +396,8 @@ static int extrairCampoJson(const char *corpo, const char *chave,
 }
 
 /* ----------------------------------------------------------------------- */
-/* Autenticacao (Bearer token / HTTP Basic)                                 */
+/* Autenticacao (token de sessao via 'Authorization: Bearer')               */
 /* ----------------------------------------------------------------------- */
-
-static int base64Valor(char c)
-{
-    if (c >= 'A' && c <= 'Z')
-        return c - 'A';
-    if (c >= 'a' && c <= 'z')
-        return c - 'a' + 26;
-    if (c >= '0' && c <= '9')
-        return c - '0' + 52;
-    if (c == '+')
-        return 62;
-    if (c == '/')
-        return 63;
-    return -1;
-}
-
-static int base64Decodificar(const char *entrada, char *saida, int tam)
-{
-    int acumulador = 0;
-    int bits = 0;
-    int n = 0;
-    int i;
-
-    for (i = 0; entrada[i] != '\0'; i++)
-    {
-        int v;
-
-        if (entrada[i] == '=')
-        {
-            break;
-        }
-
-        v = base64Valor(entrada[i]);
-
-        if (v < 0)
-        {
-            continue;
-        }
-
-        acumulador = (acumulador << 6) | v;
-        bits += 6;
-
-        if (bits >= 8)
-        {
-            bits -= 8;
-            if (n >= tam - 1)
-            {
-                return 0;
-            }
-            saida[n++] = (char)((acumulador >> bits) & 0xFF);
-        }
-    }
-
-    saida[n] = '\0';
-    return 1;
-}
 
 /* Busca 'prefixo' em 'texto' ignorando maiusculas/minusculas e devolve o
  * ponteiro logo apos o prefixo, ou NULL. Necessario porque proxies e HTTP/2
@@ -483,9 +427,6 @@ static const char *aposCabecalho(const char *texto, const char *prefixo)
     return NULL;
 }
 
-/* Autentica o request pelo cabecalho 'Authorization: Basic'. Em sucesso
- * preenche papel/vinculos, o login e o id do usuario e retorna 1; senao 0.
- * login_out/usuario_id podem ser NULL quando o chamador nao precisa deles. */
 /* Copia o token de 'Authorization: Bearer <token>' para 'destino'. Retorna 1
  * se o cabecalho existe; 0 caso contrario. */
 static int extrairTokenBearer(const char *requisicao, char *destino, int tam)
@@ -514,63 +455,22 @@ static int extrairTokenBearer(const char *requisicao, char *destino, int tam)
     return 1;
 }
 
+/* Autentica o request pelo token de sessao em 'Authorization: Bearer'. Em
+ * sucesso preenche papel/vinculos, o login e o id do usuario e retorna 1.
+ * login_out/usuario_id podem ser NULL quando o chamador nao precisa deles. */
 static int autenticarRequest(const char *requisicao, char *papel, int papel_tam,
                              int *paciente_id, int *medico_id,
                              char *login_out, int login_tam, int *usuario_id)
 {
-    const char *prefixo = "Authorization: Basic ";
-    const char *inicio;
     char token[TAM_TOKEN];
-    char b64[512];
-    char credenciais[512];
-    char *separador;
-    int n = 0;
 
-    /* Caminho preferencial: token de sessao (Bearer). A senha nao trafega. */
-    if (extrairTokenBearer(requisicao, token, sizeof(token)) == 1)
-    {
-        return sessao_repo_validar(token, papel, papel_tam, paciente_id,
-                                   medico_id, usuario_id, login_out, login_tam);
-    }
-
-    /* Fallback temporario: HTTP Basic (removido na sub-etapa de limpeza). */
-    inicio = aposCabecalho(requisicao, prefixo);
-
-    if (inicio == NULL)
+    if (extrairTokenBearer(requisicao, token, sizeof(token)) == 0)
     {
         return 0;
     }
 
-    while (inicio[n] != '\0' && inicio[n] != '\r' && inicio[n] != '\n' &&
-           inicio[n] != ' ' && n < (int)sizeof(b64) - 1)
-    {
-        b64[n] = inicio[n];
-        n++;
-    }
-    b64[n] = '\0';
-
-    if (base64Decodificar(b64, credenciais, sizeof(credenciais)) == 0)
-    {
-        return 0;
-    }
-
-    separador = strchr(credenciais, ':');
-
-    if (separador == NULL)
-    {
-        return 0;
-    }
-
-    *separador = '\0';
-
-    if (login_out != NULL && login_tam > 0)
-    {
-        strncpy(login_out, credenciais, (size_t)login_tam - 1);
-        login_out[login_tam - 1] = '\0';
-    }
-
-    return usuario_repo_autenticar(credenciais, separador + 1, papel, papel_tam,
-                                   paciente_id, medico_id, usuario_id);
+    return sessao_repo_validar(token, papel, papel_tam, paciente_id,
+                               medico_id, usuario_id, login_out, login_tam);
 }
 
 static int comecaCom(const char *texto, const char *prefixo)
@@ -616,8 +516,7 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
     }
 
     /* Qualquer usuario autenticado acessa o proprio perfil/sessao e seus dados. */
-    if (ehRotaMe(caminho) || strcmp(caminho, "/login") == 0 ||
-        strcmp(caminho, "/sessao") == 0)
+    if (ehRotaMe(caminho) || strcmp(caminho, "/sessao") == 0)
     {
         return 1;
     }
@@ -1920,27 +1819,40 @@ static void rotaCriarUsuario(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para usuario\"}");
 }
 
-static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_id)
-{
-    char corpo[160];
-
-    snprintf(corpo, sizeof(corpo),
-             "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
-             papel, paciente_id, medico_id);
-    responder(cliente, "200 OK", corpo);
-}
-
-/* Confirma a sessao e registra o evento de login na auditoria. O front chama
- * esta rota uma vez no login (diferente de /me, usado a cada navegacao). */
-static void rotaLogin(int cliente, const Sessao *s)
+static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_id,
+                   int usuario_id)
 {
     char corpo[200];
 
-    auditar(s, "LOGIN", "usuario", s->usuario_id, s->login);
     snprintf(corpo, sizeof(corpo),
-             "{\"papel\":\"%s\",\"login\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d}",
-             s->papel, s->login, s->paciente_id, s->medico_id);
+             "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d,\"trocarSenha\":%s}",
+             papel, paciente_id, medico_id,
+             usuario_repo_precisa_trocar_senha(usuario_id) ? "true" : "false");
     responder(cliente, "200 OK", corpo);
+}
+
+/* POST /me/senha: o proprio usuario troca a senha (corpo {senha_atual,
+ * senha_nova}); zera a exigencia de troca no primeiro acesso. */
+static void rotaTrocarSenha(int cliente, const char *consulta, const Sessao *s)
+{
+    char atual[128];
+    char nova[128];
+    int ok;
+
+    extrairParam(consulta, "senha_atual", atual, sizeof(atual));
+    extrairParam(consulta, "senha_nova", nova, sizeof(nova));
+
+    ok = usuario_repo_trocar_senha(s->usuario_id, atual, nova) == 1;
+    if (ok)
+    {
+        auditar(s, "TROCAR_SENHA", "usuario", s->usuario_id, "");
+        responder(cliente, "200 OK", "{\"ok\":true}");
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"senha atual incorreta ou nova senha invalida\"}");
+    }
 }
 
 /* POST /sessao (publica): le {login, senha} do CORPO (a senha nao vai na URL),
@@ -1995,8 +1907,9 @@ static void rotaSessaoCriar(int cliente, const char *requisicao)
 
     snprintf(resposta, sizeof(resposta),
              "{\"token\":\"%s\",\"papel\":\"%s\",\"login\":\"%s\","
-             "\"pacienteId\":%d,\"medicoId\":%d}",
-             token, papel, login, pacienteId, medicoId);
+             "\"pacienteId\":%d,\"medicoId\":%d,\"trocarSenha\":%s}",
+             token, papel, login, pacienteId, medicoId,
+             usuario_repo_precisa_trocar_senha(usuarioId) ? "true" : "false");
     responder(cliente, "200 OK", resposta);
 }
 
@@ -2751,17 +2664,17 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         responderLista(cliente, leito_repo_ocupacao_json,
                        "{\"erro\":\"falha ao calcular ocupacao\"}");
     }
-    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/login") == 0)
-    {
-        rotaLogin(cliente, &s);
-    }
     else if (strcmp(metodo, "DELETE") == 0 && strcmp(caminho, "/sessao") == 0)
     {
         rotaSessaoRemover(cliente, requisicao, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {
-        rotaMe(cliente, papel, authPacienteId, authMedicoId);
+        rotaMe(cliente, papel, authPacienteId, authMedicoId, s.usuario_id);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/senha") == 0)
+    {
+        rotaTrocarSenha(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/exames") == 0)
     {

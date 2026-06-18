@@ -22,8 +22,9 @@ int usuario_repo_criar(const char *nome, const char *login, const char *senha,
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "INSERT INTO usuarios "
-        "(nome, login, senha_hash, salt, papel, paciente_id, medico_id, ativo) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 1);";
+        "(nome, login, senha_hash, salt, papel, paciente_id, medico_id, ativo, "
+        "trocar_senha) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1);";
     char salt[17];
     char hash[65];
 
@@ -505,4 +506,103 @@ int usuario_repo_contar_ativos(void)
     sqlite3_finalize(stmt);
     db_fechar(db);
     return total;
+}
+
+int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
+                              const char *senha_nova)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char saltAtual[64] = "";
+    char hashArmazenado[65] = "";
+    char hashAtual[65];
+    char novoSalt[17];
+    char novoHash[65];
+    int confere = 0;
+    int ok = 0;
+
+    if (senha_atual == NULL || senha_nova == NULL || senha_nova[0] == '\0' ||
+        usuario_id <= 0 || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    /* Carrega salt + hash atuais para conferir a senha vigente. */
+    if (sqlite3_prepare_v2(db,
+            "SELECT salt, senha_hash FROM usuarios WHERE id = ? AND ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, usuario_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char *s = (const char *)sqlite3_column_text(stmt, 0);
+        const char *h = (const char *)sqlite3_column_text(stmt, 1);
+        if (s != NULL && h != NULL)
+        {
+            snprintf(saltAtual, sizeof(saltAtual), "%s", s);
+            snprintf(hashArmazenado, sizeof(hashArmazenado), "%s", h);
+            confere = 1;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    if (confere == 0 ||
+        senha_hash(saltAtual, senha_atual, hashAtual, sizeof(hashAtual)) == 0 ||
+        strcmp(hashAtual, hashArmazenado) != 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    /* Gera novo salt+hash e zera a flag de troca obrigatoria. */
+    if (senha_gerar_salt(novoSalt, sizeof(novoSalt)) == 0 ||
+        senha_hash(novoSalt, senha_nova, novoHash, sizeof(novoHash)) == 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 0 "
+            "WHERE id = ?;", -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, novoHash, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, novoSalt, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 3, usuario_id);
+        ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+        sqlite3_finalize(stmt);
+    }
+
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int usuario_repo_precisa_trocar_senha(int usuario_id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int precisa = 0;
+
+    if (usuario_id <= 0 || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT trocar_senha FROM usuarios WHERE id = ? AND ativo = 1;",
+            -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, usuario_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            precisa = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    db_fechar(db);
+    return precisa ? 1 : 0;
 }
