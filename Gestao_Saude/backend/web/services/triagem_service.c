@@ -5,6 +5,7 @@
 #include "prontuario_repository.h"
 #include "exame_repository.h"
 #include "agendamento_repository.h"
+#include "regiao_df.h"
 #include "repo_json.h"
 
 #include <stdio.h>
@@ -415,6 +416,82 @@ int triagem_service_sugerir_exames_json(int paciente_id, char *buffer, int taman
     return 1;
 }
 
+/* Procura um medico livre da 'especialidade' na 'regiao' no slot informado.
+ * Retorna o id do medico, ou 0 se nenhum disponivel. */
+static int medico_livre_na_regiao(const char *especialidade, int regiao,
+                                  const char *data, const char *horario)
+{
+    int ids[SVC_MAX_MEDICOS];
+    int total = medico_repo_ids_por_especialidade_regiao(especialidade, regiao,
+                                                         ids, SVC_MAX_MEDICOS);
+    int i;
+
+    for (i = 0; i < total; i++)
+    {
+        if (agendamento_repo_medico_ocupado(ids[i], data, horario) == 0)
+        {
+            return ids[i];
+        }
+    }
+
+    return 0;
+}
+
+/* Procura um medico livre da especialidade comecando pela 'regiao' de origem e,
+ * se nao houver, varrendo as RAs do DF em ordem de proximidade. Preenche
+ * *regiao_destino com a RA escolhida. Retorna o id do medico, ou 0. */
+static int medico_livre_mais_proximo(const char *especialidade, int regiao,
+                                     const char *data, const char *horario,
+                                     int *regiao_destino)
+{
+    int regioes[64];
+    int n = regiao_df_ordenar_por_distancia(regiao, regioes, 64);
+    int i;
+    int medico;
+
+    /* regiao_df ja coloca a propria origem em primeiro (distancia 0). */
+    for (i = 0; i < n; i++)
+    {
+        medico = medico_livre_na_regiao(especialidade, regioes[i], data, horario);
+        if (medico != 0)
+        {
+            if (regiao_destino != NULL)
+            {
+                *regiao_destino = regioes[i];
+            }
+            return medico;
+        }
+    }
+
+    /* Origem nao esta na tabela de RAs: tenta ao menos a propria regiao. */
+    medico = medico_livre_na_regiao(especialidade, regiao, data, horario);
+    if (medico != 0 && regiao_destino != NULL)
+    {
+        *regiao_destino = regiao;
+    }
+    return medico;
+}
+
+/* Prioridade (1-5) da triagem ativa do paciente; 0 se nao houver. */
+static int prioridade_do_paciente(int paciente_id)
+{
+    int nivel = 0;
+    if (triagem_repo_ultima_por_paciente(paciente_id, NULL, &nivel, NULL, 0) == 0)
+    {
+        return 0;
+    }
+    return nivel;
+}
+
+/*
+ * Agendamento inteligente:
+ *  1) tenta um medico livre da especialidade na RA do paciente;
+ *  2) sem vaga, tenta PREEMPCAO: desloca, no mesmo slot, o paciente de MENOR
+ *     prioridade que seja inferior a do novo paciente (um "muito emergente"
+ *     toma o lugar de um "emergente");
+ *  3) o paciente deslocado e reacomodado com um medico na sua RA ou, se nao
+ *     houver, na RA mais proxima do DF (distancias reais).
+ */
 int triagem_service_agendar_json(int paciente_id, const char *data,
                                  const char *horario, char *buffer, int tamanho)
 {
@@ -428,6 +505,11 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
     char horarioJson[24];
     const char *especialidade;
     int escrito;
+    int nivelP;
+    int bumpAg = 0;
+    int bumpPac = 0;
+    int bumpMed = 0;
+    int menor;
 
     if (buffer == NULL || tamanho <= 0 || paciente_id <= 0)
     {
@@ -458,10 +540,18 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
         return 0;
     }
 
+    nivelP = prioridade_do_paciente(paciente_id);
     especialidade = especialidade_provavel(tipo);
     total = medico_repo_ids_por_especialidade_regiao(especialidade, regiao,
                                                      ids, SVC_MAX_MEDICOS);
 
+    if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
+        repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0)
+    {
+        return 0;
+    }
+
+    /* 1) Vaga livre direta. */
     for (i = 0; i < total; i++)
     {
         if (agendamento_repo_medico_ocupado(ids[i], data, horario) == 0)
@@ -471,37 +561,94 @@ int triagem_service_agendar_json(int paciente_id, const char *data,
         }
     }
 
-    if (escolhido == 0)
+    if (escolhido != 0)
+    {
+        if (agendamento_repo_criar(paciente_id, escolhido, data, horario) == 0)
+        {
+            snprintf(buffer, (size_t)tamanho,
+                     "{\"agendado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
+            return 0;
+        }
+
+        escrito = snprintf(buffer, (size_t)tamanho,
+                           "{\"agendado\":true,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"data\":%s,\"horario\":%s,\"preempcao\":false}",
+                           paciente_id, escolhido, dataJson, horarioJson);
+        return (escrito > 0 && escrito < tamanho) ? 1 : 0;
+    }
+
+    /* 2) Sem vaga: tenta preempcao pelo ocupante de MENOR prioridade que ainda
+     *    seja inferior a do novo paciente. */
+    menor = nivelP;
+    for (i = 0; i < total; i++)
+    {
+        int agId = 0;
+        int ocupante = 0;
+        if (agendamento_repo_buscar_no_slot(ids[i], data, horario, &agId,
+                                            &ocupante))
+        {
+            int nivelOcc = prioridade_do_paciente(ocupante);
+            if (nivelOcc < menor)
+            {
+                menor = nivelOcc;
+                bumpAg = agId;
+                bumpPac = ocupante;
+                bumpMed = ids[i];
+            }
+        }
+    }
+
+    if (bumpAg == 0)
     {
         snprintf(buffer, (size_t)tamanho,
-                 "{\"agendado\":false,\"motivo\":\"sem medico disponivel\"}");
+                 "{\"agendado\":false,\"motivo\":\"sem vaga e sem paciente de "
+                 "menor prioridade para realocar\"}");
         return 0;
     }
 
-    if (agendamento_repo_criar(paciente_id, escolhido, data, horario) == 0)
+    /* Desloca o ocupante e coloca o paciente prioritario no slot. */
+    agendamento_repo_cancelar(bumpAg, "Realocado por prioridade superior");
+    if (agendamento_repo_criar(paciente_id, bumpMed, data, horario) == 0)
     {
         snprintf(buffer, (size_t)tamanho,
                  "{\"agendado\":false,\"motivo\":\"falha ao gravar agendamento\"}");
         return 0;
     }
 
-    if (repo_json_escapar(dataJson, sizeof(dataJson), data) == 0 ||
-        repo_json_escapar(horarioJson, sizeof(horarioJson), horario) == 0)
+    /* 3) Reacomoda o paciente deslocado: medico urgente na sua RA ou na mais
+     *    proxima do DF. */
     {
-        return 0;
+        int tipoB = 0;
+        int regiaoB;
+        int destinoMed = 0;
+        int destinoRegiao = 0;
+        const char *espB;
+        char nomeRegiao[64];
+
+        regiaoB = paciente_repo_regiao(bumpPac);
+        triagem_repo_ultima_por_paciente(bumpPac, &tipoB, NULL, NULL, 0);
+        espB = especialidade_provavel(tipoB);
+
+        destinoMed = medico_livre_mais_proximo(espB, regiaoB, data, horario,
+                                               &destinoRegiao);
+        if (destinoMed != 0)
+        {
+            agendamento_repo_criar(bumpPac, destinoMed, data, horario);
+        }
+
+        snprintf(nomeRegiao, sizeof(nomeRegiao), "%s",
+                 regiao_df_nome(destinoRegiao));
+
+        escrito = snprintf(buffer, (size_t)tamanho,
+                           "{\"agendado\":true,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"data\":%s,\"horario\":%s,\"preempcao\":true,"
+                           "\"realocado\":{\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"regiao\":%d,\"regiaoNome\":\"%s\",\"reagendado\":%s}}",
+                           paciente_id, bumpMed, dataJson, horarioJson,
+                           bumpPac, destinoMed, destinoRegiao, nomeRegiao,
+                           destinoMed != 0 ? "true" : "false");
+        return (escrito > 0 && escrito < tamanho) ? 1 : 0;
     }
-
-    escrito = snprintf(buffer, (size_t)tamanho,
-                       "{\"agendado\":true,\"pacienteId\":%d,\"medicoId\":%d,"
-                       "\"data\":%s,\"horario\":%s}",
-                       paciente_id, escolhido, dataJson, horarioJson);
-
-    if (escrito < 0 || escrito >= tamanho)
-    {
-        return 0;
-    }
-
-    return 1;
 }
 
 int triagem_service_encaminhar_json(int paciente_id, const char *especialidade,

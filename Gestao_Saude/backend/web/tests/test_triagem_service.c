@@ -189,6 +189,32 @@ int main(void)
         assert(strstr(json, "Vermelho") != NULL);
     }
 
+    /* Agendamento inteligente: preempcao por prioridade + RA mais proxima. */
+    {
+        assert(db_resetar_com_schema(SCHEMA) == 1);
+        /* Dois cardiologistas: um na RA 1 (Plano Piloto) e outro na RA 3
+         * (Taguatinga), para o deslocado ser reacomodado na RA proxima. */
+        assert(medico_repo_criar("Dr Card1", "CRM-A", "Cardiologia", 1) == 1);
+        assert(medico_repo_criar("Dr Card2", "CRM-B", "Cardiologia", 3) == 1);
+        /* Pacientes na RA 1. */
+        assert(paciente_repo_criar("Joao", "1985-01-01", "111", "CPF", "61", "M", 1, "", "") == 1);
+        assert(paciente_repo_criar("Bia", "1980-01-01", "222", "CPF", "61", "F", 1, "", "") == 1);
+        /* Triagem: pontuacao = nivel (1 menos urgente .. 5 mais urgente). */
+        assert(triagem_repo_criar(1, 3, 3, "Amarelo") == 1); /* Joao: nivel 3 */
+        assert(triagem_repo_criar(2, 3, 5, "Vermelho") == 1); /* Bia: nivel 5 */
+
+        /* Joao ocupa o unico cardiologista da RA 1 no slot. */
+        assert(triagem_service_agendar_json(1, "2026-09-01", "09:00", json, sizeof(json)) == 1);
+        assert(strstr(json, "\"preempcao\":false") != NULL);
+
+        /* Bia (mais urgente) preempta Joao; Joao vai para a RA mais proxima
+         * com cardiologista livre (RA 3). */
+        assert(triagem_service_agendar_json(2, "2026-09-01", "09:00", json, sizeof(json)) == 1);
+        assert(strstr(json, "\"preempcao\":true") != NULL);
+        assert(strstr(json, "\"reagendado\":true") != NULL);
+        assert(strstr(json, "\"pacienteId\":1") != NULL); /* Joao realocado */
+    }
+
     printf("test_triagem_service: OK\n");
     return 0;
 }

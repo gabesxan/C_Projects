@@ -312,7 +312,14 @@ function ProximoPasso({ paciente }) {
     setResultado('')
     try {
       const r = await apiSend('POST', `/triagem/${paciente.id}/agendar`, agenda)
-      setResultado(`Agendado com medico #${r.medicoId} em ${r.data} ${r.horario}.`)
+      let msg = `Agendado com medico #${r.medicoId} em ${r.data} ${r.horario}.`
+      if (r.preempcao && r.realocado) {
+        const re = r.realocado
+        msg += re.reagendado
+          ? ` Caso de menor prioridade (paciente #${re.pacienteId}) foi realocado para ${re.regiaoNome || 'outra RA'} (medico #${re.medicoId}).`
+          : ` Caso de menor prioridade (paciente #${re.pacienteId}) foi deslocado, mas nao havia medico livre em outra RA.`
+      }
+      setResultado(msg)
     } catch (err) {
       setResultado(err.status === 409 ? 'Sem medico/horario disponivel.' : err.message)
     }

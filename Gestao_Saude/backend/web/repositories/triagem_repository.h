@@ -17,6 +17,11 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
                                 const char *queixa, const char *pressao,
                                 const char *temperatura, const char *freq_cardiaca,
                                 const char *saturacao);
+/* Reclassifica uma triagem ativa (novo risco/nivel/itens); exige justificativa.
+ * 1 = ok, 0 = falha. */
+int triagem_repo_reclassificar(int id, const char *classificacao, int nivel,
+                               const char *itens, const char *justificativa);
+
 int triagem_repo_listar_json(char *buffer, int tamanho);
 
 /* Escreve (JSON) a distribuicao de triagens ativas por classificacao, no

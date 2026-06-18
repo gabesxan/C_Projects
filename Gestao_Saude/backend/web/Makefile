@@ -11,6 +11,7 @@ CFLAGS = -Wall -Wextra -pedantic \
 	-I$(OPENSSL_DIR)/include
 
 LDLIBS = -lsqlite3
+MATH_LIB = -lm
 CRYPTO_LIBS = -L$(OPENSSL_DIR)/lib -lcrypto
 
 # Diretorio de saida para binarios e bancos de teste (gerado, ignorado no git).
@@ -20,6 +21,7 @@ DB_SRC = database/database.c
 JSON_SRC = util/repo_json.c
 SENHA_SRC = util/senha_util.c
 CRED_SRC = util/credencial_util.c
+REGIAO_SRC = util/regiao_df.c
 USUARIO_SRC = repositories/usuario_repository.c
 AUDIT_SRC = repositories/auditoria_repository.c
 
@@ -53,7 +55,7 @@ TEST_AGEND = tests/test_agendamento_repository.c $(AGEND_SRC) $(PAC_SRC) $(MED_S
 TEST_PRONT = tests/test_prontuario_repository.c $(PRONT_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_EXAME = tests/test_exame_repository.c $(EXAME_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_INTERN = tests/test_internacao_repository.c $(INTERN_SRC) $(PAC_SRC) $(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC)
-TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_TRIAGEM_SVC = tests/test_triagem_service.c $(TRIAGEM_SVC_SRC) $(TRIAGEM_SRC) $(PAC_SRC) $(MED_SRC) $(PRONT_SRC) $(EXAME_SRC) $(AGEND_SRC) $(REGIAO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_RELAT_SVC = tests/test_relatorio_service.c $(RELAT_SVC_SRC) $(PAC_SRC) $(MED_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_USUARIO = tests/test_usuario_repository.c $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_AUDIT = tests/test_auditoria_repository.c $(AUDIT_SRC) $(JSON_SRC) $(DB_SRC)
@@ -73,11 +75,11 @@ $(BUILD)/database.o: $(DB_SRC) | $(BUILD)
 # Compila o servidor HTTP (health, cadastros, triagem inteligente e usuarios).
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
-	$(USUARIO_SRC) $(AUDIT_SRC) $(SENHA_SRC) $(CRED_SRC) $(PRESC_SRC) \
+	$(USUARIO_SRC) $(AUDIT_SRC) $(SENHA_SRC) $(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS) | $(BUILD)
-	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS)
+	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(MATH_LIB)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
@@ -151,7 +153,7 @@ test_internacao_repository: | $(BUILD)
 	./$(BUILD)/test_internacao_repository
 
 test_triagem_service: | $(BUILD)
-	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o $(BUILD)/test_triagem_service $(LDLIBS)
+	$(CC) $(CFLAGS) $(TEST_TRIAGEM_SVC) -o $(BUILD)/test_triagem_service $(LDLIBS) $(MATH_LIB)
 	./$(BUILD)/test_triagem_service
 
 test_relatorio_service: | $(BUILD)

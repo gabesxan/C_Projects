@@ -1319,6 +1319,42 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para triagem\"}");
 }
 
+static void rotaReclassificarTriagem(int cliente, int id, const char *consulta,
+                                     const Sessao *s)
+{
+    char itens[512];
+    char justificativa[256];
+    char classificacao[32];
+    int nivel = 0;
+    int ok;
+
+    extrairParam(consulta, "itens", itens, sizeof(itens));
+    extrairParam(consulta, "justificativa", justificativa, sizeof(justificativa));
+
+    if (justificativa[0] == '\0')
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"reclassificacao exige justificativa\"}");
+        return;
+    }
+
+    triagem_service_classificar(itens, classificacao, sizeof(classificacao),
+                                &nivel);
+
+    ok = triagem_repo_reclassificar(id, classificacao, nivel, itens,
+                                    justificativa) == 1;
+
+    if (ok)
+    {
+        char detalhe[320];
+        snprintf(detalhe, sizeof(detalhe), "%s: %s", classificacao, justificativa);
+        auditar(s, "RECLASSIFICAR", "triagem", id, detalhe);
+    }
+
+    responderRemocao(cliente, ok,
+        "{\"erro\":\"triagem nao encontrada ou justificativa ausente\"}");
+}
+
 static void rotaCriarAgendamento(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
@@ -2009,6 +2045,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/triagens") == 0)
     {
         rotaCriarTriagem(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "reclassificar") == 0)
+    {
+        rotaReclassificarTriagem(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/triagens/%d", &id) == 1)
     {

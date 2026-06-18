@@ -71,6 +71,47 @@ int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                                        classificacao, "", "", "", "", "", "");
 }
 
+int triagem_repo_reclassificar(int id, const char *classificacao, int nivel,
+                               const char *itens, const char *justificativa)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE triagens SET classificacao = ?, pontuacao = ?, itens = ?, "
+        "justificativa = ? WHERE id = ? AND ativo = 1;";
+    int ok = 0;
+
+    /* Mudanca de classificacao exige justificativa. */
+    if (classificacao == NULL || classificacao[0] == '\0' ||
+        justificativa == NULL || justificativa[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, classificacao, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, nivel);
+    sqlite3_bind_text(stmt, 3, itens != NULL ? itens : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, justificativa, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 5, id);
+
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
 int triagem_repo_distribuicao_por_classificacao_json(char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;

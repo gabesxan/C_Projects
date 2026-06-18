@@ -27,6 +27,12 @@ int agendamento_repo_reagendar(int id, const char *data, const char *horario);
  * livre; -1 em erro. */
 int agendamento_repo_paciente_ocupado(int paciente_id, const char *data,
                                       const char *horario);
+
+/* Busca o agendamento nao-cancelado que ocupa o slot do medico (data/horario),
+ * preenchendo *ag_id e *paciente_id. Retorna 1 se achou, 0 caso contrario. */
+int agendamento_repo_buscar_no_slot(int medico_id, const char *data,
+                                    const char *horario, int *ag_id,
+                                    int *paciente_id);
 int agendamento_repo_contar_ativos(void);
 
 /* Conta agendamentos nao-cancelados do medico. Retorna o total, ou -1 em erro. */

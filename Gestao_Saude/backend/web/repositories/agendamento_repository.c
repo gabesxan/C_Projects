@@ -614,6 +614,56 @@ int agendamento_repo_medico_ocupado(int medico_id, const char *data,
     return ocupado;
 }
 
+int agendamento_repo_buscar_no_slot(int medico_id, const char *data,
+                                    const char *horario, int *ag_id,
+                                    int *paciente_id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT id, paciente_id FROM agendamentos "
+        "WHERE medico_id = ? AND data = ? AND horario = ? "
+        "AND status != 'CANCELADO' LIMIT 1;";
+    int achou = 0;
+
+    if (medico_id <= 0 || data == NULL || horario == NULL)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, medico_id);
+    sqlite3_bind_text(stmt, 2, data, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, horario, -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        if (ag_id != NULL)
+        {
+            *ag_id = sqlite3_column_int(stmt, 0);
+        }
+        if (paciente_id != NULL)
+        {
+            *paciente_id = sqlite3_column_int(stmt, 1);
+        }
+        achou = 1;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return achou;
+}
+
 int agendamento_repo_contar_por_periodo(const char *inicio, const char *fim)
 {
     sqlite3 *db = NULL;
