@@ -29,6 +29,7 @@ CREATE TABLE pacientes (
     regiao_administrativa INTEGER NOT NULL,
     responsavel TEXT NOT NULL DEFAULT '',
     alergias TEXT NOT NULL DEFAULT '',
+    convenio_id INTEGER NOT NULL DEFAULT 0,   -- 0 = particular
     ativo INTEGER NOT NULL
 );
 
@@ -231,6 +232,30 @@ CREATE TABLE auditoria (
     entidade_id INTEGER NOT NULL,
     detalhe TEXT NOT NULL,
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Convenios (planos de saude). Paciente sem convenio = particular.
+CREATE TABLE convenios (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL,
+    ativo INTEGER NOT NULL DEFAULT 1
+);
+
+-- Cobrancas (financeiro). Vinculam um atendimento (origem em texto livre) ao
+-- paciente e a forma de pagamento (PARTICULAR/CONVENIO). valor em centavos.
+-- status: PENDENTE, AUTORIZADA, PAGA, GLOSADA, CANCELADA. Nunca apagada.
+CREATE TABLE cobrancas (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    convenio_id INTEGER NOT NULL DEFAULT 0,
+    forma TEXT NOT NULL,
+    origem TEXT NOT NULL DEFAULT '',
+    descricao TEXT NOT NULL DEFAULT '',
+    valor_centavos INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDENTE',
+    motivo TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
 
 -- Check-in / recepcao: confirma a chegada do paciente, gera uma senha de fila

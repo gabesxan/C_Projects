@@ -9,7 +9,7 @@
  * num so lugar (montarPacienteJson). */
 #define PACIENTE_COLUNAS                                                \
     "id, nome, nascimento, documento, tipo_documento, telefone, sexo, " \
-    "regiao_administrativa, responsavel, alergias, ativo"
+    "regiao_administrativa, responsavel, alergias, ativo, convenio_id"
 
 /* Escreve em 'destino' a string 'origem' como literal JSON entre aspas,
  * escapando aspas e barras. Retorna 1 se coube, 0 se faltou espaco. */
@@ -256,6 +256,7 @@ static int montarPacienteJson(sqlite3_stmt *stmt, const char *prefixo,
     const char *responsavel = (const char *)sqlite3_column_text(stmt, 8);
     const char *alergias = (const char *)sqlite3_column_text(stmt, 9);
     int ativo = sqlite3_column_int(stmt, 10);
+    int convenioId = sqlite3_column_int(stmt, 11);
     int escrito;
 
     if (escaparJson(nomeJson, sizeof(nomeJson), nome) == 0 ||
@@ -274,9 +275,10 @@ static int montarPacienteJson(sqlite3_stmt *stmt, const char *prefixo,
                        "%s{\"id\":%d,\"nome\":%s,\"nascimento\":%s,\"idade\":%d,"
                        "\"documento\":%s,\"tipoDocumento\":%s,\"telefone\":%s,\"sexo\":%s,"
                        "\"regiaoAdministrativa\":%d,\"responsavel\":%s,\"alergias\":%s,"
-                       "\"ativo\":%d}",
+                       "\"ativo\":%d,\"convenioId\":%d}",
                        prefixo, id, nomeJson, nascJson, idadeDe(nascimento), docJson, tipoJson,
-                       telefoneJson, sexoJson, regiao, responsavelJson, alergiasJson, ativo);
+                       telefoneJson, sexoJson, regiao, responsavelJson, alergiasJson, ativo,
+                       convenioId);
 
     return (escrito > 0 && escrito < tam) ? 1 : 0;
 }
@@ -356,7 +358,7 @@ int paciente_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanh
     const char *sql =
         "SELECT DISTINCT p.id, p.nome, p.nascimento, p.documento, "
         "p.tipo_documento, p.telefone, p.sexo, p.regiao_administrativa, "
-        "p.responsavel, p.alergias, p.ativo "
+        "p.responsavel, p.alergias, p.ativo, p.convenio_id "
         "FROM pacientes p JOIN agendamentos a ON a.paciente_id = p.id "
         "WHERE p.ativo = 1 AND a.medico_id = ? AND a.status != 'CANCELADO' "
         "ORDER BY p.id;";
@@ -528,6 +530,39 @@ int paciente_repo_atualizar_contato(int id, const char *telefone)
     }
 
     sqlite3_bind_text(stmt, 1, telefone, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int paciente_repo_definir_convenio(int id, int convenio_id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE pacientes SET convenio_id = ? WHERE id = ? AND ativo = 1;";
+    int ok = 0;
+
+    if (id <= 0 || convenio_id < 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, convenio_id);
     sqlite3_bind_int(stmt, 2, id);
     ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
 

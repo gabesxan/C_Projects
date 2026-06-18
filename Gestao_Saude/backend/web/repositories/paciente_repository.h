@@ -51,6 +51,9 @@ int paciente_repo_desativar(int id);
 /* Atualiza o contato (telefone) de um paciente ativo. 1 = ok, 0 = falha. */
 int paciente_repo_atualizar_contato(int id, const char *telefone);
 
+/* Define o convenio do paciente (0 = particular). 1 = ok, 0 = falha. */
+int paciente_repo_definir_convenio(int id, int convenio_id);
+
 int paciente_repo_contar_ativos(void);
 
 /* Conta pacientes ativos com agendamento nao-cancelado com o medico.

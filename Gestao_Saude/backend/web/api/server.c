@@ -12,6 +12,7 @@
 #include "auditoria_repository.h"
 #include "enfermagem_repository.h"
 #include "checkin_repository.h"
+#include "financeiro_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -349,7 +350,8 @@ static int ehCadastro(const char *caminho)
 {
     return comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
            comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
-           comecaCom(caminho, "/checkins");
+           comecaCom(caminho, "/checkins") || comecaCom(caminho, "/convenios") ||
+           comecaCom(caminho, "/cobrancas");
 }
 
 static int ehClinico(const char *caminho)
@@ -1935,6 +1937,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/prescricoes") ||
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
            comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/checkins") ||
+           comecaCom(caminho, "/convenios") || comecaCom(caminho, "/cobrancas") ||
            comecaCom(caminho, "/me");
 }
 
@@ -2036,6 +2039,16 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         else
             responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar administracoes\"}");
         free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "convenio") == 0)
+    {
+        char conv[16];
+        int ok;
+        extrairParam(consulta, "convenio_id", conv, sizeof(conv));
+        ok = paciente_repo_definir_convenio(id, atoi(conv)) == 1;
+        if (ok) auditar(&s, "ATUALIZAR", "paciente", id, "convenio");
+        responderRemocao(cliente, ok, "{\"erro\":\"paciente nao encontrado\"}");
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "contato") == 0)
@@ -2420,6 +2433,15 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaMeReceitas(cliente, authPacienteId);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/cobrancas") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && cobranca_listar_por_paciente_json(authPacienteId, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar cobrancas\"}");
+        free(json);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agendamentos") == 0)
     {
         char *json = malloc(TAM_JSON);
@@ -2522,6 +2544,67 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok = checkin_repo_encerrar(id) == 1;
         if (ok) auditar(&s, "ENCERRAR", "checkin", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/convenios") == 0)
+    {
+        responderLista(cliente, convenio_listar_json, "{\"erro\":\"falha ao listar convenios\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/convenios/contar") == 0)
+    {
+        responderContagem(cliente, convenio_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/convenios") == 0)
+    {
+        char nome[128];
+        int ok;
+        extrairParam(consulta, "nome", nome, sizeof(nome));
+        ok = convenio_criar(nome) == 1;
+        if (ok) auditar(&s, "CRIAR", "convenio", 0, nome);
+        responderCriacao(cliente, ok, "{\"erro\":\"nome de convenio invalido\"}");
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/convenios/%d", &id) == 1)
+    {
+        int ok = convenio_desativar(id) == 1;
+        if (ok) auditar(&s, "DESATIVAR", "convenio", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"convenio nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/cobrancas") == 0)
+    {
+        responderLista(cliente, cobranca_listar_json, "{\"erro\":\"falha ao listar cobrancas\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/cobrancas/contar") == 0)
+    {
+        responderContagem(cliente, cobranca_contar_pendentes);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/cobrancas/demonstrativo") == 0)
+    {
+        responderLista(cliente, cobranca_demonstrativo_json, "{\"erro\":\"falha no demonstrativo\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/cobrancas") == 0)
+    {
+        char pacienteId[16], convenioId[16], forma[16], origem[128], descricao[256], valor[16];
+        int ok;
+        extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
+        extrairParam(consulta, "convenio_id", convenioId, sizeof(convenioId));
+        extrairParam(consulta, "forma", forma, sizeof(forma));
+        extrairParam(consulta, "origem", origem, sizeof(origem));
+        extrairParam(consulta, "descricao", descricao, sizeof(descricao));
+        extrairParam(consulta, "valor_centavos", valor, sizeof(valor));
+        ok = cobranca_criar(atoi(pacienteId), atoi(convenioId), forma, origem,
+                            descricao, atoi(valor)) == 1;
+        if (ok) auditar(&s, "COBRANCA", "cobranca", atoi(pacienteId), forma);
+        responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para cobranca\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/cobrancas/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "status") == 0)
+    {
+        char valor[24], motivo[256];
+        int ok;
+        extrairParam(consulta, "valor", valor, sizeof(valor));
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = cobranca_atualizar_status(id, valor, motivo) == 1;
+        if (ok) auditar(&s, "COBRANCA_STATUS", "cobranca", id, valor);
+        responderRemocao(cliente, ok, "{\"erro\":\"transicao de cobranca invalida\"}");
     }
     else
     {

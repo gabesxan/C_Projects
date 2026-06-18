@@ -26,6 +26,7 @@ USUARIO_SRC = repositories/usuario_repository.c
 AUDIT_SRC = repositories/auditoria_repository.c
 ENF_SRC = repositories/enfermagem_repository.c
 CHECKIN_SRC = repositories/checkin_repository.c
+FIN_SRC = repositories/financeiro_repository.c
 
 PAC_SRC = repositories/paciente_repository.c
 MED_SRC = repositories/medico_repository.c
@@ -64,6 +65,7 @@ TEST_AUDIT = tests/test_auditoria_repository.c $(AUDIT_SRC) $(JSON_SRC) $(DB_SRC
 TEST_CRED = tests/test_credencial_util.c $(CRED_SRC)
 TEST_ENF = tests/test_enfermagem_repository.c $(ENF_SRC) $(PRESC_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_CHECKIN = tests/test_checkin_repository.c $(CHECKIN_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_FIN = tests/test_financeiro_repository.c $(FIN_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_PRESC = tests/test_prescricao_repository.c $(PRESC_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
@@ -79,8 +81,8 @@ $(BUILD)/database.o: $(DB_SRC) | $(BUILD)
 # Compila o servidor HTTP (health, cadastros, triagem inteligente e usuarios).
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
-	$(USUARIO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(SENHA_SRC) $(CRED_SRC) \
-	$(REGIAO_SRC) $(PRESC_SRC) \
+	$(USUARIO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(SENHA_SRC) \
+	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC)
 
 api: $(API_DEPS) | $(BUILD)
@@ -120,7 +122,7 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository \
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
-	test_enfermagem_repository test_checkin_repository
+	test_enfermagem_repository test_checkin_repository test_financeiro_repository
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -190,6 +192,10 @@ test_checkin_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_CHECKIN) -o $(BUILD)/test_checkin_repository $(LDLIBS)
 	./$(BUILD)/test_checkin_repository
 
+test_financeiro_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_FIN) -o $(BUILD)/test_financeiro_repository $(LDLIBS)
+	./$(BUILD)/test_financeiro_repository
+
 clean:
 	rm -rf $(BUILD)
 
@@ -199,4 +205,4 @@ clean:
 	test_prontuario_repository test_exame_repository test_internacao_repository \
 	test_triagem_service test_relatorio_service test_usuario_repository \
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
-	test_enfermagem_repository test_checkin_repository
+	test_enfermagem_repository test_checkin_repository test_financeiro_repository
