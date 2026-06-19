@@ -38,10 +38,13 @@ function MinhasCobrancas() {
                   {c.descricao || c.origem || `Cobranca #${c.id}`}
                 </p>
                 <p className="text-xs text-slate-400">
-                  {c.forma}{c.criadoEm ? ` • ${c.criadoEm}` : ''}
+                  {c.forma}
+                  {c.vencimento ? ` • vence ${c.vencimento}` : ''}
+                  {c.copartCentavos > 0 ? ` • coparticipacao ${formatReais(c.copartCentavos)}` : ''}
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {c.vencida && <Badge tone="red">Vencida</Badge>}
                 <span className="text-sm font-semibold text-slate-900">{formatReais(c.valorCentavos)}</span>
                 <Badge tone={STATUS_COBRANCA_TONE[c.status]}>{c.status}</Badge>
               </div>

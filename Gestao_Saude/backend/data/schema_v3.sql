@@ -256,6 +256,9 @@ CREATE TABLE auditoria (
 CREATE TABLE convenios (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL,
+    -- cobertura_pct: % do valor coberto pelo convenio (0-100). A diferenca e a
+    -- coparticipacao do paciente.
+    cobertura_pct INTEGER NOT NULL DEFAULT 100,
     ativo INTEGER NOT NULL DEFAULT 1
 );
 
@@ -274,6 +277,15 @@ CREATE TABLE cobrancas (
     motivo TEXT NOT NULL DEFAULT '',
     -- lote_id: lote de faturamento ao qual a cobranca pertence (0 = nenhum).
     lote_id INTEGER NOT NULL DEFAULT 0,
+    -- vencimento: data limite de pagamento (YYYY-MM-DD; vazio = sem vencimento).
+    vencimento TEXT NOT NULL DEFAULT '',
+    -- guia / validade: autorizacao do convenio para o procedimento.
+    guia TEXT NOT NULL DEFAULT '',
+    guia_validade TEXT NOT NULL DEFAULT '',
+    -- Divisao do valor: parte coberta pelo convenio e coparticipacao do paciente
+    -- (calculadas na criacao a partir de convenios.cobertura_pct).
+    coberto_centavos INTEGER NOT NULL DEFAULT 0,
+    copart_centavos INTEGER NOT NULL DEFAULT 0,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
@@ -361,4 +373,4 @@ CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 4;
+PRAGMA user_version = 5;

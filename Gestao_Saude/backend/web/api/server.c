@@ -2910,10 +2910,12 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/convenios") == 0)
     {
-        char nome[128];
+        char nome[128], cobertura[8];
         int ok;
         extrairParam(consulta, "nome", nome, sizeof(nome));
-        ok = convenio_criar(nome) == 1;
+        extrairParam(consulta, "cobertura_pct", cobertura, sizeof(cobertura));
+        /* Sem cobertura informada assume 100% (todo o valor coberto). */
+        ok = convenio_criar(nome, cobertura[0] != '\0' ? atoi(cobertura) : 100) == 1;
         if (ok) auditar(&s, "CRIAR", "convenio", 0, nome);
         responderCriacao(cliente, ok, "{\"erro\":\"nome de convenio invalido\"}");
     }
@@ -2938,6 +2940,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/cobrancas") == 0)
     {
         char pacienteId[16], convenioId[16], forma[16], origem[128], descricao[256], valor[16];
+        char vencimento[16], guia[64], guiaValidade[16];
         int ok;
         extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
         extrairParam(consulta, "convenio_id", convenioId, sizeof(convenioId));
@@ -2945,8 +2948,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         extrairParam(consulta, "origem", origem, sizeof(origem));
         extrairParam(consulta, "descricao", descricao, sizeof(descricao));
         extrairParam(consulta, "valor_centavos", valor, sizeof(valor));
+        extrairParam(consulta, "vencimento", vencimento, sizeof(vencimento));
+        extrairParam(consulta, "guia", guia, sizeof(guia));
+        extrairParam(consulta, "guia_validade", guiaValidade, sizeof(guiaValidade));
         ok = cobranca_criar(atoi(pacienteId), atoi(convenioId), forma, origem,
-                            descricao, atoi(valor)) == 1;
+                            descricao, atoi(valor), vencimento, guia, guiaValidade) == 1;
         if (ok) auditar(&s, "COBRANCA", "cobranca", atoi(pacienteId), forma);
         responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para cobranca\"}");
     }

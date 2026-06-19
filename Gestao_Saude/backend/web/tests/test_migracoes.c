@@ -115,15 +115,18 @@ int main(void)
 
     /* Schema completo: nasce ja na ultima versao, com indices e colunas novos. */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(versao() == 4);
+    assert(versao() == 5);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
     assert(coluna_existe("checkins", "motivo") == 1);
     assert(coluna_existe("cobrancas", "lote_id") == 1);
     assert(tabela_existe("lotes") == 1);
+    assert(coluna_existe("convenios", "cobertura_pct") == 1);
+    assert(coluna_existe("cobrancas", "vencimento") == 1);
+    assert(coluna_existe("cobrancas", "copart_centavos") == 1);
 
-    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos das v2/v3/v4. */
+    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos v2..v5. */
     assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_paciente;") == 1);
     assert(db_executar("DROP INDEX IF EXISTS idx_sessoes_expira;") == 1);
     assert(db_executar("ALTER TABLE checkins DROP COLUMN rechamadas;") == 1);
@@ -131,6 +134,12 @@ int main(void)
     assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_lote;") == 1);
     assert(db_executar("ALTER TABLE cobrancas DROP COLUMN lote_id;") == 1);
     assert(db_executar("DROP TABLE lotes;") == 1);
+    assert(db_executar("ALTER TABLE convenios DROP COLUMN cobertura_pct;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN vencimento;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN guia;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN guia_validade;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN coberto_centavos;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN copart_centavos;") == 1);
     assert(db_executar("PRAGMA user_version = 1;") == 1);
     /* Dado preexistente para provar que a migracao preserva os dados. */
     assert(db_executar("INSERT INTO convenios (nome, ativo) VALUES ('Antigo', 1);") == 1);
@@ -138,22 +147,27 @@ int main(void)
     assert(coluna_existe("checkins", "rechamadas") == 0);
     assert(coluna_existe("cobrancas", "lote_id") == 0);
     assert(tabela_existe("lotes") == 0);
+    assert(coluna_existe("convenios", "cobertura_pct") == 0);
+    assert(coluna_existe("cobrancas", "vencimento") == 0);
     assert(versao() == 1);
 
-    /* Migra: aplica v2/v3/v4, sobe para a v4 e mantem os dados. */
+    /* Migra: aplica v2..v5, sobe para a v5 e mantem os dados. */
     assert(db_migrar() == 1);
-    assert(versao() == 4);
+    assert(versao() == 5);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
     assert(coluna_existe("checkins", "motivo") == 1);
     assert(coluna_existe("cobrancas", "lote_id") == 1);
     assert(tabela_existe("lotes") == 1);
+    assert(coluna_existe("convenios", "cobertura_pct") == 1);
+    assert(coluna_existe("cobrancas", "vencimento") == 1);
+    assert(coluna_existe("cobrancas", "copart_centavos") == 1);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     /* Idempotente: rodar de novo num banco ja atualizado nao muda nada. */
     assert(db_migrar() == 1);
-    assert(versao() == 4);
+    assert(versao() == 5);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     printf("test_migracoes: OK\n");

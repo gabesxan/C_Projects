@@ -42,6 +42,7 @@ const ACAO_VARIANT = { GLOSADA: 'danger', CANCELADA: 'danger' }
 function Convenios({ onErro }) {
   const [convenios, setConvenios] = useState(null)
   const [nome, setNome] = useState('')
+  const [cobertura, setCobertura] = useState('100')
 
   const carregar = useCallback(() => {
     apiGet('/convenios').then(setConvenios).catch((e) => onErro(e.message))
@@ -53,8 +54,9 @@ function Convenios({ onErro }) {
     e.preventDefault()
     if (!nome.trim()) return
     try {
-      await apiSend('POST', '/convenios', { nome })
+      await apiSend('POST', '/convenios', { nome, cobertura_pct: cobertura || '100' })
       setNome('')
+      setCobertura('100')
       carregar()
     } catch (err) {
       onErro(err.message)
@@ -79,6 +81,11 @@ function Convenios({ onErro }) {
           Novo convenio
           <input className={inputCls} value={nome} onChange={(e) => setNome(e.target.value)} />
         </label>
+        <label className="text-sm text-slate-600">
+          Cobertura (%)
+          <input className={inputCls} type="number" min="0" max="100" value={cobertura}
+            onChange={(e) => setCobertura(e.target.value)} />
+        </label>
         <Button type="submit">Adicionar</Button>
       </form>
 
@@ -90,7 +97,9 @@ function Convenios({ onErro }) {
         <ul className="mt-3 divide-y divide-slate-100">
           {convenios.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-2">
-              <span className="text-sm text-slate-700">{c.nome}</span>
+              <span className="text-sm text-slate-700">
+                {c.nome} <span className="text-slate-400">• cobre {c.coberturaPct}%</span>
+              </span>
               <Button variant="danger" className="px-3 py-1" onClick={() => desativar(c)}>
                 Desativar
               </Button>
@@ -104,7 +113,7 @@ function Convenios({ onErro }) {
 
 // --- Nova cobranca --------------------------------------------------------
 function NovaCobranca({ onCriada, onErro }) {
-  const vazio = { paciente_id: '', forma: 'PARTICULAR', convenio_id: '', origem: '', descricao: '', valor: '' }
+  const vazio = { paciente_id: '', forma: 'PARTICULAR', convenio_id: '', origem: '', descricao: '', valor: '', vencimento: '', guia: '', guia_validade: '' }
   const [v, setV] = useState(vazio)
   const [convenios, setConvenios] = useState([])
 
@@ -128,6 +137,9 @@ function NovaCobranca({ onCriada, onErro }) {
         origem: v.origem,
         descricao: v.descricao,
         valor_centavos: centavos,
+        vencimento: v.vencimento,
+        guia: v.forma === 'CONVENIO' ? v.guia : '',
+        guia_validade: v.forma === 'CONVENIO' ? v.guia_validade : '',
       })
       setV(vazio)
       onCriada()
@@ -174,6 +186,22 @@ function NovaCobranca({ onCriada, onErro }) {
           Descricao
           <input className={inputCls} value={v.descricao} onChange={(e) => set('descricao', e.target.value)} />
         </label>
+        <label className="text-sm text-slate-600">
+          Vencimento
+          <input className={inputCls} type="date" value={v.vencimento} onChange={(e) => set('vencimento', e.target.value)} />
+        </label>
+        {v.forma === 'CONVENIO' && (
+          <label className="text-sm text-slate-600">
+            Guia (autorizacao)
+            <input className={inputCls} value={v.guia} onChange={(e) => set('guia', e.target.value)} />
+          </label>
+        )}
+        {v.forma === 'CONVENIO' && (
+          <label className="text-sm text-slate-600">
+            Validade da guia
+            <input className={inputCls} type="date" value={v.guia_validade} onChange={(e) => set('guia_validade', e.target.value)} />
+          </label>
+        )}
         <div className="flex items-end">
           <Button type="submit">Lancar cobranca</Button>
         </div>
@@ -198,6 +226,8 @@ function ListaCobrancas({ cobrancas, onMudarStatus }) {
             <th className="px-4 py-3 font-semibold">Forma</th>
             <th className="px-4 py-3 font-semibold">Origem</th>
             <th className="px-4 py-3 font-semibold">Valor</th>
+            <th className="px-4 py-3 font-semibold">Coparticip.</th>
+            <th className="px-4 py-3 font-semibold">Vencimento</th>
             <th className="px-4 py-3 font-semibold">Status</th>
             <th className="px-4 py-3 font-semibold">Acoes</th>
           </tr>
@@ -208,8 +238,18 @@ function ListaCobrancas({ cobrancas, onMudarStatus }) {
               <td className="px-4 py-3 text-slate-500">#{c.id}</td>
               <td className="px-4 py-3 text-slate-700">#{c.pacienteId}</td>
               <td className="px-4 py-3 text-slate-700">{c.forma}</td>
-              <td className="px-4 py-3 text-slate-700">{c.origem || '—'}</td>
+              <td className="px-4 py-3 text-slate-700">
+                {c.origem || '—'}
+                {c.guia && <span className="block text-xs text-slate-400">guia {c.guia}</span>}
+              </td>
               <td className="px-4 py-3 font-semibold text-slate-900">{formatReais(c.valorCentavos)}</td>
+              <td className="px-4 py-3 text-slate-700">
+                {c.copartCentavos > 0 ? formatReais(c.copartCentavos) : '—'}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                {c.vencimento || '—'}
+                {c.vencida && <span className="ml-1"><Badge tone="red">Vencida</Badge></span>}
+              </td>
               <td className="px-4 py-3">
                 <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
                 {c.motivo && <span className="ml-1 text-xs text-slate-400">({c.motivo})</span>}
@@ -443,10 +483,11 @@ export default function Financeiro() {
 
       {erro && <Alert>{erro}</Alert>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Recebido" value={demonstrativo ? formatReais(demonstrativo.recebidoCentavos) : null} />
         <StatCard label="Pendente" value={demonstrativo ? formatReais(demonstrativo.pendenteCentavos) : null} />
         <StatCard label="Glosado" value={demonstrativo ? formatReais(demonstrativo.glosadoCentavos) : null} />
+        <StatCard label="Vencido" value={demonstrativo ? formatReais(demonstrativo.vencidoCentavos) : null} />
       </div>
 
       <Convenios onErro={setErro} />

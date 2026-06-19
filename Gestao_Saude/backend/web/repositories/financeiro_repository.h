@@ -8,17 +8,21 @@
  */
 
 /* --- Convenios --- */
-int convenio_criar(const char *nome);
+/* Cria um convenio com % de cobertura (0-100; fora da faixa vira 100). */
+int convenio_criar(const char *nome, int cobertura_pct);
 int convenio_listar_json(char *buffer, int tamanho);
 int convenio_desativar(int id);
 int convenio_contar_ativos(void);
 
 /* --- Cobrancas --- */
 /* Cria uma cobranca PENDENTE. forma: 'PARTICULAR' ou 'CONVENIO' (exige
- * convenio_id > 0). valor_centavos > 0. Retorna 1 em sucesso. */
+ * convenio_id > 0). valor_centavos > 0. vencimento/guia/guia_validade podem ser
+ * vazios. Para CONVENIO, o valor e dividido em parte coberta e coparticipacao
+ * conforme cobertura_pct do convenio. Retorna 1 em sucesso. */
 int cobranca_criar(int paciente_id, int convenio_id, const char *forma,
                    const char *origem, const char *descricao,
-                   int valor_centavos);
+                   int valor_centavos, const char *vencimento,
+                   const char *guia, const char *guia_validade);
 
 /* Muda o status da cobranca (PENDENTE/AUTORIZADA -> PAGA/AUTORIZADA/GLOSADA/
  * CANCELADA). GLOSADA e CANCELADA exigem motivo. 1 = ok, 0 = invalido. */
