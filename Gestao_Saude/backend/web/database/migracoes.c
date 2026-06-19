@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 6
+#define LATEST_VERSION 7
 
 typedef struct
 {
@@ -69,6 +69,20 @@ static const Migracao MIGRACOES[] = {
      "CREATE INDEX IF NOT EXISTS idx_painel_tipo ON painel_analitos(tipo_exame);"
      "CREATE INDEX IF NOT EXISTS idx_painel_analito ON painel_analitos(analito_id);"
      "CREATE UNIQUE INDEX IF NOT EXISTS idx_analitos_codigo_ativo ON analitos(codigo) WHERE ativo = 1;"},
+    {7, "laboratorio: resultados estruturados por analito",
+     "CREATE TABLE IF NOT EXISTS exame_resultados_analitos ("
+     "  id INTEGER PRIMARY KEY,"
+     "  exame_id INTEGER NOT NULL,"
+     "  analito_id INTEGER NOT NULL,"
+     "  valor_numerico REAL NOT NULL,"
+     "  valor_texto TEXT NOT NULL DEFAULT '',"
+     "  fora_referencia INTEGER NOT NULL DEFAULT 0,"
+     "  observacao TEXT NOT NULL DEFAULT '',"
+     "  FOREIGN KEY (exame_id) REFERENCES exames(id),"
+     "  FOREIGN KEY (analito_id) REFERENCES analitos(id));"
+     "CREATE INDEX IF NOT EXISTS idx_exame_resultados_exame ON exame_resultados_analitos(exame_id);"
+     "CREATE UNIQUE INDEX IF NOT EXISTS idx_exame_resultados_exame_analito "
+     "ON exame_resultados_analitos(exame_id, analito_id);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

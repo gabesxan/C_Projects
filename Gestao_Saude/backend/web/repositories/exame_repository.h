@@ -21,6 +21,18 @@ int exame_repo_atualizar_status(int id, const char *novo_status);
  * um resultado critico. 1 = ok, 0 = invalido. */
 int exame_repo_registrar_resultado(int id, const char *resultado, int critico);
 
+/* Registra ou atualiza o resultado estruturado de um analito do painel do
+ * exame. So aceita exame em COLETADO/EM_ANALISE. 1 = ok, 0 = invalido. */
+int exame_repo_registrar_resultado_analito(int exame_id, int analito_id,
+                                           double valor_numerico,
+                                           const char *valor_texto,
+                                           const char *observacao);
+
+/* Lista (JSON) os resultados estruturados do exame, com metadados do analito
+ * e marcador de faixa de referencia. 1 = ok, 0 = exame inexistente/falha. */
+int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer,
+                                              int tamanho);
+
 /* Cancela o exame; exige motivo e nao cancela exame concluido. 1 = ok, 0 = falha. */
 int exame_repo_cancelar(int id, const char *motivo);
 

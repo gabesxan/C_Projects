@@ -208,6 +208,21 @@ CREATE TABLE painel_analitos (
     FOREIGN KEY (analito_id) REFERENCES analitos(id)
 );
 
+-- Resultado estruturado do laboratorio: cada linha guarda o valor de um
+-- analito para uma VERSAO especifica do exame, permitindo retificacao
+-- versionada do laudo sem sobrescrever os dados anteriores.
+CREATE TABLE exame_resultados_analitos (
+    id INTEGER PRIMARY KEY,
+    exame_id INTEGER NOT NULL,
+    analito_id INTEGER NOT NULL,
+    valor_numerico REAL NOT NULL,
+    valor_texto TEXT NOT NULL DEFAULT '',
+    fora_referencia INTEGER NOT NULL DEFAULT 0,
+    observacao TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (exame_id) REFERENCES exames(id),
+    FOREIGN KEY (analito_id) REFERENCES analitos(id)
+);
+
 CREATE TABLE prescricoes (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
@@ -400,7 +415,10 @@ CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
 CREATE INDEX idx_painel_tipo ON painel_analitos(tipo_exame);
 CREATE INDEX idx_painel_analito ON painel_analitos(analito_id);
 CREATE UNIQUE INDEX idx_analitos_codigo_ativo ON analitos(codigo) WHERE ativo = 1;
+CREATE INDEX idx_exame_resultados_exame ON exame_resultados_analitos(exame_id);
+CREATE UNIQUE INDEX idx_exame_resultados_exame_analito
+    ON exame_resultados_analitos(exame_id, analito_id);
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 6;
+PRAGMA user_version = 7;

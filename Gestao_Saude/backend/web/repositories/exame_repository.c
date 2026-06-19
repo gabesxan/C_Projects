@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+static int statusAtual(int id, char *destino, int tam);
+
 int exame_repo_criar(int paciente_id, int medico_id, int prontuario_id,
                      int tipo_exame, const char *data_solicitacao, int urgente)
 {
@@ -61,6 +63,42 @@ int exame_repo_criar(int paciente_id, int medico_id, int prontuario_id,
     return 1;
 }
 
+/* Recalcula se o exame deve ficar marcado como critico a partir dos resultados
+ * estruturados fora da faixa de referencia ja gravados para ele. */
+static int recalcularCriticoEstruturado(sqlite3 *db, int exame_id)
+{
+    sqlite3_stmt *stmt = NULL;
+    int critico = 0;
+    int ok = 0;
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT COUNT(*) FROM exame_resultados_analitos "
+            "WHERE exame_id = ? AND fora_referencia = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, exame_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        critico = sqlite3_column_int(stmt, 0) > 0 ? 1 : 0;
+    }
+    sqlite3_finalize(stmt);
+
+    if (sqlite3_prepare_v2(db,
+            "UPDATE exames SET resultado_critico = ? "
+            "WHERE id = ? AND ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, critico);
+    sqlite3_bind_int(stmt, 2, exame_id);
+    ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok ? 1 : 0;
+}
+
 /* Retifica o resultado de um exame CONCLUIDO criando uma NOVA versao (vigente)
  * e preservando a anterior. Exige justificativa. 1 = ok, 0 = falha. */
 int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
@@ -79,6 +117,7 @@ int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
         "versao, raiz_id, vigente, justificativa, ativo) "
         "VALUES (?, ?, ?, ?, ?, datetime('now'), ?, 'CONCLUIDO', ?, ?, ?, ?, 1, ?, 1);";
     int pac = 0, med = 0, pront = 0, tipo = 0, urgente = 0, versao = 0, raiz = 0;
+    int novoId = 0;
     char dataSolic[32] = "";
     char status[32] = "";
     int ok = 0;
@@ -121,8 +160,15 @@ int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
         return 0;
     }
 
+    if (sqlite3_exec(db, "BEGIN;", NULL, NULL, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
     if (sqlite3_prepare_v2(db, sqlInsert, -1, &stmt, NULL) != SQLITE_OK)
     {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
         db_fechar(db);
         return 0;
     }
@@ -138,7 +184,32 @@ int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
     sqlite3_bind_int(stmt, 10, raiz);
     sqlite3_bind_text(stmt, 11, justificativa, -1, SQLITE_STATIC);
     ok = sqlite3_step(stmt) == SQLITE_DONE;
+    if (ok)
+    {
+        novoId = (int)sqlite3_last_insert_rowid(db);
+    }
     sqlite3_finalize(stmt);
+
+    if (ok)
+    {
+        sqlite3_stmt *copiar = NULL;
+        if (sqlite3_prepare_v2(db,
+                "INSERT INTO exame_resultados_analitos "
+                "(exame_id, analito_id, valor_numerico, valor_texto, fora_referencia, observacao) "
+                "SELECT ?, analito_id, valor_numerico, valor_texto, fora_referencia, observacao "
+                "FROM exame_resultados_analitos WHERE exame_id = ?;",
+                -1, &copiar, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(copiar, 1, novoId);
+            sqlite3_bind_int(copiar, 2, id);
+            ok = sqlite3_step(copiar) == SQLITE_DONE;
+            sqlite3_finalize(copiar);
+        }
+        else
+        {
+            ok = 0;
+        }
+    }
 
     if (ok)
     {
@@ -147,11 +218,16 @@ int exame_repo_retificar_resultado(int id, const char *resultado, int critico,
                                -1, &upd, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int(upd, 1, id);
-            sqlite3_step(upd);
+            ok = sqlite3_step(upd) == SQLITE_DONE && sqlite3_changes(db) > 0;
             sqlite3_finalize(upd);
+        }
+        else
+        {
+            ok = 0;
         }
     }
 
+    sqlite3_exec(db, ok ? "COMMIT;" : "ROLLBACK;", NULL, NULL, NULL);
     db_fechar(db);
     return ok ? 1 : 0;
 }
@@ -569,6 +645,7 @@ int exame_repo_registrar_resultado(int id, const char *resultado, int critico)
         "status = 'CONCLUIDO', data_resultado = datetime('now') "
         "WHERE id = ? AND ativo = 1 AND vigente = 1;";
     char atual[32];
+    int criticoFinal = critico ? 1 : 0;
     int ok = 0;
 
     if (resultado == NULL || resultado[0] == '\0')
@@ -588,6 +665,20 @@ int exame_repo_registrar_resultado(int id, const char *resultado, int critico)
         return 0;
     }
 
+    if (sqlite3_prepare_v2(db,
+            "SELECT COUNT(*) FROM exame_resultados_analitos "
+            "WHERE exame_id = ? AND fora_referencia = 1;",
+            -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, id);
+        if (sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) > 0)
+        {
+            criticoFinal = 1;
+        }
+        sqlite3_finalize(stmt);
+        stmt = NULL;
+    }
+
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
@@ -595,13 +686,224 @@ int exame_repo_registrar_resultado(int id, const char *resultado, int critico)
     }
 
     sqlite3_bind_text(stmt, 1, resultado, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 2, critico ? 1 : 0);
+    sqlite3_bind_int(stmt, 2, criticoFinal);
     sqlite3_bind_int(stmt, 3, id);
     ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
 
     sqlite3_finalize(stmt);
     db_fechar(db);
     return ok ? 1 : 0;
+}
+
+int exame_repo_registrar_resultado_analito(int exame_id, int analito_id,
+                                           double valor_numerico,
+                                           const char *valor_texto,
+                                           const char *observacao)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char atual[32];
+    double refMin = 0;
+    double refMax = 0;
+    int foraReferencia = 0;
+    int ok = 0;
+
+    if (exame_id <= 0 || analito_id <= 0)
+    {
+        return 0;
+    }
+
+    if (statusAtual(exame_id, atual, sizeof(atual)) == 0 ||
+        (strcmp(atual, "COLETADO") != 0 && strcmp(atual, "EM_ANALISE") != 0))
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT a.valor_ref_min, a.valor_ref_max "
+            "FROM exames e "
+            "JOIN painel_analitos pa ON pa.tipo_exame = e.tipo_exame "
+            "JOIN analitos a ON a.id = pa.analito_id "
+            "WHERE e.id = ? AND e.ativo = 1 AND e.vigente = 1 "
+            "AND a.id = ? AND a.ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, exame_id);
+    sqlite3_bind_int(stmt, 2, analito_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        refMin = sqlite3_column_double(stmt, 0);
+        refMax = sqlite3_column_double(stmt, 1);
+        if ((refMin != 0 || refMax != 0) &&
+            (valor_numerico < refMin || valor_numerico > refMax))
+        {
+            foraReferencia = 1;
+        }
+        ok = 1;
+    }
+    sqlite3_finalize(stmt);
+
+    if (ok == 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_exec(db, "BEGIN;", NULL, NULL, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "INSERT INTO exame_resultados_analitos "
+            "(exame_id, analito_id, valor_numerico, valor_texto, fora_referencia, observacao) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(exame_id, analito_id) DO UPDATE SET "
+            "valor_numerico = excluded.valor_numerico, "
+            "valor_texto = excluded.valor_texto, "
+            "fora_referencia = excluded.fora_referencia, "
+            "observacao = excluded.observacao;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, exame_id);
+    sqlite3_bind_int(stmt, 2, analito_id);
+    sqlite3_bind_double(stmt, 3, valor_numerico);
+    sqlite3_bind_text(stmt, 4, valor_texto != NULL ? valor_texto : "", -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 5, foraReferencia);
+    sqlite3_bind_text(stmt, 6, observacao != NULL ? observacao : "", -1, SQLITE_STATIC);
+    ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+
+    if (ok)
+    {
+        ok = recalcularCriticoEstruturado(db, exame_id) == 1;
+    }
+
+    sqlite3_exec(db, ok ? "COMMIT;" : "ROLLBACK;", NULL, NULL, NULL);
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int usado = 0;
+    int primeiro = 1;
+
+    if (exame_id <= 0 || buffer == NULL || tamanho <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT 1 FROM exames WHERE id = ? AND ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, exame_id);
+    if (sqlite3_step(stmt) != SQLITE_ROW)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT a.id, a.codigo, a.nome, a.unidade, a.valor_ref_min, a.valor_ref_max, "
+            "er.valor_numerico, er.valor_texto, er.fora_referencia, er.observacao, "
+            "COALESCE(pa.ordem, 0) "
+            "FROM exame_resultados_analitos er "
+            "JOIN analitos a ON a.id = er.analito_id "
+            "JOIN exames e ON e.id = er.exame_id "
+            "LEFT JOIN painel_analitos pa ON pa.tipo_exame = e.tipo_exame AND pa.analito_id = a.id "
+            "WHERE er.exame_id = ? "
+            "ORDER BY COALESCE(pa.ordem, 0), a.codigo;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, exame_id);
+
+    buffer[0] = '\0';
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char codigoJson[64];
+        char nomeJson[128];
+        char unidadeJson[48];
+        char valorTextoJson[64];
+        char observacaoJson[160];
+        char objeto[640];
+        int analitoId = sqlite3_column_int(stmt, 0);
+        double refMin = sqlite3_column_double(stmt, 4);
+        double refMax = sqlite3_column_double(stmt, 5);
+        double valor = sqlite3_column_double(stmt, 6);
+        int fora = sqlite3_column_int(stmt, 8);
+        int ordem = sqlite3_column_int(stmt, 10);
+        int escrito;
+
+        if (repo_json_escapar(codigoJson, sizeof(codigoJson), (const char *)sqlite3_column_text(stmt, 1)) == 0 ||
+            repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
+            repo_json_escapar(unidadeJson, sizeof(unidadeJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
+            repo_json_escapar(valorTextoJson, sizeof(valorTextoJson), (const char *)sqlite3_column_text(stmt, 7)) == 0 ||
+            repo_json_escapar(observacaoJson, sizeof(observacaoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+                           "%s{\"analitoId\":%d,\"codigo\":%s,\"nome\":%s,\"unidade\":%s,"
+                           "\"refMin\":%g,\"refMax\":%g,\"valor\":%g,\"valorTexto\":%s,"
+                           "\"foraReferencia\":%d,\"observacao\":%s,\"ordem\":%d}",
+                           primeiro ? "" : ",",
+                           analitoId, codigoJson, nomeJson, unidadeJson,
+                           refMin, refMax, valor, valorTextoJson, fora, observacaoJson, ordem);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return repo_json_anexar(buffer, tamanho, &usado, "]");
 }
 
 int exame_repo_cancelar(int id, const char *motivo)

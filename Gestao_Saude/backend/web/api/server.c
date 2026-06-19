@@ -2596,6 +2596,31 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         responderRemocao(cliente, ok,
                          "{\"erro\":\"transicao de status invalida\"}");
     }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "resultados-analitos") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && exame_repo_listar_resultados_analito_json(id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "404 Not Found", "{\"erro\":\"exame nao encontrado\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "resultados-analitos") == 0)
+    {
+        char analitoId[16], valor[32], valorTexto[64], observacao[128];
+        int ok;
+        extrairParam(consulta, "analito_id", analitoId, sizeof(analitoId));
+        extrairParam(consulta, "valor", valor, sizeof(valor));
+        extrairParam(consulta, "valor_texto", valorTexto, sizeof(valorTexto));
+        extrairParam(consulta, "observacao", observacao, sizeof(observacao));
+        ok = exame_repo_registrar_resultado_analito(id, atoi(analitoId), atof(valor),
+                                                    valorTexto, observacao) == 1;
+        if (ok) auditar(&s, "EXAME_ANALITO", "exame", id, analitoId);
+        responderCriacao(cliente, ok,
+                         "{\"erro\":\"analito fora do painel, exame fora da coleta/analise ou valor invalido\"}");
+    }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "resultado") == 0)
     {

@@ -26,6 +26,16 @@ int main(void)
     assert(medico_repo_criar("Dr Y", "CRM2", "Ortopedia", 2) == 1);
     assert(prontuario_repo_criar(1, 1, "2026-06-01", "o", "d", "c", 0) == 1);
     assert(prontuario_repo_criar(2, 2, "2026-06-01", "o", "d", "c", 0) == 1);
+    assert(db_executar(
+        "INSERT INTO analitos (codigo, nome, unidade, valor_ref_min, valor_ref_max, metodo, ativo) "
+        "VALUES ('HGB', 'Hemoglobina', 'g/dL', 12, 16, 'Automacao', 1);") == 1);
+    assert(db_executar(
+        "INSERT INTO analitos (codigo, nome, unidade, valor_ref_min, valor_ref_max, metodo, ativo) "
+        "VALUES ('GLI', 'Glicose', 'mg/dL', 70, 99, 'Hexoquinase', 1);") == 1);
+    assert(db_executar(
+        "INSERT INTO painel_analitos (tipo_exame, analito_id, ordem) VALUES (1, 1, 1);") == 1);
+    assert(db_executar(
+        "INSERT INTO painel_analitos (tipo_exame, analito_id, ordem) VALUES (1, 2, 2);") == 1);
 
     assert(exame_repo_contar_ativos() == 0);
 
@@ -58,10 +68,26 @@ int main(void)
     assert(exame_repo_atualizar_status(1, "COLETADO") == 0); /* pula etapa */
     assert(exame_repo_atualizar_status(1, "AUTORIZADO") == 1);
     assert(exame_repo_atualizar_status(1, "COLETADO") == 1);
+    /* Resultado estruturado: so aceita analito do painel do exame e marca fora
+     * da referencia quando o valor sai da faixa cadastrada. */
+    assert(exame_repo_registrar_resultado_analito(1, 99, 10.0, "10.0", "") == 0);
+    assert(exame_repo_registrar_resultado_analito(1, 1, 17.2, "17.2", "amostra inicial") == 1);
+    assert(exame_repo_registrar_resultado_analito(1, 2, 88.0, "88.0", "") == 1);
+    assert(exame_repo_listar_resultados_analito_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"codigo\":\"HGB\"") != NULL);
+    assert(strstr(json, "\"foraReferencia\":1") != NULL);
+    assert(strstr(json, "\"codigo\":\"GLI\"") != NULL);
+    assert(strstr(json, "\"foraReferencia\":0") != NULL);
+    /* Upsert antes da conclusao: corrige o valor e limpa o fora da faixa. */
+    assert(exame_repo_registrar_resultado_analito(1, 1, 13.8, "13.8", "repeticao") == 1);
+    assert(exame_repo_listar_resultados_analito_json(1, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"valor\":13.8") != NULL);
     /* Resultado so apos coleta; marca CONCLUIDO e o flag de critico. */
     assert(exame_repo_registrar_resultado(1, "Alterado", 1) == 1);
     assert(exame_repo_listar_json(json, sizeof(json)) == 1);
     assert(strstr(json, "CONCLUIDO") != NULL);
+    /* Exame concluido nao aceita novos analitos na mesma versao. */
+    assert(exame_repo_registrar_resultado_analito(1, 1, 14.0, "14.0", "") == 0);
     /* Exame concluido nao avanca status nem e cancelado. */
     assert(exame_repo_atualizar_status(1, "EM_ANALISE") == 0);
     assert(exame_repo_cancelar(1, "tentativa") == 0);
@@ -72,6 +98,10 @@ int main(void)
     /* A lista vigente mostra o resultado corrigido. */
     assert(exame_repo_listar_json(json, sizeof(json)) == 1);
     assert(strstr(json, "Reanalisado") != NULL);
+    /* A nova versao (id 3) herda os resultados estruturados da versao antiga. */
+    assert(exame_repo_listar_resultados_analito_json(3, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"codigo\":\"HGB\"") != NULL);
+    assert(strstr(json, "\"valor\":13.8") != NULL);
     /* Retificar exame nao concluido (ex.: 2, solicitado) falha. */
     assert(exame_repo_retificar_resultado(2, "X", 0, "j") == 0);
 

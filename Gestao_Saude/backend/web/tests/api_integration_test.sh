@@ -180,12 +180,20 @@ api POST /triagem/1/encaminhar '{"especialidade":"Cardiologia","data":"2026-07-0
 expect 201 "encaminhamento gera agendamento na especialidade"
 
 echo "--- Fluxo 3: exame -> resultado -> retificacao ---"
+api POST /analitos '{"codigo":"HGB","nome":"Hemoglobina","unidade":"g/dL","ref_min":"12","ref_max":"16","metodo":"Automacao"}'
+expect 201 "analito HGB criado"
+api POST /paineis/1/analitos '{"analito_id":"1","ordem":"1"}'
+expect 201 "analito vinculado ao painel do exame"
 api POST /exames '{"paciente_id":"1","medico_id":"1","prontuario_id":"1","tipo":"1","data_solicitacao":"2026-07-01","urgente":"0"}'
 expect 201 "exame solicitado"
 api POST /exames/1/status '{"valor":"AUTORIZADO"}'
 expect 200 "exame autorizado"
 api POST /exames/1/status '{"valor":"COLETADO"}'
 expect 200 "exame coletado"
+api POST /exames/1/resultados-analitos '{"analito_id":"1","valor":"13.5","valor_texto":"13.5","observacao":"amostra integra"}'
+expect 201 "resultado estruturado por analito"
+api GET /exames/1/resultados-analitos
+expect 200 "resultados estruturados listados"; body_has '"foraReferencia":0' "analito dentro da faixa"
 api POST /exames/1/resultado '{"resultado":"Hemoglobina 13.5","critico":"0"}'
 expect 200 "resultado registrado (CONCLUIDO)"
 api GET /exames
