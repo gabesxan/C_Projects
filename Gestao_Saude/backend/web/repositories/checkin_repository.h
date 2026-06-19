@@ -19,6 +19,19 @@ int checkin_repo_listar_json(char *buffer, int tamanho);
 /* Marca um check-in AGUARDANDO como EM_ATENDIMENTO (chamar senha). 1/0. */
 int checkin_repo_chamar(int id);
 
+/* Rechama a senha de um check-in EM_ATENDIMENTO (paciente ainda nao veio):
+ * mantem o status e incrementa o contador de rechamadas. 1/0. */
+int checkin_repo_rechamar(int id);
+
+/* Marca como FALTOU (estava aguardando/chamado e nao compareceu). 1/0. */
+int checkin_repo_faltar(int id);
+
+/* Retorna um check-in FALTOU para a fila (AGUARDANDO). 1/0. */
+int checkin_repo_retornar(int id);
+
+/* Cancela um check-in (AGUARDANDO/EM_ATENDIMENTO) com motivo obrigatorio. 1/0. */
+int checkin_repo_cancelar(int id, const char *motivo);
+
 /* Encerra um check-in (atendido). 1/0. */
 int checkin_repo_encerrar(int id);
 

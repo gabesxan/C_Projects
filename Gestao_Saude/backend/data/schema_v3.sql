@@ -284,7 +284,12 @@ CREATE TABLE checkins (
     paciente_id INTEGER NOT NULL,
     senha TEXT NOT NULL,
     destino TEXT NOT NULL,
+    -- status: AGUARDANDO, EM_ATENDIMENTO, ENCERRADO, FALTOU, CANCELADO.
     status TEXT NOT NULL DEFAULT 'AGUARDANDO',
+    -- rechamadas: quantas vezes a senha foi chamada de novo (paciente nao veio).
+    rechamadas INTEGER NOT NULL DEFAULT 0,
+    -- motivo: justificativa do cancelamento (vazio nos demais estados).
+    motivo TEXT NOT NULL DEFAULT '',
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
@@ -341,4 +346,4 @@ CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;

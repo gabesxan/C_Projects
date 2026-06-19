@@ -513,6 +513,15 @@ static int ehClinico(const char *caminho)
            comecaCom(caminho, "/prescricoes") || comecaCom(caminho, "/relatorios");
 }
 
+/* Acoes de operacao da fila de recepcao (sem o cancelamento, que e
+ * administrativo: so ADMIN/CADASTRO cancelam com motivo). */
+static int ehAcaoFila(const char *caminho)
+{
+    return terminaCom(caminho, "/chamar") || terminaCom(caminho, "/rechamar") ||
+           terminaCom(caminho, "/faltar") || terminaCom(caminho, "/retornar") ||
+           terminaCom(caminho, "/encerrar");
+}
+
 /* Politica central de acesso por papel. 1 = permitido, 0 = negado.
  * Escopo "ver so o seu" (paciente/medico) e tratado pelas rotas sob /me. */
 static int autorizado(const char *metodo, const char *caminho, const char *papel)
@@ -539,9 +548,9 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         {
             return 1;
         }
-        /* Consome a fila: pode chamar/encerrar um check-in. */
+        /* Consome a fila: chama/rechama/encerra e marca falta/retorno. */
         if (comecaCom(caminho, "/checkins") && strcmp(metodo, "POST") == 0 &&
-            (terminaCom(caminho, "/chamar") || terminaCom(caminho, "/encerrar")))
+            ehAcaoFila(caminho))
         {
             return 1;
         }
@@ -576,12 +585,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
                    (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/transferir"));
         }
 
-        /* Fila de recepcao: enfermagem ve e chama/encerra senhas (triagem). */
+        /* Fila de recepcao: enfermagem ve e opera a fila (chamar/rechamar/
+         * encerrar/faltar/retornar); cancelamento fica com ADMIN/CADASTRO. */
         if (comecaCom(caminho, "/checkins"))
         {
             return strcmp(metodo, "GET") == 0 ||
-                   (strcmp(metodo, "POST") == 0 &&
-                    (terminaCom(caminho, "/chamar") || terminaCom(caminho, "/encerrar")));
+                   (strcmp(metodo, "POST") == 0 && ehAcaoFila(caminho));
         }
 
         /* Enfermagem administra medicamentos (marca a prescricao como aplicada). */
@@ -2820,6 +2829,37 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok = checkin_repo_encerrar(id) == 1;
         if (ok) auditar(&s, "ENCERRAR", "checkin", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "rechamar") == 0)
+    {
+        int ok = checkin_repo_rechamar(id) == 1;
+        if (ok) auditar(&s, "RECHAMAR", "checkin", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao esta em atendimento\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "faltar") == 0)
+    {
+        int ok = checkin_repo_faltar(id) == 1;
+        if (ok) auditar(&s, "FALTOU", "checkin", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado ou ja encerrado\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "retornar") == 0)
+    {
+        int ok = checkin_repo_retornar(id) == 1;
+        if (ok) auditar(&s, "RETORNAR", "checkin", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao esta como falta\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "cancelar") == 0)
+    {
+        char motivo[256];
+        int ok;
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = checkin_repo_cancelar(id, motivo) == 1;
+        if (ok) auditar(&s, "CANCELAR", "checkin", id, motivo);
+        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao cancelado (motivo ausente ou ja encerrado)\"}");
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/convenios") == 0)
     {

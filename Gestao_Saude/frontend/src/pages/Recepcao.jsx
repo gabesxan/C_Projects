@@ -14,7 +14,13 @@ import {
 const inputCls =
   'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 outline-none'
 
-const STATUS_TONE = { AGUARDANDO: 'amber', EM_ATENDIMENTO: 'teal', ENCERRADO: 'slate' }
+const STATUS_TONE = {
+  AGUARDANDO: 'amber',
+  EM_ATENDIMENTO: 'teal',
+  ENCERRADO: 'slate',
+  FALTOU: 'red',
+  CANCELADO: 'slate',
+}
 
 // Confirmacao de chegada: busca o paciente e gera a senha de fila.
 function CheckinForm({ onFeito }) {
@@ -131,6 +137,18 @@ export default function Recepcao() {
     }
   }
 
+  // Cancelamento de check-in (ADMIN/CADASTRO): exige motivo.
+  async function cancelar(c) {
+    const motivo = window.prompt(`Motivo para cancelar a senha ${c.senha}:`)
+    if (motivo === null || !motivo.trim()) return
+    try {
+      await apiSend('POST', `/checkins/${c.id}/cancelar`, { motivo: motivo.trim() })
+      carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -167,13 +185,30 @@ export default function Recepcao() {
                     <Badge tone="sky">{c.destino}</Badge>
                     {c.prioridade >= 4 && <span className="ml-1"><Badge tone="red">prioridade {c.prioridade}</Badge></span>}
                   </td>
-                  <td className="px-4 py-3"><Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge></td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                    <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
+                    {c.rechamadas > 0 && <span className="ml-1"><Badge tone="amber">rechamada {c.rechamadas}x</Badge></span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
                       {c.status === 'AGUARDANDO' && (
                         <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'chamar')}>Chamar</Button>
                       )}
-                      <Button variant="danger" className="px-3 py-1" onClick={() => acao(c.id, 'encerrar')}>Encerrar</Button>
+                      {c.status === 'EM_ATENDIMENTO' && (
+                        <>
+                          <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'rechamar')}>Rechamar</Button>
+                          <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'faltar')}>Faltou</Button>
+                        </>
+                      )}
+                      {c.status === 'FALTOU' && (
+                        <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'retornar')}>Retornar à fila</Button>
+                      )}
+                      {(c.status === 'AGUARDANDO' || c.status === 'EM_ATENDIMENTO') && (
+                        <Button variant="danger" className="px-3 py-1" onClick={() => acao(c.id, 'encerrar')}>Encerrar</Button>
+                      )}
+                      {podeCheckin && (c.status === 'AGUARDANDO' || c.status === 'EM_ATENDIMENTO') && (
+                        <Button variant="danger" className="px-3 py-1" onClick={() => cancelar(c)}>Cancelar</Button>
+                      )}
                     </div>
                   </td>
                 </tr>

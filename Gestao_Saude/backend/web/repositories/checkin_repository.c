@@ -82,10 +82,11 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         "c.criado_em, COALESCE(("
         "  SELECT t.pontuacao FROM triagens t "
         "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
-        "  ORDER BY t.id DESC LIMIT 1), 0) AS prioridade "
+        "  ORDER BY t.id DESC LIMIT 1), 0) AS prioridade, "
+        "c.rechamadas, c.motivo "
         "FROM checkins c "
         "LEFT JOIN pacientes p ON p.id = c.paciente_id "
-        "WHERE c.status != 'ENCERRADO' "
+        "WHERE c.status NOT IN ('ENCERRADO', 'CANCELADO') "
         "ORDER BY prioridade DESC, c.id ASC;";
     int usado = 0;
     int primeiro = 1;
@@ -122,17 +123,20 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         char destinoJson[24];
         char statusJson[32];
         char criadoJson[64];
-        char objeto[760];
+        char motivoJson[256];
+        char objeto[1024];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int prioridade = sqlite3_column_int(stmt, 7);
+        int rechamadas = sqlite3_column_int(stmt, 8);
         int escrito;
 
         if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
             repo_json_escapar(senhaJson, sizeof(senhaJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
             repo_json_escapar(destinoJson, sizeof(destinoJson), (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
             repo_json_escapar(statusJson, sizeof(statusJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
-            repo_json_escapar(criadoJson, sizeof(criadoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0)
+            repo_json_escapar(criadoJson, sizeof(criadoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
+            repo_json_escapar(motivoJson, sizeof(motivoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -141,10 +145,11 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
             "%s{\"id\":%d,\"pacienteId\":%d,\"pacienteNome\":%s,\"senha\":%s,"
-            "\"destino\":%s,\"status\":%s,\"prioridade\":%d,\"criadoEm\":%s}",
+            "\"destino\":%s,\"status\":%s,\"prioridade\":%d,\"rechamadas\":%d,"
+            "\"motivo\":%s,\"criadoEm\":%s}",
             primeiro ? "" : ",",
             id, pacienteId, nomeJson, senhaJson, destinoJson, statusJson,
-            prioridade, criadoJson);
+            prioridade, rechamadas, motivoJson, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
@@ -196,6 +201,72 @@ static int mudar_status(int id, const char *de, const char *para)
 int checkin_repo_chamar(int id)
 {
     return mudar_status(id, "AGUARDANDO", "EM_ATENDIMENTO");
+}
+
+int checkin_repo_rechamar(int id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE checkins SET rechamadas = rechamadas + 1 "
+        "WHERE id = ? AND status = 'EM_ATENDIMENTO';";
+    int ok = 0;
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, id);
+        ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+        sqlite3_finalize(stmt);
+    }
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
+int checkin_repo_faltar(int id)
+{
+    /* Falta a partir de chamado ou ainda aguardando. */
+    if (mudar_status(id, "EM_ATENDIMENTO", "FALTOU") == 1)
+    {
+        return 1;
+    }
+    return mudar_status(id, "AGUARDANDO", "FALTOU");
+}
+
+int checkin_repo_retornar(int id)
+{
+    return mudar_status(id, "FALTOU", "AGUARDANDO");
+}
+
+int checkin_repo_cancelar(int id, const char *motivo)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE checkins SET status = 'CANCELADO', motivo = ? "
+        "WHERE id = ? AND status IN ('AGUARDANDO', 'EM_ATENDIMENTO');";
+    int ok = 0;
+
+    if (motivo == NULL || motivo[0] == '\0')
+    {
+        return 0;
+    }
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, motivo, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, id);
+        ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+        sqlite3_finalize(stmt);
+    }
+    db_fechar(db);
+    return ok ? 1 : 0;
 }
 
 int checkin_repo_encerrar(int id)

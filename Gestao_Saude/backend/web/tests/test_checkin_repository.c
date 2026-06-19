@@ -53,6 +53,29 @@ int main(void)
     /* Chamar id inexistente falha. */
     assert(checkin_repo_chamar(999) == 0);
 
+    /* Rechamada: so vale para quem esta EM_ATENDIMENTO. */
+    assert(checkin_repo_chamar(2) == 1);           /* T002 -> EM_ATENDIMENTO */
+    assert(checkin_repo_rechamar(2) == 1);
+    assert(checkin_repo_rechamar(2) == 1);
+    assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "\"rechamadas\":2") != NULL);
+    assert(checkin_repo_rechamar(3) == 0);         /* C001 ainda AGUARDANDO */
+
+    /* Falta e retorno a fila. */
+    assert(checkin_repo_faltar(2) == 1);           /* EM_ATENDIMENTO -> FALTOU */
+    assert(checkin_repo_contar_aguardando() == 1); /* so C001 aguardando */
+    assert(checkin_repo_retornar(2) == 1);         /* FALTOU -> AGUARDANDO */
+    assert(checkin_repo_contar_aguardando() == 2);
+    assert(checkin_repo_retornar(2) == 0);         /* nao esta mais como falta */
+
+    /* Cancelamento exige motivo e tira da fila. */
+    assert(checkin_repo_cancelar(3, "") == 0);
+    assert(checkin_repo_cancelar(3, "paciente desistiu") == 1);
+    assert(checkin_repo_contar_aguardando() == 1);
+    assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "C001") == NULL);          /* cancelado saiu da fila */
+    assert(checkin_repo_cancelar(3, "de novo") == 0); /* ja cancelado */
+
     printf("test_checkin_repository: OK\n");
     return 0;
 }
