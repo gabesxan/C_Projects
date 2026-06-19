@@ -38,4 +38,8 @@ int checkin_repo_encerrar(int id);
 /* Conta check-ins aguardando atendimento. -1 em erro. */
 int checkin_repo_contar_aguardando(void);
 
+/* Tempo maximo de espera (minutos) tolerado para uma classificacao de risco
+ * (Protocolo de Manchester). -1 quando nao ha SLA por risco (sem triagem). */
+int checkin_sla_minutos(const char *classificacao);
+
 #endif

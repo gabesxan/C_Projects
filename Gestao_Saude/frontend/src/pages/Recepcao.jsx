@@ -172,18 +172,28 @@ export default function Recepcao() {
                 <th className="px-4 py-3 font-semibold">Senha</th>
                 <th className="px-4 py-3 font-semibold">Paciente</th>
                 <th className="px-4 py-3 font-semibold">Destino</th>
+                <th className="px-4 py-3 font-semibold">Espera</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Acoes</th>
               </tr>
             </thead>
             <tbody>
               {fila.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                <tr key={c.id} className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/70 ${c.estouroSla ? 'bg-red-50' : ''}`}>
                   <td className="px-4 py-3 font-bold text-slate-900">{c.senha}</td>
                   <td className="px-4 py-3 text-slate-700">{c.pacienteNome || `#${c.pacienteId}`}</td>
                   <td className="px-4 py-3">
                     <Badge tone="sky">{c.destino}</Badge>
                     {c.prioridade >= 4 && <span className="ml-1"><Badge tone="red">prioridade {c.prioridade}</Badge></span>}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-slate-700">{c.esperaMinutos} min</span>
+                    {c.estouroSla && (
+                      <span className="ml-1"><Badge tone="red">SLA estourado</Badge></span>
+                    )}
+                    {!c.estouroSla && c.slaMinutos >= 0 && (
+                      <span className="ml-1 text-xs text-slate-400">/ {c.slaMinutos} min</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>

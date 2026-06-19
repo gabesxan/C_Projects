@@ -76,6 +76,29 @@ int main(void)
     assert(strstr(json, "C001") == NULL);          /* cancelado saiu da fila */
     assert(checkin_repo_cancelar(3, "de novo") == 0); /* ja cancelado */
 
+    /* SLA por risco (Manchester): mapeamento dos tempos-alvo. */
+    assert(checkin_sla_minutos("Vermelho") == 0);
+    assert(checkin_sla_minutos("Laranja") == 10);
+    assert(checkin_sla_minutos("Amarelo") == 60);
+    assert(checkin_sla_minutos("Verde") == 120);
+    assert(checkin_sla_minutos("Azul") == 240);
+    assert(checkin_sla_minutos("") == -1);
+    assert(checkin_sla_minutos(NULL) == -1);
+
+    /* Estouro de SLA: paciente classificado Vermelho aguardando ha muito tempo. */
+    assert(db_executar(
+        "INSERT INTO triagens (paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
+        "VALUES (1, 3, 9, 'Vermelho', 1);") == 1);
+    assert(checkin_repo_criar(1, "CONSULTA", senha, sizeof(senha)) == 1); /* AGUARDANDO */
+    /* Recua a chegada para forcar a espera alem do limite. */
+    assert(db_executar(
+        "UPDATE checkins SET criado_em = '2000-01-01 00:00:00' "
+        "WHERE senha = 'C002';") == 1);
+    assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "\"esperaMinutos\"") != NULL);
+    assert(strstr(json, "\"classificacao\":\"Vermelho\"") != NULL);
+    assert(strstr(json, "\"estouroSla\":true") != NULL);
+
     printf("test_checkin_repository: OK\n");
     return 0;
 }

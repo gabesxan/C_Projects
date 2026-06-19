@@ -83,7 +83,12 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         "  SELECT t.pontuacao FROM triagens t "
         "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
         "  ORDER BY t.id DESC LIMIT 1), 0) AS prioridade, "
-        "c.rechamadas, c.motivo "
+        "c.rechamadas, c.motivo, "
+        "COALESCE(("
+        "  SELECT t.classificacao FROM triagens t "
+        "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
+        "  ORDER BY t.id DESC LIMIT 1), '') AS classificacao, "
+        "CAST((julianday('now') - julianday(c.criado_em)) * 1440 AS INTEGER) AS espera_min "
         "FROM checkins c "
         "LEFT JOIN pacientes p ON p.id = c.paciente_id "
         "WHERE c.status NOT IN ('ENCERRADO', 'CANCELADO') "
@@ -124,11 +129,19 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         char statusJson[32];
         char criadoJson[64];
         char motivoJson[256];
-        char objeto[1024];
+        char classifJson[32];
+        char objeto[1100];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int prioridade = sqlite3_column_int(stmt, 7);
         int rechamadas = sqlite3_column_int(stmt, 8);
+        const char *classificacao = (const char *)sqlite3_column_text(stmt, 10);
+        int esperaMin = sqlite3_column_int(stmt, 11);
+        int slaMin = checkin_sla_minutos(classificacao);
+        /* Estouro de SLA so faz sentido enquanto o paciente aguarda. */
+        int estouro = (slaMin >= 0 &&
+                       strcmp((const char *)sqlite3_column_text(stmt, 5), "AGUARDANDO") == 0 &&
+                       esperaMin > slaMin);
         int escrito;
 
         if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
@@ -136,7 +149,8 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
             repo_json_escapar(destinoJson, sizeof(destinoJson), (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
             repo_json_escapar(statusJson, sizeof(statusJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
             repo_json_escapar(criadoJson, sizeof(criadoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
-            repo_json_escapar(motivoJson, sizeof(motivoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0)
+            repo_json_escapar(motivoJson, sizeof(motivoJson), (const char *)sqlite3_column_text(stmt, 9)) == 0 ||
+            repo_json_escapar(classifJson, sizeof(classifJson), classificacao) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -146,10 +160,12 @@ int checkin_repo_listar_json(char *buffer, int tamanho)
         escrito = snprintf(objeto, sizeof(objeto),
             "%s{\"id\":%d,\"pacienteId\":%d,\"pacienteNome\":%s,\"senha\":%s,"
             "\"destino\":%s,\"status\":%s,\"prioridade\":%d,\"rechamadas\":%d,"
-            "\"motivo\":%s,\"criadoEm\":%s}",
+            "\"motivo\":%s,\"classificacao\":%s,\"esperaMinutos\":%d,"
+            "\"slaMinutos\":%d,\"estouroSla\":%s,\"criadoEm\":%s}",
             primeiro ? "" : ",",
             id, pacienteId, nomeJson, senhaJson, destinoJson, statusJson,
-            prioridade, rechamadas, motivoJson, criadoJson);
+            prioridade, rechamadas, motivoJson, classifJson, esperaMin,
+            slaMin, estouro ? "true" : "false", criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
@@ -305,4 +321,19 @@ int checkin_repo_contar_aguardando(void)
     sqlite3_finalize(stmt);
     db_fechar(db);
     return total;
+}
+
+int checkin_sla_minutos(const char *classificacao)
+{
+    if (classificacao == NULL)
+    {
+        return -1;
+    }
+    /* Tempos-alvo do Protocolo de Manchester (espera maxima por nivel). */
+    if (strcmp(classificacao, "Vermelho") == 0) return 0;
+    if (strcmp(classificacao, "Laranja") == 0) return 10;
+    if (strcmp(classificacao, "Amarelo") == 0) return 60;
+    if (strcmp(classificacao, "Verde") == 0) return 120;
+    if (strcmp(classificacao, "Azul") == 0) return 240;
+    return -1; /* sem triagem vigente: sem SLA por risco */
 }
