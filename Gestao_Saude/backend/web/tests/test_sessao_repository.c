@@ -109,6 +109,17 @@ int main(void)
                                                     NULL, NULL, NULL, NULL) == 0);
         assert(usuario_repo_autenticar_com_bloqueio("carol", "novaSenha2", NULL, 0,
                                                     NULL, NULL, NULL, NULL) == 1);
+
+        /* Reset administrativo: define senha temporaria, exige troca de novo e
+         * desbloqueia; a senha anterior para de valer. */
+        assert(usuario_repo_resetar_senha(carolId, "temp123") == 1);
+        assert(usuario_repo_precisa_trocar_senha(carolId) == 1);
+        assert(usuario_repo_autenticar_com_bloqueio("carol", "novaSenha2", NULL, 0,
+                                                    NULL, NULL, NULL, NULL) == 0);
+        assert(usuario_repo_autenticar_com_bloqueio("carol", "temp123", NULL, 0,
+                                                    NULL, NULL, NULL, NULL) == 1);
+        /* Usuario inexistente nao reseta. */
+        assert(usuario_repo_resetar_senha(99999, "x") == 0);
     }
 
     printf("test_sessao_repository: OK\n");

@@ -580,6 +580,47 @@ int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
     return ok ? 1 : 0;
 }
 
+int usuario_repo_resetar_senha(int usuario_id, const char *senha_nova)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char salt[17];
+    char hash[65];
+    int ok = 0;
+
+    if (usuario_id <= 0 || senha_nova == NULL || senha_nova[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (senha_gerar_salt(salt, sizeof(salt)) == 0 ||
+        senha_hash(salt, senha_nova, hash, sizeof(hash)) == 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    /* Define a senha temporaria e exige troca no proximo acesso. */
+    if (sqlite3_prepare_v2(db,
+            "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 1, "
+            "tentativas_invalidas = 0, bloqueado_ate = '' "
+            "WHERE id = ? AND ativo = 1;", -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, salt, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 3, usuario_id);
+        ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+        sqlite3_finalize(stmt);
+    }
+
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
 int usuario_repo_precisa_trocar_senha(int usuario_id)
 {
     sqlite3 *db = NULL;

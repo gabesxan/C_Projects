@@ -129,6 +129,21 @@ export default function Usuarios() {
     }
   }
 
+  // Reset administrativo: define uma senha temporaria que o usuario tera de
+  // trocar no proximo acesso (a acao tambem desbloqueia o login).
+  async function resetarSenha(u) {
+    const senha = window.prompt(
+      `Senha temporaria para "${u.login}" (ele tera de troca-la no proximo acesso):`,
+    )
+    if (senha === null || !senha.trim()) return
+    try {
+      await apiSend('POST', `/usuarios/${u.id}/senha`, { senha_nova: senha.trim() })
+      window.alert(`Senha de "${u.login}" redefinida. Repasse a senha temporaria; a troca sera exigida no proximo login.`)
+    } catch (e) {
+      setErro(e.status === 400 ? 'Nao foi possivel redefinir (usuario inativo ou senha invalida).' : e.message)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -173,13 +188,24 @@ export default function Usuarios() {
                   <td className="px-4 py-3"><StatusBadge ativo={u.ativo} /></td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{u.criadoEm}</td>
                   <td className="px-4 py-3">
-                    <Button
-                      variant={u.ativo ? 'danger' : 'secondary'}
-                      className="px-3 py-1"
-                      onClick={() => alternarStatus(u)}
-                    >
-                      {u.ativo ? 'Inativar' : 'Reativar'}
-                    </Button>
+                    <div className="flex gap-2">
+                      {u.ativo && (
+                        <Button
+                          variant="secondary"
+                          className="px-3 py-1"
+                          onClick={() => resetarSenha(u)}
+                        >
+                          Resetar senha
+                        </Button>
+                      )}
+                      <Button
+                        variant={u.ativo ? 'danger' : 'secondary'}
+                        className="px-3 py-1"
+                        onClick={() => alternarStatus(u)}
+                      >
+                        {u.ativo ? 'Inativar' : 'Reativar'}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

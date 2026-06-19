@@ -2773,6 +2773,20 @@ static void rotear(int cliente, const char *metodo, char *caminho,
             auditar(&s, "REATIVAR", "usuario", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"usuario nao encontrado ou ja ativo\"}");
     }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/usuarios/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "senha") == 0)
+    {
+        /* Reset administrativo: define senha temporaria e exige troca no
+         * proximo acesso (tambem desbloqueia o login). */
+        char senhaNova[128];
+        int ok;
+        extrairParam(consulta, "senha_nova", senhaNova, sizeof(senhaNova));
+        ok = usuario_repo_resetar_senha(id, senhaNova) == 1;
+        if (ok)
+            auditar(&s, "RESETAR_SENHA", "usuario", id, "");
+        responderRemocao(cliente, ok,
+                         "{\"erro\":\"usuario nao encontrado/inativo ou senha invalida\"}");
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria") == 0)
     {
         responderLista(cliente, auditoria_listar_json, "{\"erro\":\"falha ao listar auditoria\"}");

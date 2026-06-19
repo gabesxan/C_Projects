@@ -49,4 +49,10 @@ int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
 /* 1 se o usuario ainda precisa trocar a senha (1o acesso); 0 caso contrario. */
 int usuario_repo_precisa_trocar_senha(int usuario_id);
 
+/* Reset administrativo: define uma senha temporaria (novo salt+hash) e marca
+ * o usuario para trocar a senha no proximo acesso. Nao confere a senha atual
+ * (acao do ADMIN). Retorna 1 se aplicou; 0 se usuario inexistente/inativo ou
+ * senha invalida. */
+int usuario_repo_resetar_senha(int usuario_id, const char *senha_nova);
+
 #endif
