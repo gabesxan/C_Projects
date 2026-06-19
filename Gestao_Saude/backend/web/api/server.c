@@ -2222,7 +2222,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         return;
     }
 
-    /* Todas as demais rotas exigem autenticacao (HTTP Basic). */
+    /* Todas as demais rotas exigem autenticacao (token de sessao Bearer). */
     if (autenticarRequest(requisicao, s.papel, sizeof(s.papel),
                           &s.paciente_id, &s.medico_id,
                           s.login, sizeof(s.login), &s.usuario_id) == 0)

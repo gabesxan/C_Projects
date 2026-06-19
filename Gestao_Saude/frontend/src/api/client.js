@@ -3,7 +3,7 @@
 // - Autenticacao por TOKEN de sessao: o login devolve um token opaco que vai
 //   no header 'Authorization: Bearer <token>' de toda requisicao. A senha so
 //   trafega uma vez, no corpo do POST /sessao (nunca na URL nem no storage).
-// - As demais escritas (POST/DELETE) ainda usam query string (contrato atual).
+// - As escritas (POST/DELETE) enviam os parametros no corpo como JSON.
 
 // Em dev, "/api" e reescrito pelo proxy do Vite para o backend (:8080).
 // Em producao, o proprio servidor C serve o front e a API na mesma origem,
