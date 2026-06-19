@@ -184,6 +184,30 @@ CREATE TABLE exames (
     FOREIGN KEY (prontuario_id) REFERENCES prontuarios(id)
 );
 
+-- Laboratorio: catalogo de analitos (cada medida de um exame, ex.: Hemoglobina,
+-- Glicose) com unidade e faixa de referencia. A faixa alimenta, na etapa de
+-- resultado estruturado, o sinalizador de valor fora do normal.
+CREATE TABLE analitos (
+    id INTEGER PRIMARY KEY,
+    codigo TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    unidade TEXT NOT NULL DEFAULT '',
+    valor_ref_min REAL NOT NULL DEFAULT 0,
+    valor_ref_max REAL NOT NULL DEFAULT 0,
+    metodo TEXT NOT NULL DEFAULT '',
+    ativo INTEGER NOT NULL DEFAULT 1
+);
+
+-- Painel: liga um tipo de exame (mesmo codigo usado em exames.tipo_exame) ao
+-- conjunto de analitos que o compoem, na ordem de apresentacao do laudo.
+CREATE TABLE painel_analitos (
+    id INTEGER PRIMARY KEY,
+    tipo_exame INTEGER NOT NULL,
+    analito_id INTEGER NOT NULL,
+    ordem INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (analito_id) REFERENCES analitos(id)
+);
+
 CREATE TABLE prescricoes (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
@@ -371,6 +395,12 @@ CREATE INDEX idx_cobrancas_paciente ON cobrancas(paciente_id);
 CREATE INDEX idx_cobrancas_lote ON cobrancas(lote_id);
 CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
 
+-- Laboratorio: busca dos analitos de um painel e unicidade do codigo do analito
+-- (somente entre ativos; um codigo desativado pode ser reaproveitado).
+CREATE INDEX idx_painel_tipo ON painel_analitos(tipo_exame);
+CREATE INDEX idx_painel_analito ON painel_analitos(analito_id);
+CREATE UNIQUE INDEX idx_analitos_codigo_ativo ON analitos(codigo) WHERE ativo = 1;
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 5;
+PRAGMA user_version = 6;

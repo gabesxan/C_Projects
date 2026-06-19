@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 5
+#define LATEST_VERSION 6
 
 typedef struct
 {
@@ -50,6 +50,25 @@ static const Migracao MIGRACOES[] = {
      "ALTER TABLE cobrancas ADD COLUMN guia_validade TEXT NOT NULL DEFAULT '';"
      "ALTER TABLE cobrancas ADD COLUMN coberto_centavos INTEGER NOT NULL DEFAULT 0;"
      "ALTER TABLE cobrancas ADD COLUMN copart_centavos INTEGER NOT NULL DEFAULT 0;"},
+    {6, "laboratorio: catalogo de analitos e composicao dos paineis",
+     "CREATE TABLE IF NOT EXISTS analitos ("
+     "  id INTEGER PRIMARY KEY,"
+     "  codigo TEXT NOT NULL,"
+     "  nome TEXT NOT NULL,"
+     "  unidade TEXT NOT NULL DEFAULT '',"
+     "  valor_ref_min REAL NOT NULL DEFAULT 0,"
+     "  valor_ref_max REAL NOT NULL DEFAULT 0,"
+     "  metodo TEXT NOT NULL DEFAULT '',"
+     "  ativo INTEGER NOT NULL DEFAULT 1);"
+     "CREATE TABLE IF NOT EXISTS painel_analitos ("
+     "  id INTEGER PRIMARY KEY,"
+     "  tipo_exame INTEGER NOT NULL,"
+     "  analito_id INTEGER NOT NULL,"
+     "  ordem INTEGER NOT NULL DEFAULT 0,"
+     "  FOREIGN KEY (analito_id) REFERENCES analitos(id));"
+     "CREATE INDEX IF NOT EXISTS idx_painel_tipo ON painel_analitos(tipo_exame);"
+     "CREATE INDEX IF NOT EXISTS idx_painel_analito ON painel_analitos(analito_id);"
+     "CREATE UNIQUE INDEX IF NOT EXISTS idx_analitos_codigo_ativo ON analitos(codigo) WHERE ativo = 1;"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

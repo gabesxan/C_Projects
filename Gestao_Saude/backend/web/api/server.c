@@ -15,6 +15,7 @@
 #include "checkin_repository.h"
 #include "financeiro_repository.h"
 #include "lote_repository.h"
+#include "analito_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -540,7 +541,8 @@ static int ehCadastro(const char *caminho)
     return comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
            comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
            comecaCom(caminho, "/checkins") || comecaCom(caminho, "/convenios") ||
-           comecaCom(caminho, "/cobrancas") || comecaCom(caminho, "/lotes");
+           comecaCom(caminho, "/cobrancas") || comecaCom(caminho, "/lotes") ||
+           comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis");
 }
 
 static int ehClinico(const char *caminho)
@@ -638,10 +640,13 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
                    (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/administrar"));
         }
 
-        /* Acompanhamento de alas/medicos: somente leitura. */
+        /* Acompanhamento de alas/medicos e consulta ao catalogo do laboratorio
+         * (analitos/paineis, para coleta): somente leitura. */
         return strcmp(metodo, "GET") == 0 &&
                (comecaCom(caminho, "/alas") ||
-                comecaCom(caminho, "/medicos"));
+                comecaCom(caminho, "/medicos") ||
+                comecaCom(caminho, "/analitos") ||
+                comecaCom(caminho, "/paineis"));
     }
 
     /* PACIENTE: somente as rotas sob /me (ja liberadas acima). */
@@ -2221,6 +2226,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/checkins") ||
            comecaCom(caminho, "/convenios") || comecaCom(caminho, "/cobrancas") ||
            comecaCom(caminho, "/lotes") ||
+           comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3031,6 +3037,75 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         int ok = lote_pagar(id) == 1;
         if (ok) auditar(&s, "LOTE_PAGAR", "lote", id, "");
         responderRemocao(cliente, ok, "{\"erro\":\"lote nao esta fechado\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/analitos") == 0)
+    {
+        responderLista(cliente, analito_listar_json, "{\"erro\":\"falha ao listar analitos\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/analitos/contar") == 0)
+    {
+        responderContagem(cliente, analito_contar_ativos);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/analitos") == 0)
+    {
+        char codigo[64], nome[128], unidade[48], refMin[24], refMax[24], metodoLab[96];
+        int ok;
+        extrairParam(consulta, "codigo", codigo, sizeof(codigo));
+        extrairParam(consulta, "nome", nome, sizeof(nome));
+        extrairParam(consulta, "unidade", unidade, sizeof(unidade));
+        extrairParam(consulta, "ref_min", refMin, sizeof(refMin));
+        extrairParam(consulta, "ref_max", refMax, sizeof(refMax));
+        extrairParam(consulta, "metodo", metodoLab, sizeof(metodoLab));
+        ok = analito_criar(codigo, nome, unidade, atof(refMin), atof(refMax), metodoLab) == 1;
+        if (ok) auditar(&s, "ANALITO_CRIAR", "analito", 0, codigo);
+        responderCriacao(cliente, ok, "{\"erro\":\"analito invalido ou codigo ja em uso\"}");
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/analitos/%d", &id) == 1)
+    {
+        char motivo[256];
+        int ok;
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = motivo[0] != '\0' && analito_desativar(id) == 1;
+        if (ok) auditar(&s, "ANALITO_DESATIVAR", "analito", id, motivo);
+        responderRemocao(cliente, ok, "{\"erro\":\"analito nao encontrado ou motivo ausente\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/paineis/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "analitos") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && painel_listar_json(id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar painel\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/paineis/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "analitos") == 0)
+    {
+        char analitoId[16], ordem[16];
+        int ok;
+        extrairParam(consulta, "analito_id", analitoId, sizeof(analitoId));
+        extrairParam(consulta, "ordem", ordem, sizeof(ordem));
+        ok = painel_adicionar_analito(id, atoi(analitoId), atoi(ordem)) == 1;
+        if (ok) auditar(&s, "PAINEL_ADICIONAR", "painel", id, analitoId);
+        responderCriacao(cliente, ok,
+            "{\"erro\":\"analito inexistente/inativo ou ja vinculado ao painel\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/paineis/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "remover") == 0)
+    {
+        char analitoId[16], motivo[256];
+        int ok;
+        extrairParam(consulta, "analito_id", analitoId, sizeof(analitoId));
+        extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+        ok = motivo[0] != '\0' && painel_remover_analito(id, atoi(analitoId)) == 1;
+        if (ok)
+        {
+            char detalhe[320];
+            snprintf(detalhe, sizeof(detalhe), "analito=%s motivo=%s", analitoId, motivo);
+            auditar(&s, "PAINEL_REMOVER", "painel", id, detalhe);
+        }
+        responderRemocao(cliente, ok, "{\"erro\":\"vinculo nao encontrado no painel ou motivo ausente\"}");
     }
     else
     {

@@ -187,6 +187,56 @@ request_and_assert() {
     echo "[OK] ${label}"
 }
 
+# Executa uma requisicao JSON autenticada/anonima e valida status e conteudo.
+request_json_and_assert() {
+    local method="$1"
+    local path="$2"
+    local body="$3"
+    local expected_status="$4"
+    local label="$5"
+    local token="${6:-}"
+    local body_check_type="${7:-}"
+    local body_check_value="${8:-}"
+    local http_code
+
+    rm -f "${RESP_FILE}"
+
+    if [[ -n "${token}" ]]; then
+        http_code="$(
+            curl -sS -o "${RESP_FILE}" -w "%{http_code}" \
+                -H "Authorization: Bearer ${token}" \
+                -H 'Content-Type: application/json' \
+                -X "${method}" "http://localhost:8080${path}" -d "${body}" || true
+        )"
+    else
+        http_code="$(
+            curl -sS -o "${RESP_FILE}" -w "%{http_code}" \
+                -H 'Content-Type: application/json' \
+                -X "${method}" "http://localhost:8080${path}" -d "${body}" || true
+        )"
+    fi
+
+    if [[ "${http_code}" != "${expected_status}" ]]; then
+        fail "${label} retornou HTTP ${http_code}, esperado ${expected_status}"
+    fi
+
+    case "${body_check_type}" in
+        contains)
+            assert_contains "${body_check_value}" "${label}"
+            ;;
+        matches)
+            assert_matches "${body_check_value}" "${label}"
+            ;;
+        "")
+            ;;
+        *)
+            fail "Tipo de validacao desconhecido para ${label}: ${body_check_type}"
+            ;;
+    esac
+
+    echo "[OK] ${label}"
+}
+
 # Recria um banco limpo e semeia um usuario admin temporario para o smoke test.
 prepare_database() {
     # Arquivo-fonte temporario de um pequeno helper em C para reset e seed.
@@ -325,6 +375,32 @@ request_and_assert "/relatorios/distribuicao" "200" "/relatorios/distribuicao" "
 request_and_assert "/relatorios/agendamentos?inicio=2026-06-01&fim=2026-06-30" "200" "/relatorios/agendamentos" "${ADMIN_TOKEN}" contains '"total"'
 # Testa que o relatorio por periodo sem datas retorna 400.
 request_and_assert "/relatorios/agendamentos" "400" "/relatorios/agendamentos (sem datas)" "${ADMIN_TOKEN}"
+
+# --- Catalogo de laboratorio: analitos e paineis ---
+# Cria dois analitos para o painel do hemograma (tipo 1).
+request_json_and_assert "POST" "/analitos" \
+    '{"codigo":"HGB","nome":"Hemoglobina","unidade":"g/dL","ref_min":"12","ref_max":"16","metodo":"Automacao"}' \
+    "201" "/analitos POST (HGB)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_json_and_assert "POST" "/analitos" \
+    '{"codigo":"GLI","nome":"Glicose","unidade":"mg/dL","ref_min":"70","ref_max":"99","metodo":"Hexoquinase"}' \
+    "201" "/analitos POST (GLI)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+# Lista e contagem dos analitos ativos.
+request_and_assert "/analitos" "200" "/analitos" "${ADMIN_TOKEN}" contains '"codigo":"HGB"'
+request_and_assert "/analitos/contar" "200" "/analitos/contar" "${ADMIN_TOKEN}" contains '"ativos":2'
+# Monta um painel do tipo 1 e garante a ordenacao no laudo.
+request_json_and_assert "POST" "/paineis/1/analitos" '{"analito_id":"1","ordem":"2"}' \
+    "201" "/paineis/1/analitos POST (HGB)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_json_and_assert "POST" "/paineis/1/analitos" '{"analito_id":"2","ordem":"1"}' \
+    "201" "/paineis/1/analitos POST (GLI)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_and_assert "/paineis/1/analitos" "200" "/paineis/1/analitos" "${ADMIN_TOKEN}" contains '"ordem":1'
+# Remocao destrutiva exige motivo no corpo.
+request_json_and_assert "POST" "/paineis/1/remover" '{"analito_id":"2"}' \
+    "404" "/paineis/1/remover (sem motivo)" "${ADMIN_TOKEN}" contains 'motivo ausente'
+request_json_and_assert "POST" "/paineis/1/remover" '{"analito_id":"2","motivo":"painel simplificado"}' \
+    "200" "/paineis/1/remover" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_json_and_assert "DELETE" "/analitos/2" '{"motivo":"catalogo duplicado"}' \
+    "200" "/analitos/2 DELETE" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_and_assert "/analitos/contar" "200" "/analitos/contar apos delete" "${ADMIN_TOKEN}" contains '"ativos":1'
 
 # --- Escopo de dados por papel: o MEDICO ve apenas os proprios dados ---
 # Endereco base reutilizado nas criacoes via POST (parametros vao no CORPO JSON).
