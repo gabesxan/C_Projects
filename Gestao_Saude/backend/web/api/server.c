@@ -29,6 +29,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 /*
  * Servidor HTTP minimo do backend web do SIGEH-DF.
@@ -63,6 +65,41 @@
 #define DIR_PUBLICO "public"
 
 /* ----------------------------------------------------------------------- */
+/* Transporte (HTTP puro ou TLS opcional)                                   */
+/* ----------------------------------------------------------------------- */
+
+/* TLS e opcional: quando habilitado (cert+chave informados), cada conexao e
+ * envolta em SSL. O contexto e criado uma vez no startup e so lido depois; a
+ * conexao SSL corrente de cada worker vive num ponteiro thread-local. Sem TLS,
+ * t_ssl fica NULL e a E/S usa read()/write() direto no socket. */
+static SSL_CTX *g_ssl_ctx = NULL;
+static _Thread_local SSL *t_ssl = NULL;
+
+/* Escreve 'n' bytes por completo na conexao (TLS ou socket). 1 = ok, 0 = erro. */
+static int conn_write_all(int fd, const char *buf, size_t n)
+{
+    size_t off = 0;
+    while (off < n)
+    {
+        ssize_t w = t_ssl != NULL
+            ? SSL_write(t_ssl, buf + off, (int)(n - off))
+            : write(fd, buf + off, n - off);
+        if (w <= 0)
+        {
+            return 0;
+        }
+        off += (size_t)w;
+    }
+    return 1;
+}
+
+/* Le ate 'n' bytes da conexao (TLS ou socket). Retorna o lido (<=0 encerra). */
+static ssize_t conn_read(int fd, void *buf, size_t n)
+{
+    return t_ssl != NULL ? SSL_read(t_ssl, buf, (int)n) : read(fd, buf, n);
+}
+
+/* ----------------------------------------------------------------------- */
 /* Utilitarios HTTP                                                         */
 /* ----------------------------------------------------------------------- */
 
@@ -79,8 +116,8 @@ static void responder(int cliente, const char *status, const char *corpo)
 
     if (n > 0)
     {
-        write(cliente, cabecalho, (size_t)n);
-        write(cliente, corpo, strlen(corpo));
+        conn_write_all(cliente, cabecalho, (size_t)n);
+        conn_write_all(cliente, corpo, strlen(corpo));
     }
 }
 
@@ -2119,8 +2156,8 @@ static int enviarArquivo(int cliente, const char *caminhoArquivo)
 
     if (n > 0)
     {
-        write(cliente, cabecalho, (size_t)n);
-        write(cliente, conteudo, (size_t)tam);
+        conn_write_all(cliente, cabecalho, (size_t)n);
+        conn_write_all(cliente, conteudo, (size_t)tam);
     }
 
     free(conteudo);
@@ -2944,7 +2981,7 @@ static ssize_t lerRequisicao(int cliente, char *buf, size_t cap)
 
     while (total < (ssize_t)cap - 1)
     {
-        ssize_t n = read(cliente, buf + total, cap - 1 - (size_t)total);
+        ssize_t n = conn_read(cliente, buf + total, cap - 1 - (size_t)total);
         if (n <= 0)
         {
             break;
@@ -2983,25 +3020,42 @@ static void tratarCliente(int cliente)
     char requisicao[TAM_REQUISICAO];
     char metodo[8];
     char caminho[256];
-    ssize_t lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
+    ssize_t lidos;
 
-    if (lidos <= 0)
+    /* Com TLS habilitado, faz o handshake antes de qualquer leitura. */
+    if (g_ssl_ctx != NULL)
     {
-        close(cliente);
-        return;
+        t_ssl = SSL_new(g_ssl_ctx);
+        if (t_ssl == NULL || SSL_set_fd(t_ssl, cliente) != 1 ||
+            SSL_accept(t_ssl) != 1)
+        {
+            if (t_ssl != NULL) { SSL_free(t_ssl); t_ssl = NULL; }
+            close(cliente);
+            return;
+        }
     }
 
-    requisicao[lidos] = '\0';
-
-    if (sscanf(requisicao, "%7s %255s", metodo, caminho) != 2)
+    lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
+    if (lidos > 0)
     {
-        responder(cliente, "400 Bad Request",
-                  "{\"erro\":\"requisicao invalida\"}");
-        close(cliente);
-        return;
+        requisicao[lidos] = '\0';
+        if (sscanf(requisicao, "%7s %255s", metodo, caminho) == 2)
+        {
+            rotear(cliente, metodo, caminho, requisicao);
+        }
+        else
+        {
+            responder(cliente, "400 Bad Request",
+                      "{\"erro\":\"requisicao invalida\"}");
+        }
     }
 
-    rotear(cliente, metodo, caminho, requisicao);
+    if (t_ssl != NULL)
+    {
+        SSL_shutdown(t_ssl);
+        SSL_free(t_ssl);
+        t_ssl = NULL;
+    }
     close(cliente);
 }
 
@@ -3055,6 +3109,31 @@ static void *worker(void *arg)
     return NULL;
 }
 
+/* Cria o contexto TLS do servidor a partir do certificado e da chave (PEM).
+ * Retorna o SSL_CTX ou NULL em caso de falha. */
+static SSL_CTX *tls_criar_contexto(const char *cert, const char *chave)
+{
+    SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
+
+    if (ctx == NULL)
+    {
+        return NULL;
+    }
+
+    /* Recusa protocolos antigos e inseguros (SSLv3/TLS1.0/1.1). */
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+
+    if (SSL_CTX_use_certificate_chain_file(ctx, cert) != 1 ||
+        SSL_CTX_use_PrivateKey_file(ctx, chave, SSL_FILETYPE_PEM) != 1 ||
+        SSL_CTX_check_private_key(ctx) != 1)
+    {
+        SSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    return ctx;
+}
+
 int main(int argc, char *argv[])
 {
     int porta = PORTA_PADRAO;
@@ -3080,6 +3159,23 @@ int main(int argc, char *argv[])
         if (porta <= 0 || porta > 65535)
         {
             porta = PORTA_PADRAO;
+        }
+    }
+
+    /* TLS opcional: habilitado quando SIGEH_TLS_CERT e SIGEH_TLS_KEY apontam
+     * para o certificado e a chave (PEM). Sem eles, o servidor fica em HTTP
+     * puro (dev e testes). */
+    {
+        const char *cert = getenv("SIGEH_TLS_CERT");
+        const char *chave = getenv("SIGEH_TLS_KEY");
+        if (cert != NULL && cert[0] != '\0' && chave != NULL && chave[0] != '\0')
+        {
+            g_ssl_ctx = tls_criar_contexto(cert, chave);
+            if (g_ssl_ctx == NULL)
+            {
+                fprintf(stderr, "[ERRO] falha ao carregar certificado/chave TLS\n");
+                return 1;
+            }
         }
     }
 
@@ -3122,8 +3218,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("SIGEH-DF API ouvindo em http://localhost:%d (%d workers)\n",
-           porta, NUM_WORKERS);
+    printf("SIGEH-DF API ouvindo em %s://localhost:%d (%d workers)\n",
+           g_ssl_ctx != NULL ? "https" : "http", porta, NUM_WORKERS);
     fflush(stdout);
 
     /* Produtor: aceita conexoes e as entrega aos workers pela fila. */

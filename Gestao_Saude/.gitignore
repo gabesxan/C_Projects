@@ -14,4 +14,6 @@
 backend/web/build/
 backend/web/public/
 backend/data/*.db
+# Certificados TLS de desenvolvimento (gerados por `make cert`).
+backend/web/certs/
 .claude/

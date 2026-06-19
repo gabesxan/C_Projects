@@ -13,6 +13,8 @@ CFLAGS = -Wall -Wextra -pedantic \
 LDLIBS = -lsqlite3
 MATH_LIB = -lm
 CRYPTO_LIBS = -L$(OPENSSL_DIR)/lib -lcrypto
+# TLS do servidor (HTTPS opcional) — alem do -lcrypto ja usado p/ hash de senha.
+TLS_LIB = -L$(OPENSSL_DIR)/lib -lssl
 # Servidor concorrente (pool de threads).
 THREAD_LIB = -pthread
 
@@ -92,7 +94,7 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)
-	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(MATH_LIB) $(THREAD_LIB)
+	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(TLS_LIB) $(MATH_LIB) $(THREAD_LIB)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
@@ -116,6 +118,24 @@ frontend:
 run: api
 	./$(BUILD)/sigeh_api
 
+# Gera um certificado TLS autoassinado para desenvolvimento (em certs/).
+CERT_DIR = certs
+cert:
+	mkdir -p $(CERT_DIR)
+	@if [ -f $(CERT_DIR)/server.crt ] && [ -f $(CERT_DIR)/server.key ]; then \
+		echo "Certificado ja existe em $(CERT_DIR)/ (use 'rm -rf $(CERT_DIR)' para refazer)"; \
+	else \
+		openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+			-keyout $(CERT_DIR)/server.key -out $(CERT_DIR)/server.crt \
+			-subj "/CN=localhost" && \
+		echo "Certificado autoassinado gerado em $(CERT_DIR)/"; \
+	fi
+
+# Sobe o servidor em HTTPS (TLS) na porta 8443, gerando o cert se preciso.
+run-tls: api cert
+	SIGEH_TLS_CERT=$(CERT_DIR)/server.crt SIGEH_TLS_KEY=$(CERT_DIR)/server.key \
+		./$(BUILD)/sigeh_api 8443
+
 # Alvo separado para o smoke test HTTP, sem misturar com o make test unitario.
 api-smoke-test:
 	# Garante permissao de execucao no script antes de rodar o teste.
@@ -127,6 +147,11 @@ api-smoke-test:
 api-integration-test:
 	chmod +x tests/api_integration_test.sh
 	./tests/api_integration_test.sh
+
+# Smoke test do transporte TLS (HTTPS): health, login e rota autenticada.
+api-tls-smoke-test:
+	chmod +x tests/api_tls_smoke_test.sh
+	./tests/api_tls_smoke_test.sh
 
 test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
@@ -219,7 +244,7 @@ test_migracoes: | $(BUILD)
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all api frontend run api-smoke-test api-integration-test seed db-reset test clean \
+.PHONY: all api frontend run cert run-tls api-smoke-test api-integration-test api-tls-smoke-test seed db-reset test clean \
 	test_paciente_repository test_medico_repository test_ala_repository \
 	test_leito_repository test_triagem_repository test_agendamento_repository \
 	test_prontuario_repository test_exame_repository test_internacao_repository \

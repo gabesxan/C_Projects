@@ -240,12 +240,15 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/me
 |---|---|
 | `make` / `make all` | Compila `build/database.o` e o servidor `build/sigeh_api` |
 | `make api` | Compila apenas o servidor da API |
-| `make run` | Compila e sobe o servidor na porta 8080 |
+| `make run` | Compila e sobe o servidor (HTTP) na porta 8080 |
+| `make cert` | Gera um certificado TLS autoassinado de desenvolvimento em `certs/` |
+| `make run-tls` | Sobe o servidor em **HTTPS** na porta 8443 (gera o cert se preciso) |
 | `make frontend` | Builda o frontend (Vite) e publica em `public/` para o servidor servir |
 | `make test` | Compila e roda as 20 suítes de teste |
 | `make test_<nome>` | Roda uma suíte específica (ex.: `make test_triagem_service`) |
 | `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (liveness, auth e escopo por papel via `curl`) |
 | `make api-integration-test` | Executa `tests/api_integration_test.sh` (fluxos ponta a ponta encadeados) |
+| `make api-tls-smoke-test` | Executa `tests/api_tls_smoke_test.sh` (health/login/rota autenticada sobre HTTPS) |
 | `make clean` | Remove o diretório `build/` (binários, objetos e banco de teste) |
 
 > Todos os artefatos compilados vão para `backend/web/build/` (binários, `database.o` e o banco de teste), mantido fora do versionamento.
@@ -664,7 +667,7 @@ Adicionar uma **nova entidade** com endpoint segue sempre o mesmo padrão:
 - ✅ **Auditoria** das ações sensíveis (login, alta, prescrição, internação, mudança de leito, cancelamentos) — `GET /auditoria`, restrito a ADMIN.
 - ✅ **Integridade referencial** no banco (FK) e **acesso por papel** centralizado, negando por padrão.
 - ✅ **Sessão por token** (Bearer) com expiração, **bloqueio por tentativas**, troca de senha e troca obrigatória no 1º acesso; credenciais e parâmetros de escrita trafegam no **corpo JSON** (nunca na URL).
-- ⚠️ **Limitação acadêmica conhecida:** o servidor ainda é **HTTP sem TLS** — num cenário real o token e o corpo das requisições iriam sobre **HTTPS**.
+- ✅ **TLS/HTTPS opcional** (OpenSSL): habilitado por `SIGEH_TLS_CERT`/`SIGEH_TLS_KEY` (`make run-tls` sobe em `https://localhost:8443` com cert autoassinado de dev). Em produção, geraria-se um certificado real; em dev o padrão segue HTTP.
 
 ---
 
@@ -682,14 +685,15 @@ Concluído nas etapas v3:
 - 💳 **Financeiro** — convênios, cobranças com máquina de status (valores em centavos) e demonstrativo.
 - 📝 **Retificação versionada** de prontuário, triagem e exame (preserva a versão anterior).
 - 🔒 **Endurecimento de auth** — sessão por token, login/escritas no corpo JSON, bloqueio por tentativas e troca de senha (com 1º acesso obrigatório).
+- 🔐 **TLS/HTTPS opcional** — servidor sobre OpenSSL (`make run-tls`), HTTP puro como padrão de dev.
 - 🧵 **Servidor concorrente** — pool de threads (escritas SQLite serializadas com `busy_timeout`).
 - 🧪 **Testes de integração** da API (fluxos ponta a ponta) além do smoke test.
 - 🗃️ **Migrações de schema** versionadas (`PRAGMA user_version`), atualizando bancos antigos sem perda de dados.
 
 Próximos passos (fora do escopo atual):
 
-- 🔐 **HTTPS/TLS** — hoje o servidor é HTTP puro; em produção o tráfego iria sobre TLS.
 - 💊 **Interações medicamentosas** na prescrição.
+- 💳 **Financeiro avançado** — guia/lote, vencimento, cobertura/coparticipação, nota/fatura.
 
 ---
 
