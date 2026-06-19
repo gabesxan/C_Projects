@@ -339,6 +339,7 @@ static int cobrancas_para_json(const char *sql, int filtro, char *buffer, int ta
         int pacienteId = sqlite3_column_int(stmt, 1);
         int convenioId = sqlite3_column_int(stmt, 2);
         int valor = sqlite3_column_int(stmt, 8);
+        int loteId = sqlite3_column_int(stmt, 10);
         int escrito;
 
         if (repo_json_escapar(formaJson, sizeof(formaJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
@@ -356,10 +357,10 @@ static int cobrancas_para_json(const char *sql, int filtro, char *buffer, int ta
         escrito = snprintf(objeto, sizeof(objeto),
             "%s{\"id\":%d,\"pacienteId\":%d,\"convenioId\":%d,\"forma\":%s,"
             "\"origem\":%s,\"descricao\":%s,\"status\":%s,\"motivo\":%s,"
-            "\"valorCentavos\":%d,\"criadoEm\":%s}",
+            "\"valorCentavos\":%d,\"loteId\":%d,\"criadoEm\":%s}",
             primeiro ? "" : ",",
             id, pacienteId, convenioId, formaJson, origemJson, descricaoJson,
-            statusJson, motivoJson, valor, criadoJson);
+            statusJson, motivoJson, valor, loteId, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
@@ -381,7 +382,7 @@ static int cobrancas_para_json(const char *sql, int filtro, char *buffer, int ta
 /* Colunas/ordem usadas pela serializacao de cobrancas. */
 #define COBRANCA_COLS \
     "id, paciente_id, convenio_id, forma, origem, descricao, status, motivo, " \
-    "valor_centavos, criado_em"
+    "valor_centavos, criado_em, lote_id"
 
 int cobranca_listar_json(char *buffer, int tamanho)
 {

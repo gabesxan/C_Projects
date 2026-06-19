@@ -236,6 +236,175 @@ function ListaCobrancas({ cobrancas, onMudarStatus }) {
   )
 }
 
+// --- Lotes de faturamento -------------------------------------------------
+const LOTE_TONE = { ABERTO: 'amber', FECHADO: 'sky', PAGO: 'green' }
+
+function Lotes({ cobrancas, onMudou, onErro }) {
+  const [lotes, setLotes] = useState(null)
+  const [convenios, setConvenios] = useState([])
+  const [convenioId, setConvenioId] = useState('')
+  const [sel, setSel] = useState(null)
+  const [fatura, setFatura] = useState(null)
+
+  const carregarLotes = useCallback(() => {
+    apiGet('/lotes').then(setLotes).catch((e) => onErro(e.message))
+  }, [onErro])
+
+  useEffect(() => { carregarLotes() }, [carregarLotes])
+  useEffect(() => {
+    apiGet('/convenios').then(setConvenios).catch(() => setConvenios([]))
+  }, [])
+  useEffect(() => {
+    if (sel == null) { setFatura(null); return }
+    apiGet(`/lotes/${sel}`).then(setFatura).catch((e) => onErro(e.message))
+  }, [sel, onErro])
+
+  function recarregar() {
+    carregarLotes()
+    if (sel != null) apiGet(`/lotes/${sel}`).then(setFatura).catch(() => {})
+    onMudou()
+  }
+
+  async function criar(e) {
+    e.preventDefault()
+    if (!convenioId) return
+    try {
+      const r = await apiSend('POST', '/lotes', { convenio_id: convenioId })
+      setConvenioId('')
+      carregarLotes()
+      if (r && r.id) setSel(r.id)
+    } catch (err) {
+      onErro(err.message)
+    }
+  }
+
+  async function acao(loteId, qual) {
+    try {
+      await apiSend('POST', `/lotes/${loteId}/${qual}`)
+      recarregar()
+    } catch (e) {
+      onErro(e.message)
+    }
+  }
+
+  async function vincular(loteId, cobrancaId, rota) {
+    try {
+      await apiSend('POST', `/lotes/${loteId}/${rota}`, { cobranca_id: cobrancaId })
+      recarregar()
+    } catch (e) {
+      onErro(e.message)
+    }
+  }
+
+  const loteSel = Array.isArray(lotes) ? lotes.find((l) => l.id === sel) : null
+  // Cobrancas elegiveis para o lote selecionado: CONVENIO autorizadas, sem
+  // lote e do mesmo convenio do lote.
+  const elegiveis =
+    loteSel && loteSel.status === 'ABERTO' && Array.isArray(cobrancas)
+      ? cobrancas.filter(
+          (c) =>
+            c.forma === 'CONVENIO' &&
+            c.status === 'AUTORIZADA' &&
+            c.loteId === 0 &&
+            c.convenioId === loteSel.convenioId,
+        )
+      : []
+
+  return (
+    <Card className="p-5">
+      <p className="text-sm font-semibold text-slate-700">Lotes de faturamento</p>
+      <form onSubmit={criar} className="mt-3 flex flex-wrap items-end gap-2">
+        <label className="text-sm text-slate-600">
+          Convenio
+          <select className={inputCls} value={convenioId} onChange={(e) => setConvenioId(e.target.value)}>
+            <option value="">Selecione...</option>
+            {convenios.map((c) => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit">Abrir lote</Button>
+      </form>
+
+      {lotes === null && <div className="mt-3"><Spinner /></div>}
+      {Array.isArray(lotes) && lotes.length === 0 && (
+        <p className="mt-3 text-sm text-slate-500">Nenhum lote.</p>
+      )}
+      {Array.isArray(lotes) && lotes.length > 0 && (
+        <ul className="mt-3 divide-y divide-slate-100">
+          {lotes.map((l) => (
+            <li key={l.id} className="py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="text-left text-sm text-slate-700 hover:text-teal-700"
+                  onClick={() => setSel(sel === l.id ? null : l.id)}
+                >
+                  <span className="font-semibold">Lote #{l.id}</span> • {l.convenioNome} •{' '}
+                  {l.quantidade} cobr. • {formatReais(l.totalCentavos)}
+                </button>
+                <div className="flex items-center gap-2">
+                  <Badge tone={LOTE_TONE[l.status]}>{l.status}</Badge>
+                  {l.status === 'ABERTO' && (
+                    <Button variant="secondary" className="px-3 py-1" onClick={() => acao(l.id, 'fechar')}>Fechar</Button>
+                  )}
+                  {l.status === 'FECHADO' && (
+                    <Button className="px-3 py-1" onClick={() => acao(l.id, 'pagar')}>Pagar</Button>
+                  )}
+                </div>
+              </div>
+
+              {sel === l.id && fatura && (
+                <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm">
+                  {fatura.itens.length === 0 ? (
+                    <p className="text-slate-500">Sem cobrancas no lote.</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {fatura.itens.map((it) => (
+                        <li key={it.id} className="flex items-center justify-between gap-2">
+                          <span className="text-slate-700">
+                            #{it.id} {it.descricao || it.origem} — {formatReais(it.valorCentavos)}{' '}
+                            <Badge tone={STATUS_TONE[it.status]}>{it.status}</Badge>
+                          </span>
+                          {l.status === 'ABERTO' && (
+                            <Button variant="danger" className="px-2 py-0.5" onClick={() => vincular(l.id, it.id, 'remover')}>Remover</Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {l.status === 'ABERTO' && (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Cobrancas autorizadas elegiveis
+                      </p>
+                      {elegiveis.length === 0 ? (
+                        <p className="text-slate-400">Nenhuma cobranca elegivel deste convenio.</p>
+                      ) : (
+                        <ul className="mt-1 space-y-1">
+                          {elegiveis.map((c) => (
+                            <li key={c.id} className="flex items-center justify-between gap-2">
+                              <span className="text-slate-700">
+                                #{c.id} {c.descricao || c.origem} — {formatReais(c.valorCentavos)}
+                              </span>
+                              <Button variant="secondary" className="px-2 py-0.5" onClick={() => vincular(l.id, c.id, 'cobrancas')}>Adicionar</Button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export default function Financeiro() {
   const [cobrancas, setCobrancas] = useState(null)
   const [demonstrativo, setDemonstrativo] = useState(null)
@@ -287,6 +456,8 @@ export default function Financeiro() {
         <h2 className="text-sm font-semibold text-slate-600">Cobrancas</h2>
         <ListaCobrancas cobrancas={cobrancas} onMudarStatus={mudarStatus} />
       </section>
+
+      <Lotes cobrancas={cobrancas} onMudou={carregar} onErro={setErro} />
     </div>
   )
 }

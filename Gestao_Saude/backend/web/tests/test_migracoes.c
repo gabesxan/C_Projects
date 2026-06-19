@@ -68,6 +68,26 @@ static int coluna_existe(const char *tabela, const char *coluna)
     return existe;
 }
 
+/* 1 se existe uma tabela com o nome dado. */
+static int tabela_existe(const char *nome)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int existe = 0;
+
+    if (db_abrir(&db) == 0) return 0;
+    if (sqlite3_prepare_v2(db,
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?;",
+            -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, nome, -1, SQLITE_STATIC);
+        existe = sqlite3_step(stmt) == SQLITE_ROW;
+        sqlite3_finalize(stmt);
+    }
+    db_fechar(db);
+    return existe;
+}
+
 /* Conta linhas de uma consulta COUNT(*). */
 static int contar(const char *sql)
 {
@@ -95,37 +115,45 @@ int main(void)
 
     /* Schema completo: nasce ja na ultima versao, com indices e colunas novos. */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(versao() == 3);
+    assert(versao() == 4);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
     assert(coluna_existe("checkins", "motivo") == 1);
+    assert(coluna_existe("cobrancas", "lote_id") == 1);
+    assert(tabela_existe("lotes") == 1);
 
-    /* Simula um banco ANTIGO: volta para a v1, removendo os indices da v2 e as
-     * colunas da v3. */
+    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos das v2/v3/v4. */
     assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_paciente;") == 1);
     assert(db_executar("DROP INDEX IF EXISTS idx_sessoes_expira;") == 1);
     assert(db_executar("ALTER TABLE checkins DROP COLUMN rechamadas;") == 1);
     assert(db_executar("ALTER TABLE checkins DROP COLUMN motivo;") == 1);
+    assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_lote;") == 1);
+    assert(db_executar("ALTER TABLE cobrancas DROP COLUMN lote_id;") == 1);
+    assert(db_executar("DROP TABLE lotes;") == 1);
     assert(db_executar("PRAGMA user_version = 1;") == 1);
     /* Dado preexistente para provar que a migracao preserva os dados. */
     assert(db_executar("INSERT INTO convenios (nome, ativo) VALUES ('Antigo', 1);") == 1);
     assert(indice_existe("idx_cobrancas_paciente") == 0);
     assert(coluna_existe("checkins", "rechamadas") == 0);
+    assert(coluna_existe("cobrancas", "lote_id") == 0);
+    assert(tabela_existe("lotes") == 0);
     assert(versao() == 1);
 
-    /* Migra: cria indices (v2) e colunas (v3), sobe para a v3 e mantem dados. */
+    /* Migra: aplica v2/v3/v4, sobe para a v4 e mantem os dados. */
     assert(db_migrar() == 1);
-    assert(versao() == 3);
+    assert(versao() == 4);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
     assert(coluna_existe("checkins", "motivo") == 1);
+    assert(coluna_existe("cobrancas", "lote_id") == 1);
+    assert(tabela_existe("lotes") == 1);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     /* Idempotente: rodar de novo num banco ja atualizado nao muda nada. */
     assert(db_migrar() == 1);
-    assert(versao() == 3);
+    assert(versao() == 4);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     printf("test_migracoes: OK\n");

@@ -272,8 +272,22 @@ CREATE TABLE cobrancas (
     valor_centavos INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDENTE',
     motivo TEXT NOT NULL DEFAULT '',
+    -- lote_id: lote de faturamento ao qual a cobranca pertence (0 = nenhum).
+    lote_id INTEGER NOT NULL DEFAULT 0,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+);
+
+-- Lotes de faturamento: agrupam cobrancas CONVENIO autorizadas de um mesmo
+-- convenio para envio/pagamento. status: ABERTO, FECHADO, PAGO. Pagar o lote
+-- quita (PAGA) todas as cobrancas que ele contem.
+CREATE TABLE lotes (
+    id INTEGER PRIMARY KEY,
+    convenio_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ABERTO',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    fechado_em TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (convenio_id) REFERENCES convenios(id)
 );
 
 -- Check-in / recepcao: confirma a chegada do paciente, gera uma senha de fila
@@ -342,8 +356,9 @@ CREATE UNIQUE INDEX idx_pacientes_cpf_ativo
 -- Indices das features mais recentes (financeiro e sessoes). Tambem aplicados
 -- a bancos antigos pela migracao v2 (ver backend/web/database/migracoes.c).
 CREATE INDEX idx_cobrancas_paciente ON cobrancas(paciente_id);
+CREATE INDEX idx_cobrancas_lote ON cobrancas(lote_id);
 CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;

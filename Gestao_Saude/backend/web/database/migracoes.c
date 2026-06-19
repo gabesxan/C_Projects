@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 3
+#define LATEST_VERSION 4
 
 typedef struct
 {
@@ -34,6 +34,15 @@ static const Migracao MIGRACOES[] = {
     {3, "fila de recepcao: rechamadas e motivo de cancelamento",
      "ALTER TABLE checkins ADD COLUMN rechamadas INTEGER NOT NULL DEFAULT 0;"
      "ALTER TABLE checkins ADD COLUMN motivo TEXT NOT NULL DEFAULT '';"},
+    {4, "faturamento em lote: tabela lotes e vinculo da cobranca",
+     "CREATE TABLE IF NOT EXISTS lotes ("
+     "  id INTEGER PRIMARY KEY,"
+     "  convenio_id INTEGER NOT NULL,"
+     "  status TEXT NOT NULL DEFAULT 'ABERTO',"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  fechado_em TEXT NOT NULL DEFAULT '');"
+     "ALTER TABLE cobrancas ADD COLUMN lote_id INTEGER NOT NULL DEFAULT 0;"
+     "CREATE INDEX IF NOT EXISTS idx_cobrancas_lote ON cobrancas(lote_id);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

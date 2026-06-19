@@ -14,6 +14,7 @@
 #include "enfermagem_repository.h"
 #include "checkin_repository.h"
 #include "financeiro_repository.h"
+#include "lote_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -539,7 +540,7 @@ static int ehCadastro(const char *caminho)
     return comecaCom(caminho, "/pacientes") || comecaCom(caminho, "/medicos") ||
            comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
            comecaCom(caminho, "/checkins") || comecaCom(caminho, "/convenios") ||
-           comecaCom(caminho, "/cobrancas");
+           comecaCom(caminho, "/cobrancas") || comecaCom(caminho, "/lotes");
 }
 
 static int ehClinico(const char *caminho)
@@ -2219,6 +2220,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
            comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/checkins") ||
            comecaCom(caminho, "/convenios") || comecaCom(caminho, "/cobrancas") ||
+           comecaCom(caminho, "/lotes") ||
            comecaCom(caminho, "/me");
 }
 
@@ -2958,6 +2960,71 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         ok = cobranca_atualizar_status(id, valor, motivo) == 1;
         if (ok) auditar(&s, "COBRANCA_STATUS", "cobranca", id, valor);
         responderRemocao(cliente, ok, "{\"erro\":\"transicao de cobranca invalida\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/lotes") == 0)
+    {
+        responderLista(cliente, lote_listar_json, "{\"erro\":\"falha ao listar lotes\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/lotes/%d", &id) == 1)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && lote_fatura_json(id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "404 Not Found", "{\"erro\":\"lote nao encontrado\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/lotes") == 0)
+    {
+        char convenioId[16], corpo[64];
+        int novo;
+        extrairParam(consulta, "convenio_id", convenioId, sizeof(convenioId));
+        novo = lote_criar(atoi(convenioId));
+        if (novo > 0)
+        {
+            auditar(&s, "LOTE_CRIAR", "lote", novo, "");
+            snprintf(corpo, sizeof(corpo), "{\"id\":%d}", novo);
+            responder(cliente, "201 Created", corpo);
+        }
+        else
+        {
+            responder(cliente, "400 Bad Request", "{\"erro\":\"convenio invalido\"}");
+        }
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/lotes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "cobrancas") == 0)
+    {
+        char cobrancaId[16];
+        int ok;
+        extrairParam(consulta, "cobranca_id", cobrancaId, sizeof(cobrancaId));
+        ok = lote_adicionar_cobranca(id, atoi(cobrancaId)) == 1;
+        if (ok) auditar(&s, "LOTE_ADICIONAR", "lote", id, cobrancaId);
+        responderRemocao(cliente, ok,
+            "{\"erro\":\"cobranca nao elegivel (CONVENIO autorizada, mesmo convenio, sem lote) ou lote fechado\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/lotes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "remover") == 0)
+    {
+        char cobrancaId[16];
+        int ok;
+        extrairParam(consulta, "cobranca_id", cobrancaId, sizeof(cobrancaId));
+        ok = lote_remover_cobranca(id, atoi(cobrancaId)) == 1;
+        if (ok) auditar(&s, "LOTE_REMOVER", "lote", id, cobrancaId);
+        responderRemocao(cliente, ok, "{\"erro\":\"nao foi possivel remover (lote fechado ou cobranca fora do lote)\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/lotes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "fechar") == 0)
+    {
+        int ok = lote_fechar(id) == 1;
+        if (ok) auditar(&s, "LOTE_FECHAR", "lote", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"lote nao esta aberto ou esta vazio\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/lotes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "pagar") == 0)
+    {
+        int ok = lote_pagar(id) == 1;
+        if (ok) auditar(&s, "LOTE_PAGAR", "lote", id, "");
+        responderRemocao(cliente, ok, "{\"erro\":\"lote nao esta fechado\"}");
     }
     else
     {
