@@ -2622,6 +2622,27 @@ static void rotear(int cliente, const char *metodo, char *caminho,
                          "{\"erro\":\"analito fora do painel, exame fora da coleta/analise ou valor invalido\"}");
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "resultados-analitos/retificar") == 0)
+    {
+        char analitoId[16], valor[32], valorTexto[64], observacao[128], justificativa[256];
+        int ok;
+        extrairParam(consulta, "analito_id", analitoId, sizeof(analitoId));
+        extrairParam(consulta, "valor", valor, sizeof(valor));
+        extrairParam(consulta, "valor_texto", valorTexto, sizeof(valorTexto));
+        extrairParam(consulta, "observacao", observacao, sizeof(observacao));
+        extrairParam(consulta, "justificativa", justificativa, sizeof(justificativa));
+        ok = exame_repo_retificar_resultado_analito(id, atoi(analitoId), atof(valor),
+                                                    valorTexto, observacao, justificativa) == 1;
+        if (ok)
+        {
+            char detalhe[320];
+            snprintf(detalhe, sizeof(detalhe), "analito=%s justificativa=%s", analitoId, justificativa);
+            auditar(&s, "EXAME_ANALITO_RETIFICAR", "exame", id, detalhe);
+        }
+        responderRemocao(cliente, ok,
+                         "{\"erro\":\"retificacao invalida (justificativa, exame concluido ou analito do painel)\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/exames/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "resultado") == 0)
     {
         char resultado[512];

@@ -33,6 +33,14 @@ int exame_repo_registrar_resultado_analito(int exame_id, int analito_id,
 int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer,
                                               int tamanho);
 
+/* Retifica um analito de um exame CONCLUIDO criando nova versao do exame.
+ * Preserva a versao anterior e exige justificativa. 1 = ok, 0 = falha. */
+int exame_repo_retificar_resultado_analito(int exame_id, int analito_id,
+                                           double valor_numerico,
+                                           const char *valor_texto,
+                                           const char *observacao,
+                                           const char *justificativa);
+
 /* Cancela o exame; exige motivo e nao cancela exame concluido. 1 = ok, 0 = falha. */
 int exame_repo_cancelar(int id, const char *motivo);
 

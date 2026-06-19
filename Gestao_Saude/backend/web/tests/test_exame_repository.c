@@ -102,8 +102,18 @@ int main(void)
     assert(exame_repo_listar_resultados_analito_json(3, json, sizeof(json)) == 1);
     assert(strstr(json, "\"codigo\":\"HGB\"") != NULL);
     assert(strstr(json, "\"valor\":13.8") != NULL);
+    /* Retificacao estruturada: cria nova versao do exame e preserva a anterior. */
+    assert(exame_repo_retificar_resultado_analito(3, 1, 18.1, "18.1", "reprocessado", "") == 0);
+    assert(exame_repo_retificar_resultado_analito(3, 1, 18.1, "18.1", "reprocessado", "amostra recalibrada") == 1);
+    assert(exame_repo_listar_resultados_analito_json(3, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"valor\":13.8") != NULL);
+    assert(exame_repo_listar_resultados_analito_json(4, json, sizeof(json)) == 1);
+    assert(strstr(json, "\"valor\":18.1") != NULL);
+    assert(strstr(json, "\"foraReferencia\":1") != NULL);
+    assert(strstr(json, "\"codigo\":\"GLI\"") != NULL);
     /* Retificar exame nao concluido (ex.: 2, solicitado) falha. */
     assert(exame_repo_retificar_resultado(2, "X", 0, "j") == 0);
+    assert(exame_repo_retificar_resultado_analito(2, 1, 13.0, "13.0", "", "j") == 0);
 
     /* Cancelamento exige motivo; com motivo, sai dos ativos. */
     assert(exame_repo_cancelar(2, "") == 0);

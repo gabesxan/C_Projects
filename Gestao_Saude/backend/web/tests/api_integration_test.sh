@@ -202,6 +202,10 @@ api POST /exames/1/retificar '{"resultado":"Hemoglobina 13.8 (corrigido)","criti
 expect 200 "resultado retificado (nova versao)"
 api GET /exames
 body_has '13.8' "exame retificado vigente"
+api POST /exames/2/resultados-analitos/retificar '{"analito_id":"1","valor":"17.2","valor_texto":"17.2","observacao":"reprocessado","justificativa":"recalibracao do equipamento"}'
+expect 200 "analito retificado com nova versao"
+api GET /exames/3/resultados-analitos
+expect 200 "resultado estruturado retificado listado"; body_has '"foraReferencia":1' "retificacao marca fora da faixa"
 
 echo "--- Fluxo 4: financeiro -> convenio -> cobranca -> baixa ---"
 api POST /convenios '{"nome":"Unimed Integracao"}'
