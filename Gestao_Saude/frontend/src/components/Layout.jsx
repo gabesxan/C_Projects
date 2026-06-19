@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { navForRole } from '../nav'
@@ -48,10 +48,18 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const itens = navForRole(user.papel)
   const [menuAberto, setMenuAberto] = useState(false)
+  const [tema, setTema] = useState(() =>
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  )
   const tone = PAPEL_INFO[user.papel]?.tone ?? 'slate'
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', tema === 'dark')
+    localStorage.setItem('sigeh_theme', tema)
+  }, [tema])
+
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 lg:flex">
       {/* Sidebar fixa (desktop) */}
       <aside className="hidden w-64 shrink-0 bg-slate-900 p-4 lg:block">
         <SidebarContent itens={itens} />
@@ -71,7 +79,7 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90 lg:px-8">
           <button
             className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
             onClick={() => setMenuAberto(true)}
@@ -89,8 +97,16 @@ export default function Layout() {
             </div>
             <Badge tone={tone}>{papelLabel(user.papel)}</Badge>
             <button
+              onClick={() => setTema((v) => (v === 'dark' ? 'light' : 'dark'))}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+              aria-label="Alternar tema"
+              title="Alternar tema"
+            >
+              {tema === 'dark' ? '☀' : '☾'}
+            </button>
+            <button
               onClick={logout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Sair
             </button>

@@ -7,6 +7,7 @@
 #include "agendamento_repository.h"
 #include "regiao_df.h"
 #include "repo_json.h"
+#include "database.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -414,6 +415,312 @@ int triagem_service_sugerir_exames_json(int paciente_id, char *buffer, int taman
     }
 
     return 1;
+}
+
+int triagem_service_recalcular_triagem(int triagem_id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int especialidade = 0;
+    int prioridade = 1;
+    int totalProblemas = 0;
+    int existe = 0;
+    char classificacao[32];
+
+    if (triagem_id <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT COUNT(*) FROM triagens WHERE id = ? AND ativo = 1 AND vigente = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        existe = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    if (existe == 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT COUNT(*) FROM triagem_problemas WHERE triagem_id = ? AND ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        totalProblemas = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    if (totalProblemas == 0)
+    {
+        db_fechar(db);
+        return 1;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT tp.especialidade_id, SUM(p.peso_risco) AS total, "
+            "MAX(p.peso_risco) AS max_peso "
+            "FROM triagem_problemas tp "
+            "JOIN problemas_clinicos p ON p.id = tp.problema_id "
+            "WHERE tp.triagem_id = ? AND tp.ativo = 1 AND p.ativo = 1 "
+            "GROUP BY tp.especialidade_id "
+            "ORDER BY total DESC, max_peso DESC, tp.especialidade_id LIMIT 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        especialidade = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT COALESCE(MAX(p.peso_risco), 1) "
+            "FROM triagem_problemas tp "
+            "JOIN problemas_clinicos p ON p.id = tp.problema_id "
+            "WHERE tp.triagem_id = ? AND tp.ativo = 1 AND p.ativo = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        prioridade = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+
+    if (especialidade == 0)
+    {
+        if (sqlite3_prepare_v2(db,
+                "SELECT especialidade_principal_id FROM triagens "
+                "WHERE id = ? AND ativo = 1 AND vigente = 1;",
+                -1, &stmt, NULL) != SQLITE_OK)
+        {
+            db_fechar(db);
+            return 0;
+        }
+        sqlite3_bind_int(stmt, 1, triagem_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            especialidade = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+    db_fechar(db);
+
+    if (especialidade <= 0)
+    {
+        return 0;
+    }
+
+    snprintf(classificacao, sizeof(classificacao), "%s",
+             classificacao_de_nivel(prioridade));
+    return triagem_repo_atualizar_resultado(triagem_id, especialidade,
+                                            prioridade, classificacao);
+}
+
+int triagem_service_avaliar_triagem_json(int triagem_id, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int pacienteId = 0;
+    int prioridade = 0;
+    int totalProblemas = 0;
+    char classificacao[64] = "";
+    char especialidade[128] = "";
+    char classificacaoJson[96];
+    char especialidadeJson[160];
+    char justificativaJson[512];
+    char proximosJson[512];
+    char justificativa[384];
+    const char *proximos;
+    int escrito;
+
+    if (buffer == NULL || tamanho <= 0 || triagem_id <= 0)
+    {
+        return 0;
+    }
+
+    if (triagem_service_recalcular_triagem(triagem_id) == 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+    if (sqlite3_prepare_v2(db,
+            "SELECT t.paciente_id, t.classificacao, t.prioridade, e.nome, "
+            "(SELECT COUNT(*) FROM triagem_problemas tp "
+            " WHERE tp.triagem_id = t.id AND tp.ativo = 1) "
+            "FROM triagens t LEFT JOIN especialidades_clinicas e "
+            "ON e.id = t.especialidade_principal_id "
+            "WHERE t.id = ? AND t.ativo = 1 AND t.vigente = 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+    if (sqlite3_step(stmt) != SQLITE_ROW)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+    pacienteId = sqlite3_column_int(stmt, 0);
+    snprintf(classificacao, sizeof(classificacao), "%s", (const char *)sqlite3_column_text(stmt, 1));
+    prioridade = sqlite3_column_int(stmt, 2);
+    snprintf(especialidade, sizeof(especialidade), "%s", (const char *)sqlite3_column_text(stmt, 3));
+    totalProblemas = sqlite3_column_int(stmt, 4);
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    if (prioridade >= 5)
+    {
+        proximos = "Atender agora, monitorar sinais vitais e solicitar exames urgentes conforme decisao profissional.";
+    }
+    else if (prioridade >= 4)
+    {
+        proximos = "Priorizar atendimento, manter observacao e confirmar necessidade de exame inicial.";
+    }
+    else if (prioridade >= 3)
+    {
+        proximos = "Agendar ou encaminhar conforme disponibilidade e registrar conduta no prontuario.";
+    }
+    else
+    {
+        proximos = "Orientar paciente, agendar consulta comum ou registrar atendimento se houver indicacao.";
+    }
+
+    snprintf(justificativa, sizeof(justificativa),
+             "Classificacao calculada a partir de %d problema(s) clinico(s) selecionado(s), usando o maior peso de risco e a especialidade com maior carga clinica.",
+             totalProblemas);
+
+    if (repo_json_escapar(classificacaoJson, sizeof(classificacaoJson), classificacao) == 0 ||
+        repo_json_escapar(especialidadeJson, sizeof(especialidadeJson), especialidade) == 0 ||
+        repo_json_escapar(justificativaJson, sizeof(justificativaJson), justificativa) == 0 ||
+        repo_json_escapar(proximosJson, sizeof(proximosJson), proximos) == 0)
+    {
+        return 0;
+    }
+
+    escrito = snprintf(buffer, (size_t)tamanho,
+                       "{\"triagemId\":%d,\"pacienteId\":%d,"
+                       "\"classificacao\":%s,\"prioridade\":%d,"
+                       "\"especialidadeProvavel\":%s,\"justificativa\":%s,"
+                       "\"proximosPassos\":%s}",
+                       triagem_id, pacienteId, classificacaoJson, prioridade,
+                       especialidadeJson, justificativaJson, proximosJson);
+
+    return (escrito > 0 && escrito < tamanho) ? 1 : 0;
+}
+
+int triagem_service_sugerir_exames_triagem_json(int triagem_id, char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int usado = 0;
+    int primeiro = 1;
+    int pacienteId = 0;
+
+    if (buffer == NULL || tamanho <= 0 || triagem_id <= 0)
+    {
+        return 0;
+    }
+    triagem_repo_paciente_id(triagem_id, &pacienteId);
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+    if (sqlite3_prepare_v2(db,
+            "SELECT DISTINCT p.exame_sugerido_id, p.exame_sugerido "
+            "FROM triagem_problemas tp "
+            "JOIN problemas_clinicos p ON p.id = tp.problema_id "
+            "WHERE tp.triagem_id = ? AND tp.ativo = 1 AND p.ativo = 1 "
+            "AND p.exame_sugerido <> '' ORDER BY p.exame_sugerido;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, triagem_id);
+
+    buffer[0] = '\0';
+    if (repo_json_anexar(buffer, tamanho, &usado, "{\"triagemId\":") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+    {
+        char cab[96];
+        int escrito = snprintf(cab, sizeof(cab), "%d,\"pacienteId\":%d,\"examesSugeridos\":[",
+                               triagem_id, pacienteId);
+        if (escrito < 0 || escrito >= (int)sizeof(cab) ||
+            repo_json_anexar(buffer, tamanho, &usado, cab) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char exameJson[256];
+        char objeto[384];
+        int escrito;
+
+        if (repo_json_escapar(exameJson, sizeof(exameJson),
+                              (const char *)sqlite3_column_text(stmt, 1)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+        escrito = snprintf(objeto, sizeof(objeto),
+                           "%s{\"exameSugeridoId\":%d,\"nome\":%s}",
+                           primeiro ? "" : ",", sqlite3_column_int(stmt, 0),
+                           exameJson);
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return repo_json_anexar(buffer, tamanho, &usado, "]}");
 }
 
 /* Procura um medico livre da 'especialidade' na 'regiao' no slot informado.

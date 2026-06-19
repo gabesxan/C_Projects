@@ -9,6 +9,14 @@
 int triagem_repo_criar(int paciente_id, int tipo_triagem, int pontuacao,
                        const char *classificacao);
 
+int triagem_repo_criar_clinica(int paciente_id, int profissional_id,
+                               int especialidade_principal_id, int pontuacao,
+                               const char *classificacao, const char *itens,
+                               const char *queixa, const char *observacoes,
+                               const char *pressao, const char *temperatura,
+                               const char *freq_cardiaca,
+                               const char *saturacao);
+
 /* Como triagem_repo_criar, porem registra tambem os itens do checklist, a
  * queixa principal e os sinais vitais (texto livre; podem ser ""). A pontuacao
  * recebida e o nivel derivado do checklist. 1 = ok, 0 = falha. */
@@ -23,6 +31,18 @@ int triagem_repo_reclassificar(int id, const char *classificacao, int nivel,
                                const char *itens, const char *justificativa);
 
 int triagem_repo_listar_json(char *buffer, int tamanho);
+int triagem_repo_detalhar_json(int id, char *buffer, int tamanho);
+int triagem_repo_paciente_id(int id, int *paciente_id);
+int triagem_repo_profissional_id(int id, int *profissional_id);
+
+int triagem_repo_especialidades_json(char *buffer, int tamanho);
+int triagem_repo_problemas_por_especialidade_json(int especialidade_id,
+                                                  char *buffer, int tamanho);
+int triagem_repo_adicionar_problema(int triagem_id, int problema_id,
+                                    int principal, const char *observacao);
+int triagem_repo_remover_problema(int triagem_id, int problema_id);
+int triagem_repo_atualizar_resultado(int id, int especialidade_id, int prioridade,
+                                     const char *classificacao);
 
 /* Escreve (JSON) a distribuicao de triagens ativas por classificacao, no
  * formato [{"classificacao":"Vermelho","total":2},...]. 1 = ok, 0 = erro. */

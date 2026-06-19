@@ -469,6 +469,8 @@ post_json "/triagens" '{"paciente_id":"2","tipo":"2","itens":"dor_moderada"}'
 
 # O MEDICO (Cardiologia) ve a triagem cardiologica (tipo 3) na fila escopada.
 request_and_assert "/triagens" "200" "/triagens (MEDICO escopado por especialidade)" "${MED_TOKEN}" contains '"tipoTriagem":3'
+request_and_assert "/especialidades" "200" "/especialidades (MEDICO)" "${MED_TOKEN}" contains 'Cardiologia'
+request_and_assert "/especialidades/3/problemas" "200" "/especialidades/3/problemas" "${MED_TOKEN}" contains 'dor no peito'
 # Valida que a triagem de outra especialidade (tipo 2) NAO aparece para ele.
 rm -f "${RESP_FILE}"
 curl -sS -o "${RESP_FILE}" -H "Authorization: Bearer ${MED_TOKEN}" "${BASE}/triagens" >/dev/null
@@ -499,6 +501,10 @@ request_and_assert "/prescricoes" "200" "/prescricoes (MEDICO)" "${MED_TOKEN}" c
 request_and_assert "/prescricoes" "200" "/prescricoes (ENFERMAGEM)" "${ENF_TOKEN}" contains 'DipironaSmoke'
 # PACIENTE ve as proprias receitas via /me/receitas.
 request_and_assert "/me/receitas" "200" "/me/receitas (PACIENTE)" "${PAC_TOKEN}" contains 'DipironaSmoke'
+# Regra critica: PACIENTE nao executa nem lista fluxo de triagem clinica.
+request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_TOKEN}"
+request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \
+    "403" "/triagens POST bloqueado para PACIENTE" "${PAC_TOKEN}"
 
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

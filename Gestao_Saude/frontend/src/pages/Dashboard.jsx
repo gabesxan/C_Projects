@@ -18,7 +18,7 @@ async function contar(path) {
 function Atalhos({ itens }) {
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-700">Proximos passos</p>
+      <p className="text-sm font-semibold text-slate-700">Acoes rapidas</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {itens.map((a) => (
           <Link key={a.to} to={a.to}>
@@ -105,11 +105,26 @@ function PainelMedico() {
       </div>
       <Atalhos
         itens={[
-          { to: '/r/triagens', label: 'Fila de triagem' },
+          { to: '/triagem', label: 'Triagem clinica guiada' },
           { to: '/r/agendamentos', label: 'Minha agenda' },
           { to: '/r/prontuarios', label: 'Prontuarios' },
+          { to: '/laboratorio', label: 'Exames pendentes' },
         ]}
       />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-800">Agenda do dia</p>
+          <p className="mt-1 text-sm text-slate-500">Acompanhe consultas e retornos do seu escopo.</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-800">Pacientes em espera</p>
+          <p className="mt-1 text-sm text-slate-500">Use a fila de recepcao e abra a ficha antes da conduta.</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-slate-800">Fale Conosco</p>
+          <p className="mt-1 text-sm text-slate-500">atendimento@sigehdf.gov.br · (61) 3333-0000</p>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -131,8 +146,9 @@ function PainelEnfermagem() {
       </div>
       <Atalhos
         itens={[
-          { to: '/r/triagens', label: 'Registrar triagem' },
+          { to: '/triagem', label: 'Apoiar triagem clinica' },
           { to: '/r/prescricoes', label: 'Prescricoes a aplicar' },
+          { to: '/recepcao', label: 'Pacientes em espera' },
         ]}
       />
     </div>
@@ -145,16 +161,23 @@ function PainelVazio() {
 
 function PainelPaciente() {
   return (
-    <Card className="p-6">
-      <p className="text-slate-700">
-        Acompanhe suas receitas, exames e prontuarios na area do paciente.
-      </p>
-      <div className="mt-4">
-        <Link to="/minha-saude">
-          <Button>Ir para Meus dados</Button>
-        </Link>
-      </div>
-    </Card>
+    <div className="grid gap-4 md:grid-cols-3">
+      <Card className="p-5 md:col-span-2">
+        <p className="text-sm font-semibold text-slate-800">Sua area do paciente</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Consulte carteirinha, proximas consultas, exames, resultados, receitas e cobrancas proprias.
+        </p>
+        <div className="mt-4">
+          <Link to="/minha-saude">
+            <Button>Abrir Minha saude</Button>
+          </Link>
+        </div>
+      </Card>
+      <Card className="p-5">
+        <p className="text-sm font-semibold text-slate-800">Precisa de ajuda?</p>
+        <p className="mt-1 text-sm text-slate-500">Fale com a equipe pelo atendimento do SIGEH-DF.</p>
+      </Card>
+    </div>
   )
 }
 

@@ -1,14 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiGet, apiSend } from '../api/client'
-import {
-  PageHeader,
-  Card,
-  Button,
-  Alert,
-  Spinner,
-  Badge,
-  EmptyState,
-} from '../components/ui'
+import { PageHeader, Card, Button, Alert, Spinner, Badge, EmptyState } from '../components/ui'
 
 const RISCO = {
   Vermelho: 'red',
@@ -17,20 +10,13 @@ const RISCO = {
   Verde: 'green',
   Azul: 'sky',
 }
-const tomRisco = (v) => RISCO[v] ?? 'slate'
-
-const TIPOS = [
-  { v: 1, label: 'Clinico Geral' },
-  { v: 2, label: 'Ortopedia' },
-  { v: 3, label: 'Cardiologia' },
-  { v: 4, label: 'Pneumologia' },
-  { v: 5, label: 'Pediatria' },
-]
 
 const inputCls =
-  'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 outline-none'
+  'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30'
 
-// --- Passo 1a: buscar paciente existente -------------------------------
+const tomRisco = (v) => RISCO[v] ?? 'slate'
+const classePorPeso = (peso) => (peso >= 5 ? 'Vermelho' : peso >= 4 ? 'Laranja' : peso >= 3 ? 'Amarelo' : peso >= 2 ? 'Verde' : 'Azul')
+
 function BuscaPaciente({ onSelecionar }) {
   const [q, setQ] = useState('')
   const [rows, setRows] = useState(null)
@@ -49,8 +35,14 @@ function BuscaPaciente({ onSelecionar }) {
 
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-700">Buscar paciente</p>
-      <form onSubmit={buscar} className="mt-3 flex gap-2">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">1. Escolher paciente</p>
+          <p className="mt-1 text-sm text-slate-500">Busque pelo nome ou documento antes de iniciar a avaliacao clinica.</p>
+        </div>
+        <Badge tone="teal">Profissional</Badge>
+      </div>
+      <form onSubmit={buscar} className="mt-4 flex gap-2">
         <input
           className={`${inputCls} mt-0`}
           placeholder="Nome ou documento"
@@ -59,24 +51,21 @@ function BuscaPaciente({ onSelecionar }) {
         />
         <Button type="submit">Buscar</Button>
       </form>
-
       {erro && <div className="mt-3"><Alert>{erro}</Alert></div>}
       {Array.isArray(rows) && rows.length === 0 && (
         <p className="mt-3 text-sm text-slate-500">Nenhum paciente encontrado.</p>
       )}
       {Array.isArray(rows) && rows.length > 0 && (
-        <ul className="mt-3 divide-y divide-slate-100">
+        <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           {rows.map((p) => (
-            <li key={p.id} className="flex items-center justify-between py-2">
+            <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-slate-800">{p.nome}</p>
+                <p className="text-sm font-semibold text-slate-900">{p.nome}</p>
                 <p className="text-xs text-slate-500">
-                  {p.idade} anos • {p.tipoDocumento} {p.documento}
+                  Paciente #{p.id} · {p.idade} anos · {p.tipoDocumento} {p.documento}
                 </p>
               </div>
-              <Button variant="secondary" onClick={() => onSelecionar(p)}>
-                Selecionar
-              </Button>
+              <Button variant="secondary" onClick={() => onSelecionar(p)}>Selecionar</Button>
             </li>
           ))}
         </ul>
@@ -85,140 +74,247 @@ function BuscaPaciente({ onSelecionar }) {
   )
 }
 
-// --- Passo 1b: cadastrar paciente no fluxo (gera acesso) ----------------
-function NovoPaciente({ onCriado }) {
-  const [aberto, setAberto] = useState(false)
-  const [v, setV] = useState({
-    nome: '', nascimento: '', documento: '', tipo_documento: 'CPF',
-    telefone: '', sexo: 'F', regiao: '', responsavel: '', alergias: '',
-  })
-  const [erro, setErro] = useState('')
-  const [salvando, setSalvando] = useState(false)
-
-  function set(k, val) { setV((s) => ({ ...s, [k]: val })) }
-
-  async function submit(e) {
-    e.preventDefault()
-    setErro('')
-    setSalvando(true)
-    try {
-      const cred = await apiSend('POST', '/triagem/pacientes', v)
-      const paciente = await apiGet(`/pacientes/${cred.pacienteId}`)
-      onCriado(paciente, cred)
-    } catch (err) {
-      setErro(err.status === 400 ? 'Dados invalidos (verifique nascimento, documento, responsavel de menor ou CPF ja cadastrado).' : err.message)
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  if (!aberto) {
-    return (
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-700">Paciente novo?</p>
-        <p className="mt-1 text-sm text-slate-500">
-          Cadastre no proprio fluxo de triagem; o acesso do paciente e gerado
-          automaticamente.
-        </p>
-        <div className="mt-3">
-          <Button onClick={() => setAberto(true)}>+ Cadastrar paciente</Button>
-        </div>
-      </Card>
-    )
-  }
-
+function PainelPaciente({ paciente, onLimpar }) {
   return (
     <Card className="p-5">
-      <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm font-semibold text-slate-700">Novo paciente</p>
-        {erro && <Alert>{erro}</Alert>}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm text-slate-600">Nome
-            <input className={inputCls} value={v.nome} onChange={(e) => set('nome', e.target.value)} required />
-          </label>
-          <label className="text-sm text-slate-600">Nascimento
-            <input type="date" className={inputCls} value={v.nascimento} onChange={(e) => set('nascimento', e.target.value)} required />
-          </label>
-          <label className="text-sm text-slate-600">Documento
-            <input className={inputCls} value={v.documento} onChange={(e) => set('documento', e.target.value)} required />
-          </label>
-          <label className="text-sm text-slate-600">Tipo de documento
-            <select className={inputCls} value={v.tipo_documento} onChange={(e) => set('tipo_documento', e.target.value)}>
-              <option>CPF</option><option>OUTRO</option>
-            </select>
-          </label>
-          <label className="text-sm text-slate-600">Telefone
-            <input className={inputCls} value={v.telefone} onChange={(e) => set('telefone', e.target.value)} required />
-          </label>
-          <label className="text-sm text-slate-600">Sexo
-            <select className={inputCls} value={v.sexo} onChange={(e) => set('sexo', e.target.value)}>
-              <option>F</option><option>M</option>
-            </select>
-          </label>
-          <label className="text-sm text-slate-600">Regiao
-            <input type="number" className={inputCls} value={v.regiao} onChange={(e) => set('regiao', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Responsavel (se menor)
-            <input className={inputCls} value={v.responsavel} onChange={(e) => set('responsavel', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Alergias / alertas
-            <input className={inputCls} value={v.alergias} onChange={(e) => set('alergias', e.target.value)} />
-          </label>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase text-teal-700 dark:text-teal-300">Paciente selecionado</p>
+          <p className="mt-1 text-xl font-bold text-slate-900">{paciente.nome}</p>
+          <p className="text-sm text-slate-500">
+            #{paciente.id} · {paciente.idade} anos · {paciente.tipoDocumento} {paciente.documento}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button type="submit" disabled={salvando}>{salvando ? 'Salvando...' : 'Cadastrar e gerar acesso'}</Button>
-          <Button type="button" variant="secondary" onClick={() => setAberto(false)}>Cancelar</Button>
+        <div className="flex items-center gap-2">
+          {paciente.alergias ? <Badge tone="red">{paciente.alergias}</Badge> : <Badge tone="green">Sem alergias</Badge>}
+          <Button variant="secondary" onClick={onLimpar}>Trocar</Button>
         </div>
-      </form>
+      </div>
     </Card>
   )
 }
 
-// Credenciais geradas, exibidas com destaque (precisam ser anotadas/repassadas).
-function Credenciais({ cred }) {
+function SeletorProblemas({ especialidade, titulo, selecionados, onToggle }) {
+  const [problemas, setProblemas] = useState(null)
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    if (!especialidade?.id) return
+    setProblemas(null)
+    apiGet(`/especialidades/${especialidade.id}/problemas`)
+      .then(setProblemas)
+      .catch((e) => setErro(e.message))
+  }, [especialidade?.id])
+
+  if (!especialidade) return null
+  if (erro) return <Alert>{erro}</Alert>
+  if (!problemas) return <Spinner label="Carregando problemas clinicos..." />
+
   return (
-    <Alert tone="teal">
-      <p className="font-semibold">Acesso do paciente criado — anote e repasse:</p>
-      <p className="mt-1 font-mono text-sm">
-        login: <strong>{cred.login}</strong> &nbsp;•&nbsp; senha: <strong>{cred.senha}</strong>
-      </p>
-    </Alert>
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-700">{titulo}</p>
+        <Badge tone="slate">{especialidade.nome}</Badge>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {problemas.map((p) => {
+          const ativo = selecionados.some((s) => s.id === p.id)
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onToggle(p, especialidade)}
+              className={`rounded-lg border px-3 py-3 text-left text-sm transition ${
+                ativo
+                  ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20 dark:bg-teal-950/50'
+                  : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-700 dark:bg-slate-900'
+              }`}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-medium text-slate-800">{p.nome}</span>
+                <Badge tone={tomRisco(classePorPeso(p.pesoRisco))}>{classePorPeso(p.pesoRisco)}</Badge>
+              </span>
+              {p.exameSugerido && <span className="mt-1 block text-xs text-slate-500">{p.exameSugerido}</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
-// --- Passo 2: registrar triagem (checklist -> classificacao automatica) -
-function FormTriagem({ paciente, onRegistrada }) {
-  const [checklist, setChecklist] = useState(null)
-  const [marcados, setMarcados] = useState({}) // { chave: true }
-  const [v, setV] = useState({
-    tipo: 1, queixa: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '',
-  })
+function ResumoClinico({ selecionados }) {
+  const maiorPeso = selecionados.reduce((max, p) => Math.max(max, p.pesoRisco), 1)
+  const classificacao = classePorPeso(maiorPeso)
+  const exames = [...new Set(selecionados.map((p) => p.exameSugerido).filter(Boolean))]
+  const porEspecialidade = useMemo(() => {
+    const mapa = new Map()
+    selecionados.forEach((p) => mapa.set(p.especialidadeNome, (mapa.get(p.especialidadeNome) || 0) + p.pesoRisco))
+    return [...mapa.entries()].sort((a, b) => b[1] - a[1])
+  }, [selecionados])
+
+  return (
+    <Card className="p-5">
+      <p className="text-sm font-semibold text-slate-700">Resumo calculado</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <p className="text-xs text-slate-500">Risco</p>
+          <div className="mt-1"><Badge tone={tomRisco(classificacao)}>{classificacao}</Badge></div>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <p className="text-xs text-slate-500">Prioridade</p>
+          <p className="mt-1 text-lg font-bold text-slate-900">{maiorPeso}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <p className="text-xs text-slate-500">Especialidade provavel</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{porEspecialidade[0]?.[0] || 'A definir'}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {exames.length ? exames.map((e) => <Badge key={e} tone="sky">{e}</Badge>) : <Badge>Sem exame sugerido</Badge>}
+      </div>
+    </Card>
+  )
+}
+
+function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
+  const [agenda, setAgenda] = useState({ data: '', horario: '', especialidade: avaliacao?.especialidadeProvavel || '' })
+  const [msg, setMsg] = useState('')
+  const [erro, setErro] = useState('')
+
+  async function agendar(path) {
+    setMsg('')
+    setErro('')
+    try {
+      const r = await apiSend('POST', path, agenda)
+      setMsg(r?.agendado || r?.encaminhado ? 'Acao registrada com sucesso.' : r?.motivo || 'Acao processada.')
+    } catch (err) {
+      setErro(err.message)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">Avaliacao clinica</p>
+            <p className="mt-1 text-sm text-slate-500">{avaliacao.justificativa}</p>
+          </div>
+          <Badge tone={tomRisco(avaliacao.classificacao)}>{avaliacao.classificacao}</Badge>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Info label="Prioridade" value={avaliacao.prioridade} />
+          <Info label="Especialidade provavel" value={avaliacao.especialidadeProvavel} />
+          <Info label="Problemas registrados" value={triagem.problemas?.length || 0} />
+        </div>
+        <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800">
+          {avaliacao.proximosPassos}
+        </p>
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-sm font-semibold text-slate-700">Exames sugeridos</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {exames.examesSugeridos?.length
+            ? exames.examesSugeridos.map((e) => <Badge key={e.nome} tone="sky">{e.nome}</Badge>)
+            : <Badge>Sem exame sugerido</Badge>}
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-sm font-semibold text-slate-700">Acao final</p>
+        {erro && <div className="mt-3"><Alert>{erro}</Alert></div>}
+        {msg && <div className="mt-3"><Alert tone="teal">{msg}</Alert></div>}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="text-sm text-slate-600">Data
+            <input type="date" className={inputCls} value={agenda.data} onChange={(e) => setAgenda((s) => ({ ...s, data: e.target.value }))} />
+          </label>
+          <label className="text-sm text-slate-600">Horario
+            <input className={inputCls} placeholder="09:00" value={agenda.horario} onChange={(e) => setAgenda((s) => ({ ...s, horario: e.target.value }))} />
+          </label>
+          <label className="text-sm text-slate-600">Especialidade
+            <input className={inputCls} value={agenda.especialidade} onChange={(e) => setAgenda((s) => ({ ...s, especialidade: e.target.value }))} />
+          </label>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => agendar(`/triagens/${triagem.id}/agendar`)}>Agendar</Button>
+          <Button variant="secondary" onClick={() => agendar(`/triagens/${triagem.id}/encaminhar`)}>Encaminhar</Button>
+          <Link to={`/paciente/${paciente.id}`}><Button variant="secondary">Abrir ficha</Button></Link>
+          <Button variant="secondary" onClick={onNova}>Nova triagem</Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  )
+}
+
+export default function Triagem() {
+  const [paciente, setPaciente] = useState(null)
+  const [especialidades, setEspecialidades] = useState(null)
+  const [principalId, setPrincipalId] = useState('')
+  const [suspeitaId, setSuspeitaId] = useState('')
+  const [selecionados, setSelecionados] = useState([])
+  const [dados, setDados] = useState({ queixa: '', observacoes: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '' })
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [resultado, setResultado] = useState(null)
 
-  // Checklist e a fonte de verdade (vem do backend, com nivel por item).
   useEffect(() => {
-    apiGet('/triagem/checklist').then(setChecklist).catch((e) => setErro(e.message))
+    apiGet('/especialidades').then((rows) => {
+      setEspecialidades(rows)
+      setPrincipalId(String(rows[0]?.id || ''))
+    }).catch((e) => setErro(e.message))
   }, [])
 
-  function set(k, val) { setV((s) => ({ ...s, [k]: val })) }
-  function toggle(chave) { setMarcados((m) => ({ ...m, [chave]: !m[chave] })) }
+  const principal = especialidades?.find((e) => String(e.id) === String(principalId))
+  const suspeita = especialidades?.find((e) => String(e.id) === String(suspeitaId))
 
-  // Sugestao do sistema: o discriminador mais grave marcado vence.
-  const nivelSugerido = checklist
-    ? checklist.filter((i) => marcados[i.chave]).reduce((max, i) => Math.max(max, i.nivel), 0)
-    : 0
-  const NIVEL_CLASSE = { 5: 'Vermelho', 4: 'Laranja', 3: 'Amarelo', 2: 'Verde', 1: 'Azul', 0: 'Azul' }
-  const classeSugerida = NIVEL_CLASSE[nivelSugerido]
+  function setCampo(k, v) {
+    setDados((s) => ({ ...s, [k]: v }))
+  }
 
-  async function submit(e) {
+  function toggleProblema(problema, especialidade) {
+    setSelecionados((rows) => {
+      if (rows.some((p) => p.id === problema.id)) return rows.filter((p) => p.id !== problema.id)
+      return [...rows, { ...problema, especialidadeNome: especialidade.nome, especialidadeId: especialidade.id }]
+    })
+  }
+
+  async function registrar(e) {
     e.preventDefault()
     setErro('')
+    if (!paciente) return setErro('Selecione o paciente.')
+    if (!principal) return setErro('Escolha a especialidade principal.')
+    if (!selecionados.length) return setErro('Selecione ao menos um problema ou sintoma.')
     setSalvando(true)
     try {
-      const itens = Object.keys(marcados).filter((k) => marcados[k]).join(',')
-      await apiSend('POST', '/triagens', { paciente_id: paciente.id, ...v, itens })
-      onRegistrada()
+      const r = await apiSend('POST', '/triagens', {
+        paciente_id: paciente.id,
+        especialidade_principal_id: principal.id,
+        ...dados,
+      })
+      const triagemId = r.triagemId || r.id
+      for (const p of selecionados) {
+        await apiSend('POST', `/triagens/${triagemId}/problemas`, {
+          problema_id: p.id,
+          principal: p.especialidadeId === principal.id ? '1' : '0',
+        })
+      }
+      const [triagem, avaliacao, exames] = await Promise.all([
+        apiGet(`/triagens/${triagemId}`),
+        apiGet(`/triagens/${triagemId}/avaliacao`),
+        apiGet(`/triagens/${triagemId}/exames-sugeridos`),
+      ])
+      setResultado({ triagem, avaliacao, exames })
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -226,220 +322,107 @@ function FormTriagem({ paciente, onRegistrada }) {
     }
   }
 
-  if (!checklist) return <Spinner label="Carregando checklist..." />
-
-  return (
-    <Card className="p-5">
-      <form onSubmit={submit} className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-slate-700">Registrar triagem</p>
-          <span className="text-sm text-slate-500">
-            Classificacao sugerida:{' '}
-            <Badge tone={tomRisco(classeSugerida)}>{classeSugerida}</Badge>
-          </span>
-        </div>
-        {erro && <Alert>{erro}</Alert>}
-
-        <div>
-          <p className="mb-2 text-sm text-slate-600">
-            Marque os sinais/sintomas presentes — o sistema classifica o risco
-            automaticamente.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {checklist.map((i) => (
-              <label
-                key={i.chave}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={!!marcados[i.chave]}
-                  onChange={() => toggle(i.chave)}
-                />
-                <span className="flex-1">{i.rotulo}</span>
-                <Badge tone={tomRisco(NIVEL_CLASSE[i.nivel])}>{NIVEL_CLASSE[i.nivel]}</Badge>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm text-slate-600">Especialidade provavel
-            <select className={inputCls} value={v.tipo} onChange={(e) => set('tipo', Number(e.target.value))}>
-              {TIPOS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
-            </select>
-          </label>
-          <label className="text-sm text-slate-600 lg:col-span-2">Queixa principal
-            <input className={inputCls} value={v.queixa} onChange={(e) => set('queixa', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Pressao
-            <input className={inputCls} placeholder="120/80" value={v.pressao} onChange={(e) => set('pressao', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Temperatura
-            <input className={inputCls} placeholder="36.5" value={v.temperatura} onChange={(e) => set('temperatura', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Freq. cardiaca
-            <input className={inputCls} placeholder="80" value={v.freq_cardiaca} onChange={(e) => set('freq_cardiaca', e.target.value)} />
-          </label>
-          <label className="text-sm text-slate-600">Saturacao
-            <input className={inputCls} placeholder="98" value={v.saturacao} onChange={(e) => set('saturacao', e.target.value)} />
-          </label>
-        </div>
-        <Button type="submit" disabled={salvando}>{salvando ? 'Registrando...' : 'Registrar triagem'}</Button>
-      </form>
-    </Card>
-  )
-}
-
-// --- Passo 3: proximo passo (risco, sugestoes, agendar) ----------------
-function ProximoPasso({ paciente }) {
-  const [aval, setAval] = useState(null)
-  const [medicos, setMedicos] = useState(null)
-  const [exames, setExames] = useState(null)
-  const [erro, setErro] = useState('')
-  const [agenda, setAgenda] = useState({ data: '', horario: '' })
-  const [resultado, setResultado] = useState('')
-
-  // Carrega avaliacao/sugestoes uma vez (apos a triagem registrada).
-  useEffect(() => {
-    apiGet(`/triagem/${paciente.id}/avaliacao`).then(setAval).catch((e) => setErro(e.message))
-    apiGet(`/triagem/${paciente.id}/medicos`).then(setMedicos).catch(() => { })
-    apiGet(`/triagem/${paciente.id}/exames`).then(setExames).catch(() => { })
-  }, [paciente.id])
-
-  async function agendar(e) {
-    e.preventDefault()
-    setResultado('')
-    try {
-      const r = await apiSend('POST', `/triagem/${paciente.id}/agendar`, agenda)
-      let msg = `Agendado com medico #${r.medicoId} em ${r.data} ${r.horario}.`
-      if (r.preempcao && r.realocado) {
-        const re = r.realocado
-        msg += re.reagendado
-          ? ` Caso de menor prioridade (paciente #${re.pacienteId}) foi realocado para ${re.regiaoNome || 'outra RA'} (medico #${re.medicoId}).`
-          : ` Caso de menor prioridade (paciente #${re.pacienteId}) foi deslocado, mas nao havia medico livre em outra RA.`
-      }
-      setResultado(msg)
-    } catch (err) {
-      setResultado(err.status === 409 ? 'Sem medico/horario disponivel.' : err.message)
-    }
-  }
-
-  if (erro) return <Alert>{erro}</Alert>
-  if (!aval) return <Spinner label="Avaliando triagem..." />
-
-  return (
-    <Card className="p-5 space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm font-semibold text-slate-700">Risco:</span>
-        <Badge tone={tomRisco(aval.classificacao)}>{aval.classificacao}</Badge>
-        <span className="text-sm text-slate-500">
-          Prioridade {aval.prioridade} • Especialidade provavel:{' '}
-          <strong>{aval.especialidadeProvavel}</strong>
-        </span>
-      </div>
-
-      <div>
-        <p className="text-sm font-semibold text-slate-700">Medicos sugeridos</p>
-        {medicos?.medicos?.length ? (
-          <ul className="mt-1 flex flex-wrap gap-2">
-            {medicos.medicos.map((m) => (
-              <li key={m.id}><Badge tone="teal">{m.nome} • {m.especialidade}</Badge></li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-slate-400">Nenhum medico disponivel na regiao/especialidade.</p>
-        )}
-      </div>
-
-      <div>
-        <p className="text-sm font-semibold text-slate-700">Exames sugeridos</p>
-        {exames?.examesSugeridos?.length ? (
-          <ul className="mt-1 flex flex-wrap gap-2">
-            {exames.examesSugeridos.map((ex) => <li key={ex}><Badge tone="sky">{ex}</Badge></li>)}
-          </ul>
-        ) : (
-          <p className="text-sm text-slate-400">Sem exames sugeridos.</p>
-        )}
-      </div>
-
-      <div>
-        <p className="text-sm font-semibold text-slate-700">Proximo passo: agendar atendimento</p>
-        <form onSubmit={agendar} className="mt-2 flex flex-wrap items-end gap-2">
-          <label className="text-sm text-slate-600">Data
-            <input type="date" className={`${inputCls} w-auto`} value={agenda.data} onChange={(e) => setAgenda((a) => ({ ...a, data: e.target.value }))} required />
-          </label>
-          <label className="text-sm text-slate-600">Horario
-            <input className={`${inputCls} w-auto`} placeholder="09:00" value={agenda.horario} onChange={(e) => setAgenda((a) => ({ ...a, horario: e.target.value }))} required />
-          </label>
-          <Button type="submit">Agendar</Button>
-        </form>
-        {resultado && <p className="mt-2 text-sm text-slate-600">{resultado}</p>}
-      </div>
-    </Card>
-  )
-}
-
-export default function Triagem() {
-  const [paciente, setPaciente] = useState(null)
-  const [cred, setCred] = useState(null)
-  const [registrada, setRegistrada] = useState(false)
-
-  function selecionar(p, credenciais = null) {
-    setPaciente(p)
-    setCred(credenciais)
-    setRegistrada(false)
-  }
-
   function reiniciar() {
     setPaciente(null)
-    setCred(null)
-    setRegistrada(false)
+    setSelecionados([])
+    setDados({ queixa: '', observacoes: '', pressao: '', temperatura: '', freq_cardiaca: '', saturacao: '' })
+    setResultado(null)
+    setErro('')
   }
 
+  if (!especialidades) return <Spinner label="Carregando catalogo clinico..." />
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="Triagem"
-        subtitle="Busque ou cadastre o paciente, classifique o risco e defina o proximo passo."
-        actions={paciente && <Button variant="secondary" onClick={reiniciar}>Nova triagem</Button>}
+        title="Triagem clinica"
+        subtitle="Fluxo guiado para profissional autorizado, com risco e encaminhamento calculados pelos sinais selecionados."
+        actions={paciente && !resultado && <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>}
       />
 
-      {!paciente ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <BuscaPaciente onSelecionar={(p) => selecionar(p)} />
-          <NovoPaciente onCriado={(p, c) => selecionar(p, c)} />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {cred && <Credenciais cred={cred} />}
+      {erro && <Alert>{erro}</Alert>}
+      {!paciente && <BuscaPaciente onSelecionar={setPaciente} />}
 
+      {paciente && <PainelPaciente paciente={paciente} onLimpar={reiniciar} />}
+
+      {paciente && !resultado && (
+        <form onSubmit={registrar} className="space-y-5">
           <Card className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold text-slate-900">{paciente.nome}</p>
-                <p className="text-sm text-slate-500">
-                  {paciente.idade} anos • {paciente.tipoDocumento} {paciente.documento}
-                </p>
-              </div>
-              {paciente.alergias
-                ? <Badge tone="red">⚠️ {paciente.alergias}</Badge>
-                : <Badge tone="green">Sem alergias</Badge>}
+            <p className="text-sm font-semibold text-slate-700">2. Especialidade e sinais</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="text-sm text-slate-600">Especialidade principal
+                <select className={inputCls} value={principalId} onChange={(e) => setPrincipalId(e.target.value)}>
+                  {especialidades.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                </select>
+              </label>
+              <label className="text-sm text-slate-600">Adicionar suspeita de outra especialidade
+                <select className={inputCls} value={suspeitaId} onChange={(e) => setSuspeitaId(e.target.value)}>
+                  <option value="">Nenhuma</option>
+                  {especialidades.filter((e) => String(e.id) !== String(principalId)).map((e) => (
+                    <option key={e.id} value={e.id}>{e.nome}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 space-y-5">
+              <SeletorProblemas
+                titulo="Problemas da especialidade principal"
+                especialidade={principal}
+                selecionados={selecionados}
+                onToggle={toggleProblema}
+              />
+              <SeletorProblemas
+                titulo="Suspeita adicional"
+                especialidade={suspeita}
+                selecionados={selecionados}
+                onToggle={toggleProblema}
+              />
             </div>
           </Card>
 
-          {!registrada ? (
-            <FormTriagem paciente={paciente} onRegistrada={() => setRegistrada(true)} />
+          <Card className="p-5">
+            <p className="text-sm font-semibold text-slate-700">3. Queixa, sinais vitais e observacoes</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <label className="md:col-span-2 text-sm text-slate-600">Queixa principal
+                <input className={inputCls} value={dados.queixa} onChange={(e) => setCampo('queixa', e.target.value)} />
+              </label>
+              <label className="text-sm text-slate-600">Pressao
+                <input className={inputCls} value={dados.pressao} onChange={(e) => setCampo('pressao', e.target.value)} />
+              </label>
+              <label className="text-sm text-slate-600">Temperatura
+                <input className={inputCls} value={dados.temperatura} onChange={(e) => setCampo('temperatura', e.target.value)} />
+              </label>
+              <label className="text-sm text-slate-600">Freq. cardiaca
+                <input className={inputCls} value={dados.freq_cardiaca} onChange={(e) => setCampo('freq_cardiaca', e.target.value)} />
+              </label>
+              <label className="text-sm text-slate-600">Saturacao
+                <input className={inputCls} value={dados.saturacao} onChange={(e) => setCampo('saturacao', e.target.value)} />
+              </label>
+              <label className="md:col-span-3 text-sm text-slate-600">Observacoes
+                <textarea className={inputCls} rows={3} value={dados.observacoes} onChange={(e) => setCampo('observacoes', e.target.value)} />
+              </label>
+            </div>
+          </Card>
+
+          {selecionados.length > 0 ? (
+            <ResumoClinico selecionados={selecionados} />
           ) : (
-            <ProximoPasso paciente={paciente} />
+            <EmptyState title="Selecione problemas clinicos" description="A avaliacao aparece assim que sinais ou sintomas forem marcados." />
           )}
-        </div>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={salvando}>{salvando ? 'Registrando...' : 'Registrar triagem clinica'}</Button>
+          </div>
+        </form>
       )}
 
-      {!paciente && (
-        <EmptyState
-          title="Comece a triagem"
-          description="Selecione um paciente existente ou cadastre um novo para classificar o risco."
+      {resultado && (
+        <Resultado
+          paciente={paciente}
+          triagem={resultado.triagem}
+          avaliacao={resultado.avaliacao}
+          exames={resultado.exames}
+          onNova={reiniciar}
         />
       )}
     </div>

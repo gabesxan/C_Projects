@@ -47,22 +47,103 @@ CREATE TABLE medicos (
 CREATE TABLE triagens (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
+    profissional_id INTEGER NOT NULL DEFAULT 0,
+    especialidade_principal_id INTEGER NOT NULL DEFAULT 0,
     tipo_triagem INTEGER NOT NULL,
     pontuacao INTEGER NOT NULL,
     classificacao TEXT NOT NULL,
+    prioridade INTEGER NOT NULL DEFAULT 0,
     itens TEXT NOT NULL DEFAULT '',
     justificativa TEXT NOT NULL DEFAULT '',
     queixa TEXT NOT NULL DEFAULT '',
+    observacoes TEXT NOT NULL DEFAULT '',
     pressao TEXT NOT NULL DEFAULT '',
     temperatura TEXT NOT NULL DEFAULT '',
     freq_cardiaca TEXT NOT NULL DEFAULT '',
     saturacao TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'EM_TRIAGEM',
+    data_hora TEXT NOT NULL DEFAULT (datetime('now')),
     versao INTEGER NOT NULL DEFAULT 1,
     raiz_id INTEGER NOT NULL DEFAULT 0,
     vigente INTEGER NOT NULL DEFAULT 1,
     ativo INTEGER NOT NULL,
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
+
+CREATE TABLE especialidades_clinicas (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL UNIQUE,
+    ativo INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE problemas_clinicos (
+    id INTEGER PRIMARY KEY,
+    especialidade_id INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    peso_risco INTEGER NOT NULL DEFAULT 1,
+    exame_sugerido_id INTEGER NOT NULL DEFAULT 0,
+    exame_sugerido TEXT NOT NULL DEFAULT '',
+    ativo INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (especialidade_id) REFERENCES especialidades_clinicas(id)
+);
+
+CREATE TABLE triagem_problemas (
+    id INTEGER PRIMARY KEY,
+    triagem_id INTEGER NOT NULL,
+    problema_id INTEGER NOT NULL,
+    especialidade_id INTEGER NOT NULL,
+    principal INTEGER NOT NULL DEFAULT 0,
+    observacao TEXT NOT NULL DEFAULT '',
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (triagem_id) REFERENCES triagens(id),
+    FOREIGN KEY (problema_id) REFERENCES problemas_clinicos(id),
+    FOREIGN KEY (especialidade_id) REFERENCES especialidades_clinicas(id)
+);
+
+INSERT INTO especialidades_clinicas (id, nome, ativo) VALUES
+    (1, 'Clinico Geral', 1),
+    (2, 'Ortopedia', 1),
+    (3, 'Cardiologia', 1),
+    (4, 'Pneumologia', 1),
+    (5, 'Pediatria', 1),
+    (6, 'Neurologia', 1),
+    (7, 'Gastroenterologia', 1);
+
+INSERT INTO problemas_clinicos (id, especialidade_id, nome, peso_risco, exame_sugerido_id, exame_sugerido, ativo) VALUES
+    (1, 3, 'dor no peito', 5, 2, 'Eletrocardiograma', 1),
+    (2, 3, 'falta de ar', 4, 1, 'Hemograma', 1),
+    (3, 3, 'palpitacao', 3, 2, 'Eletrocardiograma', 1),
+    (4, 3, 'pressao alta', 3, 1, 'Hemograma', 1),
+    (5, 3, 'desmaio', 4, 2, 'Eletrocardiograma', 1),
+    (6, 3, 'dor irradiando para braco', 5, 2, 'Eletrocardiograma', 1),
+    (7, 2, 'dor no joelho', 2, 3, 'Raio-X', 1),
+    (8, 2, 'fratura suspeita', 4, 3, 'Raio-X', 1),
+    (9, 2, 'dor lombar', 2, 0, '', 1),
+    (10, 2, 'torcao', 3, 3, 'Raio-X', 1),
+    (11, 2, 'limitacao de movimento', 3, 3, 'Raio-X', 1),
+    (12, 4, 'tosse persistente', 2, 1, 'Hemograma', 1),
+    (13, 4, 'falta de ar', 4, 4, 'Raio-X de torax', 1),
+    (14, 4, 'chiado no peito', 3, 4, 'Raio-X de torax', 1),
+    (15, 4, 'dor ao respirar', 4, 4, 'Raio-X de torax', 1),
+    (16, 4, 'suspeita de pneumonia', 4, 4, 'Raio-X de torax', 1),
+    (17, 5, 'febre infantil', 3, 1, 'Hemograma', 1),
+    (18, 5, 'vomito', 3, 1, 'Hemograma', 1),
+    (19, 5, 'dor abdominal', 3, 0, '', 1),
+    (20, 5, 'choro persistente', 3, 0, '', 1),
+    (21, 5, 'dificuldade respiratoria', 4, 4, 'Raio-X de torax', 1),
+    (22, 1, 'febre', 3, 1, 'Hemograma', 1),
+    (23, 1, 'mal-estar', 1, 0, '', 1),
+    (24, 1, 'dor de cabeca', 2, 0, '', 1),
+    (25, 1, 'tontura', 2, 1, 'Hemograma', 1),
+    (26, 1, 'dor abdominal', 3, 0, '', 1),
+    (27, 1, 'nausea', 2, 0, '', 1),
+    (28, 6, 'confusao mental', 4, 0, '', 1),
+    (29, 6, 'convulsao', 5, 0, '', 1),
+    (30, 6, 'fraqueza em um lado do corpo', 5, 0, '', 1),
+    (31, 7, 'dor abdominal intensa', 4, 1, 'Hemograma', 1),
+    (32, 7, 'vomitos persistentes', 3, 1, 'Hemograma', 1),
+    (33, 7, 'sangramento digestivo', 5, 1, 'Hemograma', 1);
 
 CREATE TABLE agendamentos (
     id INTEGER PRIMARY KEY,
@@ -396,6 +477,8 @@ CREATE INDEX idx_exames_medico ON exames(medico_id);
 CREATE INDEX idx_exames_paciente ON exames(paciente_id);
 CREATE INDEX idx_prescricoes_paciente ON prescricoes(paciente_id);
 CREATE INDEX idx_triagens_paciente ON triagens(paciente_id);
+CREATE INDEX idx_triagem_problemas_triagem ON triagem_problemas(triagem_id);
+CREATE INDEX idx_problemas_especialidade ON problemas_clinicos(especialidade_id);
 CREATE INDEX idx_auditoria_entidade ON auditoria(entidade, entidade_id);
 
 -- Nao permite dois pacientes ATIVOS com o mesmo CPF (documento alternativo
@@ -421,4 +504,4 @@ CREATE UNIQUE INDEX idx_exame_resultados_exame_analito
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 7;
+PRAGMA user_version = 8;

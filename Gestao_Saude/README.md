@@ -11,7 +11,7 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 ![OpenSSL](https://img.shields.io/badge/Hash-PBKDF2--HMAC--SHA256-721412?logo=openssl&logoColor=white)
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Testes](https://img.shields.io/badge/testes-20%2F20-brightgreen)
+![Testes](https://img.shields.io/badge/testes-22%2F22-brightgreen)
 ![Warnings](https://img.shields.io/badge/warnings-0-brightgreen)
 ![Licença](https://img.shields.io/badge/uso-acadêmico-blue)
 
@@ -69,7 +69,7 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 - 👥 **Login por papéis** criado pelo administrador: `ADMIN`, `CADASTRO`, `MEDICO`, `ENFERMAGEM`, `PACIENTE`.
 - 🔑 **Sessão por token** (Bearer): credenciais só no corpo do login, bloqueio por tentativas e troca de senha (obrigatória no 1º acesso).
 - 🌐 **API REST** em C puro com sockets POSIX (sem framework), **servidor concorrente** (pool de threads) e escritas via **corpo JSON**.
-- ✅ **20 suítes de teste** automatizadas com `assert.h` (+ smoke e integração HTTP), build sem warnings em `-Wall -Wextra -pedantic`.
+- ✅ **22 suítes de teste** automatizadas com `assert.h` (+ smoke e integração HTTP), build sem warnings em `-Wall -Wextra -pedantic`.
 - ♻️ **Banco reconstruível e versionado**: o schema é a fonte da verdade, o `.db` é descartável e **migrações** atualizam bancos antigos sem perder dados.
 
 ---
@@ -116,7 +116,7 @@ O backend web segue uma arquitetura em camadas, de baixo para cima. Cada camada 
 
 ```text
 Cliente HTTP
-   │  GET /triagem/1/avaliacao   (Authorization: Basic …)
+   │  GET /triagens/1/avaliacao   (Authorization: Bearer …)
    ▼
 [ api ] aceita a conexão, lê a requisição
    │
@@ -244,7 +244,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/me
 | `make cert` | Gera um certificado TLS autoassinado de desenvolvimento em `certs/` |
 | `make run-tls` | Sobe o servidor em **HTTPS** na porta 8443 (gera o cert se preciso) |
 | `make frontend` | Builda o frontend (Vite) e publica em `public/` para o servidor servir |
-| `make test` | Compila e roda as 20 suítes de teste |
+| `make test` | Compila e roda as 22 suítes de teste |
 | `make test_<nome>` | Roda uma suíte específica (ex.: `make test_triagem_service`) |
 | `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (liveness, auth e escopo por papel via `curl`) |
 | `make api-integration-test` | Executa `tests/api_integration_test.sh` (fluxos ponta a ponta encadeados) |
@@ -274,7 +274,7 @@ cd backend/web
 make test
 ```
 
-São **20 suítes** com `assert.h`. Cada uma **recria um banco de teste isolado** (`build/test_sigeh_repository.db`) a partir do schema, de modo que **não dependem de dados antigos nem do banco de produção**.
+São **22 suítes** com `assert.h`. Cada uma **recria um banco de teste isolado** (`build/test_sigeh_repository.db`) a partir do schema, de modo que **não dependem de dados antigos nem do banco de produção**.
 
 | Camada | Suítes |
 |---|---|
@@ -285,7 +285,7 @@ São **20 suítes** com `assert.h`. Cada uma **recria um banco de teste isolado*
 **Detalhes relevantes:**
 
 - Como o banco roda com **chaves estrangeiras ativas**, os testes **semeiam os registros-pai** antes dos filhos (ex.: criam a ala antes do leito, o paciente antes da triagem).
-- O `triagem_service` é testado de ponta a ponta: avaliação, sugestão de médicos, histórico, sugestão de exames, agendamento (incluindo conflito de horário) e encaminhamento.
+- O `triagem_service` é testado de ponta a ponta: avaliação, especialidades/problemas clínicos, múltiplas suspeitas, sugestão de médicos, histórico, sugestão de exames, agendamento (incluindo conflito de horário) e encaminhamento.
 - O `usuario_repository` valida criação, login único, autenticação correta/incorreta e — importante — que a **listagem nunca expõe senha/hash/salt**.
 - `sessao` cobre token de sessão, bloqueio por tentativas e troca de senha; `migracoes` valida a atualização de um banco antigo (preservando dados) e a idempotência.
 
@@ -340,11 +340,11 @@ Toda rota exige autenticação, **exceto** `GET /health`. A política de acesso 
 
 | Papel | Permissões |
 |---|---|
-| **ADMIN** | Acesso total, incluindo o cadastro de usuários (`/usuarios`). |
+| **ADMIN** | Acesso administrativo total, incluindo o cadastro de usuários (`/usuarios`); ações clínicas seguem auditadas. |
 | **CADASTRO** | CRUD completo dos cadastros: `pacientes`, `medicos`, `alas`, `leitos`. |
 | **MEDICO** | Leitura dos cadastros **+** todo o clínico (triagens, agendamentos, prontuários, exames, internações, triagem inteligente, relatórios) **+** suas rotas `/me`. Nas listas amplas, vê **apenas os próprios dados** (escopo por identidade — veja abaixo). |
-| **ENFERMAGEM** | Visão de enfermaria: **leitura** de internações, leitos e alas. |
-| **PACIENTE** | Apenas os próprios dados, via `/me` (exames e prontuários). |
+| **ENFERMAGEM** | Apoio assistencial: triagem quando permitido, operação de fila, leitos, transferências, medicação e leitura de dados clínicos necessários. |
+| **PACIENTE** | Apenas os próprios dados, via `/me` (consultas, exames, receitas, prontuários e cobranças próprias). **Paciente não cria, edita nem reclassifica triagem.** |
 
 ### Matriz de acesso (resumo)
 
@@ -353,9 +353,10 @@ Toda rota exige autenticação, **exceto** `GET /health`. A política de acesso 
 | `/usuarios` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Cadastros — leitura (`GET`) | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Cadastros — escrita (`POST`/`DELETE`) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Clínico (triagens, agend., pront., exames) | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Clínico (triagens, agend., pront., exames) | ✅ | ❌ | ✅ | parcial | ❌ |
 | Internações/leitos/alas — leitura | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Triagem inteligente + relatórios | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Triagem clínica guiada | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Relatórios | ✅ | ❌ | ✅ | ❌ | ❌ |
 | `/me` e `/me/...` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 <sub>\* CADASTRO acessa alas/leitos como parte dos cadastros; internações são clínicas.</sub>
@@ -437,10 +438,23 @@ Disponível para `triagens`, `agendamentos`, `prontuarios`, `exames`, `internaco
 | `DELETE` | `/prescricoes/{id}` | exclusão lógica (suspende a prescrição) |
 | `GET` | `/me/receitas` | PACIENTE — as próprias prescrições |
 
-### Triagem inteligente · ADMIN, MEDICO
+### Triagem clínica guiada · ADMIN, MEDICO, ENFERMAGEM
+
+Regra central: **PACIENTE não faz triagem**. O paciente acessa apenas `/me/...`; triagem é registrada por profissional autorizado e auditada.
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `GET` | `/especialidades` | Lista especialidades clínicas ativas |
+| `GET` | `/especialidades/{id}/problemas` | Lista problemas/sintomas da especialidade |
+| `POST` | `/triagens` | Cria triagem profissional: `paciente_id`, `especialidade_principal_id`, queixa/sinais |
+| `GET` | `/triagens/{id}` | Detalha triagem, problemas e sinais registrados |
+| `POST` | `/triagens/{id}/problemas` | Adiciona problema clínico: `problema_id`, `principal`, `observacao` |
+| `DELETE` | `/triagens/{id}/problemas/{problemaId}` | Remove vínculo do problema com a triagem |
+| `GET` | `/triagens/{id}/avaliacao` | Classificação, prioridade, especialidade provável, justificativa e próximos passos |
+| `GET` | `/triagens/{id}/exames-sugeridos` | Exames sugeridos pelos problemas selecionados |
+| `POST` | `/triagens/{id}/reclassificar` | Reclassifica com justificativa, preservando versão anterior |
+| `POST` | `/triagens/{id}/agendar` | `data`, `horario` — agenda a partir da triagem |
+| `POST` | `/triagens/{id}/encaminhar` | `especialidade`, `data`, `horario` — encaminha a partir da triagem |
 | `GET` | `/triagem/{pacienteId}/avaliacao` | Risco, prioridade e especialidade provável |
 | `GET` | `/triagem/{pacienteId}/medicos` | Médicos sugeridos (especialidade + região) |
 | `GET` | `/triagem/{pacienteId}/historico` | Prontuários e exames anteriores |
@@ -540,14 +554,16 @@ curl -H "Authorization: Bearer $HELENA" "$B/relatorios/indicadores"
 O fluxo coberto pelo motor de decisão:
 
 ```text
-Paciente passa pela triagem
-   └─▶ calcula risco, prioridade e especialidade provável      (/triagem/{id}/avaliacao)
-       └─▶ consulta histórico: prontuários e exames anteriores  (/triagem/{id}/historico)
-           └─▶ sugere exames iniciais conforme o tipo           (/triagem/{id}/exames)
-               └─▶ encontra médicos por especialidade + região  (/triagem/{id}/medicos)
-                   └─▶ agenda com médico disponível             (POST /triagem/{id}/agendar)
-                       └─▶ ou encaminha para outra especialidade (POST /triagem/{id}/encaminhar)
+Profissional autorizado inicia triagem
+   └─▶ escolhe especialidade principal                         (/especialidades)
+       └─▶ seleciona problemas/sintomas da especialidade        (/especialidades/{id}/problemas)
+           └─▶ adiciona suspeitas de outras especialidades      (/triagens/{id}/problemas)
+               └─▶ calcula risco, prioridade e especialidade    (/triagens/{id}/avaliacao)
+                   └─▶ sugere exames pelos problemas            (/triagens/{id}/exames-sugeridos)
+                       └─▶ agenda ou encaminha                  (POST /triagens/{id}/...)
 ```
+
+O paciente não executa essa etapa. No frontend, o paciente vê carteirinha digital, próximas consultas, exames/resultados, receitas, cobranças próprias, orientações, dicas de exames e Fale Conosco. Pedido de ajuda ou consulta comum não é chamado de triagem.
 
 **Mapa tipo de triagem → especialidade:**
 
@@ -558,6 +574,8 @@ Paciente passa pela triagem
 | Cardiologia | 3 | Cardiologia |
 | Pneumologia | 4 | Pneumologia |
 | Pediatria | 5 | Pediatria |
+| Neurologia | 6 | Neurologia |
+| Gastroenterologia | 7 | Gastroenterologia |
 
 **Mapa tipo → exames iniciais sugeridos:**
 
@@ -577,7 +595,7 @@ Paciente passa pela triagem
 
 ## 🗃️ Modelo de domínio
 
-Dez tabelas em [`schema_v3.sql`](backend/data/schema_v3.sql). Campos por entidade:
+O schema principal em [`schema_v3.sql`](backend/data/schema_v3.sql) cobre cadastros, usuários, triagem clínica, agenda, prontuário, exames, internação, laboratório e financeiro. Campos principais por entidade:
 
 <details>
 <summary><b>Pacientes, Médicos e Usuários</b></summary>
@@ -591,7 +609,10 @@ Dez tabelas em [`schema_v3.sql`](backend/data/schema_v3.sql). Campos por entidad
 <details>
 <summary><b>Triagem, Agendamento, Prontuário e Exame</b></summary>
 
-**`triagens`** — `id`, `paciente_id` (FK), `tipo_triagem`, `pontuacao`, `classificacao`, `ativo`
+**`triagens`** — `id`, `paciente_id` (FK), `profissional_id`, `especialidade_principal_id`, `tipo_triagem`, `pontuacao`, `classificacao`, `prioridade`, `queixa`, `observacoes`, `status`, `versao`, `vigente`, `ativo`
+**`especialidades_clinicas`** — `id`, `nome`, `ativo`
+**`problemas_clinicos`** — `id`, `especialidade_id`, `nome`, `peso_risco`, `exame_sugerido_id`, `exame_sugerido`, `ativo`
+**`triagem_problemas`** — `id`, `triagem_id`, `problema_id`, `especialidade_id`, `principal`, `observacao`, `ativo`
 **`agendamentos`** — `id`, `paciente_id` (FK), `medico_id` (FK), `data`, `horario`, `status`
 **`prontuarios`** — `id`, `paciente_id` (FK), `medico_id` (FK), `data`, `observacoes`, `diagnostico`, `conduta`, `alerta_importante`, `ativo`
 **`exames`** — `id`, `paciente_id` (FK), `medico_id` (FK), `prontuario_id` (FK), `tipo_exame`, `data_solicitacao`, `data_resultado`, `resultado`, `status`, `urgente`, `ativo`
@@ -676,9 +697,9 @@ Adicionar uma **nova entidade** com endpoint segue sempre o mesmo padrão:
 Concluído nas etapas v3:
 
 - 🔐 **Autenticação real + papéis** — PBKDF2, sem "entrar como perfil"; gestão de usuários (ADMIN) e auditoria.
-- 🖥️ **Frontend hospitalar** — React + Vite + Tailwind: login, layout com navegação por papel, dashboards por papel, telas de Usuários, Auditoria, Acesso negado.
+- 🖥️ **Frontend hospitalar** — React + Vite + Tailwind: login, layout com navegação por papel, dashboards por papel, tema claro/escuro persistido, telas de Usuários, Auditoria, Acesso negado.
 - 🧑‍⚕️ **Pacientes** — nascimento + idade calculada, CPF único entre ativos, documento alternativo, responsável de menor, alergias; tela de detalhe com histórico.
-- 🚑 **Triagem como fluxo principal** — buscar/cadastrar paciente gerando **usuário PACIENTE com credenciais automáticas**, risco, sinais vitais, sugestões e próximo passo.
+- 🚑 **Triagem clínica guiada** — feita por profissional autorizado, com especialidades, problemas por especialidade, múltiplas suspeitas, risco/prioridade recalculados, exames sugeridos e próximos passos.
 - 🗓️ **Regras clínicas** — conflito de agenda, cancelamento/suspensão com motivo, conduta obrigatória, máquina de estados de exame, checagem de alergia na prescrição.
 - 🛏️ **Internações e leitos** — status de leito com histórico, ocupação, admissão/transferência/alta acopladas ao leito.
 - 📈 **Relatórios** — ocupação de leitos, triagens por classificação, internações por status, distribuição e período.
@@ -703,7 +724,7 @@ Próximos passos (fora do escopo atual):
 - O backend web demonstra, em C básico, conceitos de **arquitetura em camadas, acesso a dados, regras de negócio, API HTTP e autenticação** — sem frameworks.
 - A primeira versão era um app de **terminal** (CLI, dados em memória); a triagem já alimentava o agendamento por especialidade, região e disponibilidade — a semente da triagem inteligente que a V2 expandiu para a web. Esse protótipo foi descontinuado e seu histórico está preservado no git.
 - Artefatos gerados (binários, `*.db`, `*.o`) ficam **fora** do versionamento; o **schema** é a fonte da verdade e o banco é sempre reconstruível a partir dele — com **migrações versionadas** que atualizam bancos existentes sem perder dados.
-- Todo o código compila com `-Wall -Wextra -pedantic` **sem warnings**, e as 20 suítes de teste unitário passam (mais o smoke test e o teste de integração HTTP).
+- Todo o código compila com `-Wall -Wextra -pedantic` **sem warnings**, e as 22 suítes de teste unitário passam (mais o smoke test e o teste de integração HTTP).
 
 ### 🔑 Credenciais de exemplo (apos `make seed`)
 

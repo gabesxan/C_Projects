@@ -550,6 +550,7 @@ static int ehClinico(const char *caminho)
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
            comecaCom(caminho, "/prontuarios") || comecaCom(caminho, "/exames") ||
            comecaCom(caminho, "/internacoes") || comecaCom(caminho, "/triagem/") ||
+           comecaCom(caminho, "/especialidades") ||
            comecaCom(caminho, "/prescricoes") || comecaCom(caminho, "/relatorios");
 }
 
@@ -640,11 +641,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
                    (strcmp(metodo, "POST") == 0 && terminaCom(caminho, "/administrar"));
         }
 
-        /* Acompanhamento de alas/medicos e consulta ao catalogo do laboratorio
-         * (analitos/paineis, para coleta): somente leitura. */
+        /* Acompanhamento de alas/medicos, catalogo clinico e catalogo do
+         * laboratorio (analitos/paineis, para coleta): somente leitura. */
         return strcmp(metodo, "GET") == 0 &&
                (comecaCom(caminho, "/alas") ||
                 comecaCom(caminho, "/medicos") ||
+                comecaCom(caminho, "/especialidades") ||
                 comecaCom(caminho, "/analitos") ||
                 comecaCom(caminho, "/paineis"));
     }
@@ -1038,6 +1040,154 @@ static void rotaTriagemExames(int cliente, int paciente_id)
     }
 
     free(json);
+}
+
+static void rotaProblemasEspecialidade(int cliente, int especialidade_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        triagem_repo_problemas_por_especialidade_json(especialidade_id, json,
+                                                      TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"especialidade nao encontrada\"}");
+    }
+
+    free(json);
+}
+
+static void rotaDetalharTriagem(int cliente, int id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && triagem_repo_detalhar_json(id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"triagem nao encontrada\"}");
+    }
+
+    free(json);
+}
+
+static void rotaAvaliacaoTriagem(int cliente, int id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        triagem_service_avaliar_triagem_json(id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"triagem nao encontrada ou sem avaliacao\"}");
+    }
+
+    free(json);
+}
+
+static void rotaExamesTriagem(int cliente, int id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        triagem_service_sugerir_exames_triagem_json(id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"triagem nao encontrada\"}");
+    }
+
+    free(json);
+}
+
+static void rotaAdicionarProblemaTriagem(int cliente, int id,
+                                         const char *consulta, const Sessao *s)
+{
+    char problemaId[16];
+    char principal[16];
+    char observacao[256];
+    int ok;
+
+    extrairParam(consulta, "problema_id", problemaId, sizeof(problemaId));
+    extrairParam(consulta, "principal", principal, sizeof(principal));
+    extrairParam(consulta, "observacao", observacao, sizeof(observacao));
+
+    ok = triagem_repo_adicionar_problema(id, atoi(problemaId),
+                                         strcmp(principal, "true") == 0 ||
+                                         strcmp(principal, "1") == 0,
+                                         observacao) == 1;
+    if (ok)
+    {
+        triagem_service_recalcular_triagem(id);
+        auditar(s, "TRIAGEM_PROBLEMA", "triagem", id, problemaId);
+        responder(cliente, "201 Created", "{\"status\":\"adicionado\"}");
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"problema ou triagem invalidos\"}");
+    }
+}
+
+static void rotaRemoverProblemaTriagem(int cliente, int id, int problema_id,
+                                       const Sessao *s)
+{
+    if (triagem_repo_remover_problema(id, problema_id) == 1)
+    {
+        char detalhe[64];
+        triagem_service_recalcular_triagem(id);
+        snprintf(detalhe, sizeof(detalhe), "problema=%d", problema_id);
+        auditar(s, "TRIAGEM_PROBLEMA_REMOVIDO", "triagem", id, detalhe);
+        responder(cliente, "200 OK", "{\"status\":\"removido\"}");
+    }
+    else
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"problema nao vinculado a triagem\"}");
+    }
+}
+
+static void rotaTriagemAgendar(int cliente, int paciente_id, const char *consulta);
+static void rotaTriagemEncaminhar(int cliente, int paciente_id, const char *consulta);
+
+static void rotaTriagemIdAgendar(int cliente, int id, const char *consulta)
+{
+    int pacienteId = 0;
+
+    if (triagem_repo_paciente_id(id, &pacienteId) == 0)
+    {
+        responder(cliente, "404 Not Found", "{\"erro\":\"triagem nao encontrada\"}");
+        return;
+    }
+
+    rotaTriagemAgendar(cliente, pacienteId, consulta);
+}
+
+static void rotaTriagemIdEncaminhar(int cliente, int id, const char *consulta)
+{
+    int pacienteId = 0;
+
+    if (triagem_repo_paciente_id(id, &pacienteId) == 0)
+    {
+        responder(cliente, "404 Not Found", "{\"erro\":\"triagem nao encontrada\"}");
+        return;
+    }
+
+    rotaTriagemEncaminhar(cliente, pacienteId, consulta);
 }
 
 static void rotaTriagemAgendar(int cliente, int paciente_id, const char *consulta)
@@ -1522,20 +1672,27 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
 {
     char pacienteId[16];
     char tipo[16];
+    char especialidadeId[16];
     char itens[512];
     char queixa[256];
+    char observacoes[256];
     char pressao[32];
     char temperatura[32];
     char freqCardiaca[32];
     char saturacao[32];
     char classificacao[32];
     int nivel = 0;
-    int ok;
+    int novoId;
+    int principalId;
+    int profissionalId;
 
     extrairParam(consulta, "paciente_id", pacienteId, sizeof(pacienteId));
     extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "especialidade_principal_id", especialidadeId,
+                 sizeof(especialidadeId));
     extrairParam(consulta, "itens", itens, sizeof(itens));
     extrairParam(consulta, "queixa", queixa, sizeof(queixa));
+    extrairParam(consulta, "observacoes", observacoes, sizeof(observacoes));
     extrairParam(consulta, "pressao", pressao, sizeof(pressao));
     extrairParam(consulta, "temperatura", temperatura, sizeof(temperatura));
     extrairParam(consulta, "freq_cardiaca", freqCardiaca, sizeof(freqCardiaca));
@@ -1546,16 +1703,36 @@ static void rotaCriarTriagem(int cliente, const char *consulta, const Sessao *s)
     triagem_service_classificar(itens, classificacao, sizeof(classificacao),
                                 &nivel);
 
-    ok = triagem_repo_criar_completa(atoi(pacienteId), atoi(tipo), nivel,
-                                     classificacao, itens, queixa, pressao,
-                                     temperatura, freqCardiaca, saturacao) == 1;
-
-    if (ok)
+    principalId = atoi(especialidadeId);
+    if (principalId <= 0)
     {
-        auditar(s, "TRIAGEM", "triagem", atoi(pacienteId), classificacao);
+        principalId = atoi(tipo);
     }
+    if (principalId <= 0)
+    {
+        principalId = 1;
+    }
+    profissionalId = s->medico_id > 0 ? s->medico_id : s->usuario_id;
 
-    responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para triagem\"}");
+    novoId = triagem_repo_criar_clinica(atoi(pacienteId), profissionalId,
+                                        principalId, nivel, classificacao,
+                                        itens, queixa, observacoes, pressao,
+                                        temperatura, freqCardiaca, saturacao);
+
+    if (novoId > 0)
+    {
+        char corpo[96];
+        auditar(s, "TRIAGEM", "triagem", novoId, classificacao);
+        snprintf(corpo, sizeof(corpo),
+                 "{\"status\":\"criado\",\"id\":%d,\"triagemId\":%d}",
+                 novoId, novoId);
+        responder(cliente, "201 Created", corpo);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"dados invalidos para triagem\"}");
+    }
 }
 
 static void rotaCriarCheckin(int cliente, const char *consulta, const Sessao *s)
@@ -2221,7 +2398,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/triagens") || comecaCom(caminho, "/triagem/") ||
            comecaCom(caminho, "/agendamentos") || comecaCom(caminho, "/prontuarios") ||
            comecaCom(caminho, "/exames") || comecaCom(caminho, "/internacoes") ||
-           comecaCom(caminho, "/prescricoes") ||
+           comecaCom(caminho, "/prescricoes") || comecaCom(caminho, "/especialidades") ||
            comecaCom(caminho, "/relatorios/") || comecaCom(caminho, "/usuarios") ||
            comecaCom(caminho, "/auditoria") || comecaCom(caminho, "/checkins") ||
            comecaCom(caminho, "/convenios") || comecaCom(caminho, "/cobrancas") ||
@@ -2245,6 +2422,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     int authPacienteId;
     int authMedicoId;
     int id;
+    int alvo;
 
     memset(&s, 0, sizeof(s));
 
@@ -2412,6 +2590,16 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaDesativarMedico(cliente, id);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
+    {
+        responderLista(cliente, triagem_repo_especialidades_json,
+                       "{\"erro\":\"falha ao listar especialidades\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/especialidades/%d/problemas", &id) == 1)
+    {
+        rotaProblemasEspecialidade(cliente, id);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/triagem/checklist") == 0)
     {
         responderLista(cliente, triagem_service_checklist_json,
@@ -2507,10 +2695,49 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarTriagem(cliente, consulta, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "avaliacao") == 0)
+    {
+        rotaAvaliacaoTriagem(cliente, id);
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "exames-sugeridos") == 0)
+    {
+        rotaExamesTriagem(cliente, id);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "agendar") == 0)
+    {
+        rotaTriagemIdAgendar(cliente, id, consulta);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "encaminhar") == 0)
+    {
+        rotaTriagemIdEncaminhar(cliente, id, consulta);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "problemas") == 0)
+    {
+        rotaAdicionarProblemaTriagem(cliente, id, consulta, &s);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 &&
+             sscanf(caminho, "/triagens/%d/problemas/%d", &id, &alvo) == 2)
+    {
+        rotaRemoverProblemaTriagem(cliente, id, alvo, &s);
+    }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/triagens/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "reclassificar") == 0)
     {
         rotaReclassificarTriagem(cliente, id, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/triagens/%d", &id) == 1)
+    {
+        rotaDetalharTriagem(cliente, id);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/triagens/%d", &id) == 1)
     {

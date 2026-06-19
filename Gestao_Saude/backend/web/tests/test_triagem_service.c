@@ -189,6 +189,29 @@ int main(void)
         assert(strstr(json, "Vermelho") != NULL);
     }
 
+    /* Triagem clinica guiada: especialidade principal + suspeita cruzada. */
+    {
+        int triagemId;
+        assert(db_resetar_com_schema(SCHEMA) == 1);
+        assert(paciente_repo_criar("Ana", "1990-01-01", "111", "CPF", "61", "F", 1, "", "") == 1);
+
+        triagemId = triagem_repo_criar_clinica(1, 10, 3, 1, "Azul", "",
+                                               "dor no peito", "", "", "", "", "");
+        assert(triagemId > 0);
+        assert(triagem_repo_adicionar_problema(triagemId, 1, 1, "") == 1);  /* Cardiologia: dor no peito */
+        assert(triagem_repo_adicionar_problema(triagemId, 13, 0, "") == 1); /* Pneumologia: falta de ar */
+
+        assert(triagem_service_avaliar_triagem_json(triagemId, json, sizeof(json)) == 1);
+        assert(strstr(json, "\"classificacao\":\"Vermelho\"") != NULL);
+        assert(strstr(json, "\"prioridade\":5") != NULL);
+        assert(strstr(json, "\"especialidadeProvavel\":\"Cardiologia\"") != NULL);
+        assert(strstr(json, "problema(s) clinico(s)") != NULL);
+
+        assert(triagem_service_sugerir_exames_triagem_json(triagemId, json, sizeof(json)) == 1);
+        assert(strstr(json, "Eletrocardiograma") != NULL);
+        assert(strstr(json, "Raio-X de torax") != NULL);
+    }
+
     /* Agendamento inteligente: preempcao por prioridade + RA mais proxima. */
     {
         assert(db_resetar_com_schema(SCHEMA) == 1);

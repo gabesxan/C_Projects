@@ -42,6 +42,10 @@ int triagem_service_historico_json(int paciente_id, char *buffer, int tamanho);
  * Retorna 1 em sucesso; 0 se nao ha triagem ativa ou em erro. */
 int triagem_service_sugerir_exames_json(int paciente_id, char *buffer, int tamanho);
 
+int triagem_service_recalcular_triagem(int triagem_id);
+int triagem_service_avaliar_triagem_json(int triagem_id, char *buffer, int tamanho);
+int triagem_service_sugerir_exames_triagem_json(int triagem_id, char *buffer, int tamanho);
+
 /* Tenta agendar o paciente com um medico disponivel da especialidade/regiao
  * indicada pela triagem, na data/horario informados. Escreve o resultado em
  * 'buffer' (JSON). Retorna 1 se agendou; 0 caso contrario. */

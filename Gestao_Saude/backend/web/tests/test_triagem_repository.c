@@ -36,6 +36,14 @@ int main(void)
     assert(json[0] == '[');
     assert(strstr(json, "Emergencia") != NULL);
 
+    assert(triagem_repo_especialidades_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "Cardiologia") != NULL);
+    assert(strstr(json, "Pneumologia") != NULL);
+
+    assert(triagem_repo_problemas_por_especialidade_json(3, json, sizeof(json)) == 1);
+    assert(strstr(json, "dor no peito") != NULL);
+    assert(strstr(json, "Eletrocardiograma") != NULL);
+
     assert(triagem_repo_criar(2, 3, 4, "Prioritario") == 1);
     antes = triagem_repo_contar_ativos();
     assert(antes == 2);
@@ -74,6 +82,30 @@ int main(void)
     assert(triagem_repo_desativar(1) == 1);
     assert(triagem_repo_contar_ativos() == antes - 1);
     assert(triagem_repo_desativar(9999) == 0);
+
+    {
+        int triagemId = triagem_repo_criar_clinica(1, 77, 3, 1, "Azul", "",
+                                                   "dor no peito", "observacao",
+                                                   "", "", "", "");
+        int pacienteId = 0;
+        int profissionalId = 0;
+
+        assert(triagemId > 0);
+        assert(triagem_repo_paciente_id(triagemId, &pacienteId) == 1);
+        assert(pacienteId == 1);
+        assert(triagem_repo_profissional_id(triagemId, &profissionalId) == 1);
+        assert(profissionalId == 77);
+        assert(triagem_repo_adicionar_problema(triagemId, 1, 1, "principal") == 1);
+        assert(triagem_repo_adicionar_problema(triagemId, 13, 0, "suspeita respiratoria") == 1);
+        assert(triagem_repo_atualizar_resultado(triagemId, 3, 5, "Vermelho") == 1);
+        assert(triagem_repo_detalhar_json(triagemId, json, sizeof(json)) == 1);
+        assert(strstr(json, "\"especialidadePrincipal\":\"Cardiologia\"") != NULL);
+        assert(strstr(json, "dor no peito") != NULL);
+        assert(strstr(json, "falta de ar") != NULL);
+        assert(triagem_repo_remover_problema(triagemId, 13) == 1);
+        assert(triagem_repo_detalhar_json(triagemId, json, sizeof(json)) == 1);
+        assert(strstr(json, "suspeita respiratoria") == NULL);
+    }
 
     printf("test_triagem_repository: OK\n");
     return 0;
