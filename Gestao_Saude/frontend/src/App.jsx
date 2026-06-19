@@ -11,6 +11,7 @@ import Leitos from './pages/Leitos'
 import Internacoes from './pages/Internacoes'
 import Relatorios from './pages/Relatorios'
 import Financeiro from './pages/Financeiro'
+import Laboratorio from './pages/Laboratorio'
 import TrocarSenha from './pages/TrocarSenha'
 import TrocarSenhaObrigatoria from './pages/TrocarSenhaObrigatoria'
 import MinhaSaude from './pages/MinhaSaude'
@@ -91,6 +92,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'MEDICO', 'ENFERMAGEM']}>
               <Internacoes />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/laboratorio"
+          element={
+            <RequireRole roles={['ADMIN', 'MEDICO']}>
+              <Laboratorio />
             </RequireRole>
           }
         />

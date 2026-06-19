@@ -11,7 +11,7 @@ const NAV = [
   { to: '/triagem', label: 'Triagem', icon: '🚑', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/r/agendamentos', label: 'Agendamentos', icon: '📅', roles: ['ADMIN', 'MEDICO'] },
   { to: '/r/prontuarios', label: 'Prontuários', icon: '📄', roles: ['ADMIN', 'MEDICO'] },
-  { to: '/r/exames', label: 'Exames', icon: '🧪', roles: ['ADMIN', 'MEDICO'] },
+  { to: '/laboratorio', label: 'Laboratório', icon: '🧪', roles: ['ADMIN', 'MEDICO'] },
   { to: '/r/prescricoes', label: 'Prescrições', icon: '💊', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/internacao', label: 'Internações', icon: '🏥', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'] },
   { to: '/enfermagem', label: 'Leitos', icon: '🛏️', roles: ['ADMIN', 'ENFERMAGEM', 'CADASTRO'] },
