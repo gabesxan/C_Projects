@@ -33,6 +33,13 @@ int exame_repo_registrar_resultado_analito(int exame_id, int analito_id,
 int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer,
                                               int tamanho);
 
+/* Igual a anterior, mas so retorna se o exame pertencer ao paciente informado
+ * (portal do paciente: cada um ve apenas os proprios resultados). 1/0. */
+int exame_repo_listar_resultados_analito_do_paciente_json(int exame_id,
+                                                          int paciente_id,
+                                                          char *buffer,
+                                                          int tamanho);
+
 /* Retifica um analito de um exame CONCLUIDO criando nova versao do exame.
  * Preserva a versao anterior e exige justificativa. 1 = ok, 0 = falha. */
 int exame_repo_retificar_resultado_analito(int exame_id, int analito_id,

@@ -510,6 +510,21 @@ request_json_and_assert "POST" "/me/solicitacoes" \
     "201" "/me/solicitacoes POST ajuda (PACIENTE)" "${PAC_TOKEN}" contains '"tipo":"AJUDA"'
 request_and_assert "/me/solicitacoes" "200" "/me/solicitacoes (PACIENTE)" "${PAC_TOKEN}" contains 'consulta comum pelo portal'
 request_and_assert "/solicitacoes-paciente" "200" "/solicitacoes-paciente (ADMIN)" "${ADMIN_TOKEN}" contains '"pacienteId":1'
+# Laudo estruturado no portal: a equipe coleta e lanca um analito fora da faixa
+# no exame 1 (paciente 1, tipo 1, painel com HGB 12-16), depois o PACIENTE ve o
+# detalhamento por analito apenas do proprio exame.
+request_json_and_assert "POST" "/exames/1/status" '{"valor":"AUTORIZADO"}' \
+    "200" "/exames/1/status AUTORIZADO" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_json_and_assert "POST" "/exames/1/status" '{"valor":"COLETADO"}' \
+    "200" "/exames/1/status COLETADO" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_json_and_assert "POST" "/exames/1/resultados-analitos" '{"analito_id":"1","valor":"18"}' \
+    "201" "/exames/1/resultados-analitos (HGB fora da faixa)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_and_assert "/me/exames/1/resultados" "200" "/me/exames/1/resultados (PACIENTE)" "${PAC_TOKEN}" contains '"foraReferencia":1'
+request_and_assert "/me/exames/1/resultados" "200" "/me/exames/1/resultados nome do analito" "${PAC_TOKEN}" contains 'Hemoglobina'
+# Posse: o PACIENTE 1 nao acessa o detalhamento de um exame de outro paciente.
+request_and_assert "/me/exames/2/resultados" "404" "/me/exames/2/resultados (exame de outro paciente)" "${PAC_TOKEN}"
+# Agendamentos do portal trazem o nome do medico (nao apenas o id).
+request_and_assert "/me/agendamentos" "200" "/me/agendamentos com nome do medico (PACIENTE)" "${PAC_TOKEN}" contains '"medicoNome":"DrSmoke"'
 # Regra critica: PACIENTE nao executa nem lista fluxo de triagem clinica.
 request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \

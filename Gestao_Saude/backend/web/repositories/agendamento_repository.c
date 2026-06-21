@@ -457,6 +457,101 @@ int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer,
     return repo_json_anexar(buffer, tamanho, &usado, "]");
 }
 
+int agendamento_repo_listar_por_paciente_detalhe_json(int paciente_id, char *buffer,
+                                                      int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    /* Mesma lista por paciente, porem com o nome e a especialidade do medico
+     * (portal do paciente: evita exibir "Medico #3"). */
+    const char *sql =
+        "SELECT a.id, a.paciente_id, a.medico_id, a.data, a.horario, a.status, "
+        "a.motivo_cancelamento, COALESCE(m.nome, ''), COALESCE(m.especialidade, '') "
+        "FROM agendamentos a "
+        "LEFT JOIN medicos m ON m.id = a.medico_id "
+        "WHERE a.paciente_id = ? ORDER BY a.id;";
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0 || paciente_id <= 0)
+    {
+        return 0;
+    }
+
+    if (db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, paciente_id);
+
+    buffer[0] = '\0';
+
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char dataJson[32];
+        char horarioJson[24];
+        char statusJson[48];
+        char motivoJson[280];
+        char medicoNomeJson[256];
+        char especialidadeJson[128];
+        char objeto[1024];
+        int id = sqlite3_column_int(stmt, 0);
+        int pacienteId = sqlite3_column_int(stmt, 1);
+        int medicoId = sqlite3_column_int(stmt, 2);
+        int escrito;
+
+        if (repo_json_escapar(dataJson, sizeof(dataJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
+            repo_json_escapar(horarioJson, sizeof(horarioJson), (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
+            repo_json_escapar(statusJson, sizeof(statusJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
+            repo_json_escapar(motivoJson, sizeof(motivoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 7)) == 0 ||
+            repo_json_escapar(especialidadeJson, sizeof(especialidadeJson), (const char *)sqlite3_column_text(stmt, 8)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"medicoNome\":%s,\"especialidade\":%s,"
+                           "\"data\":%s,\"horario\":%s,\"status\":%s,"
+                           "\"motivoCancelamento\":%s}",
+                           primeiro ? "" : ",",
+                           id, pacienteId, medicoId, medicoNomeJson, especialidadeJson,
+                           dataJson, horarioJson, statusJson, motivoJson);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+
+    return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
 int agendamento_repo_cancelar(int id, const char *motivo)
 {
     sqlite3 *db = NULL;

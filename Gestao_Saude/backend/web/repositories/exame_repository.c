@@ -987,12 +987,16 @@ int exame_repo_retificar_resultado_analito(int exame_id, int analito_id,
     return ok ? 1 : 0;
 }
 
-int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer, int tamanho)
+/* Lista os resultados estruturados de um exame. 'paciente_id' > 0 restringe ao
+ * dono do exame (portal do paciente); <= 0 nao filtra (uso interno/equipe). */
+static int listar_resultados_analito(int exame_id, int paciente_id,
+                                     char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     int usado = 0;
     int primeiro = 1;
+    int existe;
 
     if (exame_id <= 0 || buffer == NULL || tamanho <= 0)
     {
@@ -1004,21 +1008,37 @@ int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer, int ta
         return 0;
     }
 
-    if (sqlite3_prepare_v2(db,
+    /* Confirma que o exame existe (e, no portal, que e do paciente). */
+    if (paciente_id > 0)
+    {
+        if (sqlite3_prepare_v2(db,
+                "SELECT 1 FROM exames WHERE id = ? AND paciente_id = ? AND ativo = 1;",
+                -1, &stmt, NULL) != SQLITE_OK)
+        {
+            db_fechar(db);
+            return 0;
+        }
+        sqlite3_bind_int(stmt, 1, exame_id);
+        sqlite3_bind_int(stmt, 2, paciente_id);
+    }
+    else if (sqlite3_prepare_v2(db,
             "SELECT 1 FROM exames WHERE id = ? AND ativo = 1;",
             -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
     }
-    sqlite3_bind_int(stmt, 1, exame_id);
-    if (sqlite3_step(stmt) != SQLITE_ROW)
+    else
     {
-        sqlite3_finalize(stmt);
+        sqlite3_bind_int(stmt, 1, exame_id);
+    }
+    existe = sqlite3_step(stmt) == SQLITE_ROW;
+    sqlite3_finalize(stmt);
+    if (existe == 0)
+    {
         db_fechar(db);
         return 0;
     }
-    sqlite3_finalize(stmt);
 
     if (sqlite3_prepare_v2(db,
             "SELECT a.id, a.codigo, a.nome, a.unidade, a.valor_ref_min, a.valor_ref_max, "
@@ -1094,6 +1114,23 @@ int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer, int ta
     sqlite3_finalize(stmt);
     db_fechar(db);
     return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
+int exame_repo_listar_resultados_analito_json(int exame_id, char *buffer, int tamanho)
+{
+    return listar_resultados_analito(exame_id, 0, buffer, tamanho);
+}
+
+int exame_repo_listar_resultados_analito_do_paciente_json(int exame_id,
+                                                          int paciente_id,
+                                                          char *buffer,
+                                                          int tamanho)
+{
+    if (paciente_id <= 0)
+    {
+        return 0;
+    }
+    return listar_resultados_analito(exame_id, paciente_id, buffer, tamanho);
 }
 
 int exame_repo_cancelar(int id, const char *motivo)

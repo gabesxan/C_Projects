@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { apiGet, apiSend } from '../api/client'
 import { formatReais } from '../money'
-import { PageHeader, Spinner, Card, Badge, Button, EmptyState } from '../components/ui'
+import { PageHeader, Spinner, Card, Badge, Button, EmptyState, StatCard } from '../components/ui'
 import { ICONS, Icon } from '../components/icons'
 
 const STATUS_COBRANCA_TONE = {
@@ -12,6 +12,18 @@ const STATUS_COBRANCA_TONE = {
   GLOSADA: 'red',
   CANCELADA: 'slate',
 }
+
+// Abas do portal. A chave casa com o segmento da URL (/minha-saude/<chave>),
+// para que a navegacao lateral e as abas internas fiquem sempre em sincronia.
+const TABS = [
+  { key: '', label: 'Visão geral', icon: ICONS.health },
+  { key: 'consultas', label: 'Consultas', icon: ICONS.schedule },
+  { key: 'exames', label: 'Exames', icon: ICONS.lab },
+  { key: 'receitas', label: 'Receitas', icon: ICONS.prescription },
+  { key: 'prontuarios', label: 'Prontuários', icon: ICONS.record },
+  { key: 'financeiro', label: 'Financeiro', icon: ICONS.billing },
+  { key: 'solicitacoes', label: 'Solicitações', icon: ICONS.alert },
+]
 
 function useApi(path) {
   const [data, setData] = useState(null)
@@ -24,19 +36,26 @@ function useApi(path) {
   return { data, erro }
 }
 
+function Info({ label, value }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+    </div>
+  )
+}
+
 function Carteirinha({ perfil }) {
   return (
     <Card className="overflow-hidden">
-      <div className="bg-teal-700 px-5 py-4 text-white dark:bg-teal-800">
-        <div className="flex flex-col items-center justify-center gap-3 text-center">
-          <div>
-            <p className="text-xs font-semibold uppercase text-teal-100">Carteirinha digital</p>
-            <p className="mt-1 text-2xl font-bold">{perfil.nome}</p>
-            <p className="text-sm text-teal-100">Paciente #{perfil.id}</p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
-            <Icon icon={ICONS.hospital} size={24} />
-          </div>
+      <div className="flex items-center justify-between bg-teal-700 px-5 py-4 text-white dark:bg-teal-800">
+        <div>
+          <p className="text-xs font-semibold uppercase text-teal-100">Carteirinha digital</p>
+          <p className="mt-1 text-2xl font-bold">{perfil.nome}</p>
+          <p className="text-sm text-teal-100">Paciente #{perfil.id}</p>
+        </div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
+          <Icon icon={ICONS.hospital} size={24} />
         </div>
       </div>
       <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -52,203 +71,268 @@ function Carteirinha({ perfil }) {
   )
 }
 
-function Info({ label, value }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800">
-      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
-    </div>
-  )
-}
-
 function ActionCard({ icon, title, text, button, primary, onClick, disabled }) {
-  const content = (
-    <>
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-teal-700 dark:bg-slate-800 dark:text-teal-300">
+  return (
+    <Card className={`flex h-full flex-col p-5 ${disabled ? 'opacity-70' : ''}`}>
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-teal-700 dark:bg-slate-800 dark:text-teal-300">
         <Icon icon={icon} size={20} />
       </div>
       <p className="mt-4 text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
-      <p className="mx-auto mt-1 max-w-64 text-sm text-slate-500 dark:text-slate-400">{text}</p>
-      {button && (
-        <Button as="span" className="mt-4 w-full sm:w-auto" variant={primary ? 'primary' : 'secondary'}>
-          {button}
-        </Button>
-      )}
-    </>
-  )
-
-  return (
-    <Card className={`h-full p-5 text-center transition-transform hover:-translate-y-0.5 ${disabled ? 'opacity-70' : ''}`}>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className="block h-full w-full text-center disabled:cursor-not-allowed"
-      >
-        {content}
-      </button>
+      <p className="mt-1 flex-1 text-sm text-slate-500 dark:text-slate-400">{text}</p>
+      <Button className="mt-4 w-full" variant={primary ? 'primary' : 'secondary'} onClick={onClick} disabled={disabled}>
+        {button}
+      </Button>
     </Card>
   )
 }
 
-function AcoesPaciente({ feedback, erroAcao, enviando, onSolicitarAgendamento, onPedirAjuda }) {
+function ListaCards({ titulo, icon, rows, erro, render, vazio = 'Nenhum registro.' }) {
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2">
-        <ActionCard
-          icon={ICONS.schedule}
-          title="Agendar consulta comum"
-          text="Envie uma solicitacao para a equipe encontrar um horario eletivo."
-          button={enviando === 'AGENDAMENTO' ? 'Enviando...' : 'Solicitar agendamento'}
-          onClick={onSolicitarAgendamento}
-          disabled={Boolean(enviando)}
-        />
-        <ActionCard
-          icon={ICONS.alert}
-          title="Pedir atendimento"
-          text="Acione a equipe para ajuda de fluxo e orientacao. Isso nao cria triagem clinica."
-          button={enviando === 'AJUDA' ? 'Enviando...' : 'Pedir ajuda'}
-          primary
-          onClick={onPedirAjuda}
-          disabled={Boolean(enviando)}
-        />
-      </div>
-      {feedback && (
-        <Card className="border border-teal-200/70 bg-teal-50/80 px-4 py-3 text-center dark:border-teal-800/70 dark:bg-teal-950/40">
-          <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">{feedback.titulo}</p>
-          <p className="mx-auto mt-1 max-w-2xl text-xs leading-5 text-teal-800 dark:text-teal-200">
-            Protocolo #{feedback.id}. {feedback.texto}
-          </p>
-        </Card>
+    <section className="space-y-3">
+      {titulo && (
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <Icon icon={icon} className="text-teal-600" size={18} />
+          {titulo}
+        </h2>
       )}
-      {erroAcao && (
-        <Card className="border border-red-200/70 bg-red-50/80 px-4 py-3 text-center dark:border-red-800/70 dark:bg-red-950/40">
-          <p className="text-sm font-semibold text-red-900 dark:text-red-100">Nao foi possivel enviar</p>
-          <p className="mx-auto mt-1 max-w-2xl text-xs leading-5 text-red-800 dark:text-red-200">{erroAcao}</p>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-function DicasExames() {
-  const dicas = [
-    'Leve documento com foto.',
-    'Alguns exames precisam de jejum.',
-    'Confira o resultado pelo sistema.',
-    'Chegue com antecedencia.',
-  ]
-  return (
-    <Card className="p-5 text-center">
-      <div className="flex items-center justify-center gap-2">
-        <Icon icon={ICONS.lab} className="text-teal-600" size={19} />
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Dicas para exames</p>
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {dicas.map((dica) => (
-          <div key={dica} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            {dica}
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-function ListaCards({ id, titulo, icon, rows, erro, render, vazio = 'Nenhum registro.' }) {
-  return (
-    <section id={id} className="scroll-mt-24 space-y-2">
-      <h2 className="flex items-center justify-center gap-2 text-center text-sm font-semibold text-slate-700 dark:text-slate-200">
-        <Icon icon={icon} className="text-teal-600" size={18} />
-        {titulo}
-      </h2>
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {!erro && rows === null && <Spinner />}
       {!erro && Array.isArray(rows) && rows.length === 0 && (
         <EmptyState icon={icon} title={vazio} description="Quando houver novidades, elas aparecem aqui." />
       )}
       {!erro && Array.isArray(rows) && rows.length > 0 && (
-        <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {rows.map(render)}
-        </div>
+        <div className="grid gap-3 md:grid-cols-2">{rows.map(render)}</div>
       )}
     </section>
   )
 }
 
-function Cobrancas() {
-  const { data, erro } = useApi('/me/cobrancas')
+// Tabela de analitos de um exame concluido (valor, unidade, faixa e flag).
+function ResultadosAnalito({ exameId }) {
+  const [rows, setRows] = useState(null)
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    apiGet(`/me/exames/${exameId}/resultados`).then(setRows).catch((e) => setErro(e.message))
+  }, [exameId])
+
+  if (erro) return <p className="mt-3 text-xs text-red-600">{erro}</p>
+  if (rows === null) return <p className="mt-3 text-xs text-slate-400">Carregando resultados...</p>
+  if (rows.length === 0) return <p className="mt-3 text-xs text-slate-400">Sem resultados estruturados para este exame.</p>
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+          <tr>
+            <th className="px-3 py-2 font-medium">Analito</th>
+            <th className="px-3 py-2 font-medium">Resultado</th>
+            <th className="px-3 py-2 font-medium">Referência</th>
+            <th className="px-3 py-2 font-medium">Situação</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((r) => {
+            const valor = r.valorTexto || `${r.valor}${r.unidade ? ` ${r.unidade}` : ''}`
+            const faixa = r.refMin || r.refMax ? `${r.refMin} – ${r.refMax}${r.unidade ? ` ${r.unidade}` : ''}` : '—'
+            return (
+              <tr key={r.analitoId} className="text-slate-700 dark:text-slate-200">
+                <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">{r.nome}</td>
+                <td className={`px-3 py-2 font-semibold ${r.foraReferencia ? 'text-red-600 dark:text-red-400' : ''}`}>{valor}</td>
+                <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{faixa}</td>
+                <td className="px-3 py-2">
+                  <Badge tone={r.foraReferencia ? 'red' : 'green'}>{r.foraReferencia ? 'Fora da faixa' : 'Normal'}</Badge>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ExameCard({ exame }) {
+  const [aberto, setAberto] = useState(false)
+  const concluido = exame.status === 'CONCLUIDO'
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">Exame #{exame.id} · Tipo {exame.tipoExame}</p>
+        <Badge tone={concluido ? 'green' : 'amber'} icon={ICONS.lab}>{exame.status}</Badge>
+      </div>
+      {exame.resultado && <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{exame.resultado}</p>}
+      {concluido ? (
+        <>
+          <button
+            type="button"
+            className="mt-2 text-xs font-semibold text-teal-700 hover:underline dark:text-teal-300"
+            onClick={() => setAberto((v) => !v)}
+          >
+            {aberto ? 'Ocultar detalhamento' : 'Ver detalhamento por analito'}
+          </button>
+          {aberto && <ResultadosAnalito exameId={exame.id} />}
+        </>
+      ) : (
+        <p className="mt-2 text-xs text-slate-400">Resultado ainda não disponível.</p>
+      )}
+    </Card>
+  )
+}
+
+function TabBar({ active }) {
+  return (
+    <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+      {TABS.map((t) => {
+        const ativo = t.key === active
+        return (
+          <Link
+            key={t.key}
+            to={`/minha-saude${t.key ? `/${t.key}` : ''}`}
+            className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              ativo
+                ? 'bg-white text-teal-700 shadow-sm dark:bg-slate-900 dark:text-teal-300'
+                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            <Icon icon={t.icon} size={16} />
+            {t.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+function VisaoGeral({ perfil, agendamentos, exames, cobrancas }) {
+  const proxima = Array.isArray(agendamentos)
+    ? agendamentos.find((a) => a.status !== 'CANCELADO' && a.status !== 'REALIZADO')
+    : null
+  const examesConcluidos = Array.isArray(exames) ? exames.filter((e) => e.status === 'CONCLUIDO').length : 0
+  const pendentes = Array.isArray(cobrancas) ? cobrancas.filter((c) => c.status === 'PENDENTE' || c.status === 'AUTORIZADA') : []
+  const totalPendente = pendentes.reduce((soma, c) => soma + (c.valorCentavos || 0), 0)
+
+  return (
+    <div className="space-y-5">
+      <Carteirinha perfil={perfil} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          icon={ICONS.schedule}
+          label="Próxima consulta"
+          value={proxima ? `${proxima.data}` : '—'}
+          hint={proxima ? `${proxima.horario} · ${proxima.medicoNome || `Médico #${proxima.medicoId}`}` : 'Nenhuma agendada'}
+        />
+        <StatCard icon={ICONS.lab} label="Exames concluídos" value={examesConcluidos} hint="Com resultado disponível" tone="sky" />
+        <StatCard
+          icon={ICONS.billing}
+          label="Pendências"
+          value={formatReais(totalPendente)}
+          hint={`${pendentes.length} cobrança(s) em aberto`}
+          tone={totalPendente > 0 ? 'amber' : 'teal'}
+        />
+      </div>
+    </div>
+  )
+}
+
+function Consultas({ rows, erro }) {
   return (
     <ListaCards
-      titulo="Minhas cobrancas"
-      icon={ICONS.billing}
-      rows={data}
+      titulo="Minhas consultas"
+      icon={ICONS.schedule}
+      rows={rows}
       erro={erro}
-      vazio="Nenhuma cobranca pendente."
-      render={(c) => (
-        <Card key={c.id} className="p-4 text-center">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.descricao || c.origem || `Cobranca #${c.id}`}</p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.forma}{c.vencimento ? ` · vence ${c.vencimento}` : ''}</p>
-            </div>
-            <Badge tone={STATUS_COBRANCA_TONE[c.status]} icon={ICONS.billing}>{c.status}</Badge>
+      vazio="Nenhuma consulta agendada."
+      render={(a) => (
+        <Card key={a.id} className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">{a.data} às {a.horario}</p>
+            <Badge tone="sky" icon={ICONS.schedule}>{a.status}</Badge>
           </div>
-          <p className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{formatReais(c.valorCentavos)}</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{a.medicoNome || `Médico #${a.medicoId}`}</p>
+          {a.especialidade && <p className="text-xs text-slate-400">{a.especialidade}</p>}
+          {a.motivoCancelamento && <p className="mt-2 text-xs text-red-500">Motivo: {a.motivoCancelamento}</p>}
         </Card>
       )}
     />
   )
 }
 
+function Solicitacoes({ rows, erro, acoes }) {
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 md:grid-cols-2">
+        <ActionCard
+          icon={ICONS.schedule}
+          title="Agendar consulta comum"
+          text="Envie uma solicitação para a equipe encontrar um horário eletivo."
+          button={acoes.enviando === 'AGENDAMENTO' ? 'Enviando...' : 'Solicitar agendamento'}
+          onClick={() => acoes.criar('AGENDAMENTO')}
+          disabled={Boolean(acoes.enviando)}
+        />
+        <ActionCard
+          icon={ICONS.alert}
+          title="Pedir atendimento"
+          text="Acione a equipe para ajuda de fluxo e orientação. Isso não cria triagem clínica."
+          button={acoes.enviando === 'AJUDA' ? 'Enviando...' : 'Pedir ajuda'}
+          primary
+          onClick={() => acoes.criar('AJUDA')}
+          disabled={Boolean(acoes.enviando)}
+        />
+      </div>
+      {acoes.erroAcao && <p className="text-sm text-red-600">{acoes.erroAcao}</p>}
+      <ListaCards
+        titulo="Histórico de solicitações"
+        icon={ICONS.alert}
+        rows={rows}
+        erro={erro}
+        vazio="Nenhuma solicitação enviada."
+        render={(s) => (
+          <Card key={s.id} className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Protocolo #{s.id} · {s.tipo}</p>
+              <Badge tone={s.status === 'ABERTA' ? 'amber' : 'green'}>{s.status}</Badge>
+            </div>
+            {s.mensagem && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{s.mensagem}</p>}
+            <p className="mt-1 text-xs text-slate-400">{s.criadoEm}</p>
+          </Card>
+        )}
+      />
+    </div>
+  )
+}
+
 export default function MinhaSaude() {
   const location = useLocation()
-  const [feedback, setFeedback] = useState(null)
+  const active = location.pathname.split('/')[2] || ''
   const [erroAcao, setErroAcao] = useState('')
   const [enviando, setEnviando] = useState('')
+  const [recarregar, setRecarregar] = useState(0)
+
   const perfil = useApi('/me/perfil')
   const agendamentos = useApi('/me/agendamentos')
   const receitas = useApi('/me/receitas')
   const exames = useApi('/me/exames')
   const prontuarios = useApi('/me/prontuarios')
+  const cobrancas = useApi('/me/cobrancas')
+  const solicitacoes = useApi(`/me/solicitacoes?v=${recarregar}`)
 
   async function criarSolicitacao(tipo) {
     const mensagem =
       tipo === 'AGENDAMENTO'
-        ? 'Solicitacao de consulta comum pelo portal do paciente.'
+        ? 'Solicitação de consulta comum pelo portal do paciente.'
         : 'Pedido de ajuda/atendimento pelo portal do paciente.'
-
     setEnviando(tipo)
     setErroAcao('')
-    setFeedback(null)
-
     try {
-      const resposta = await apiSend('POST', '/me/solicitacoes', { tipo, mensagem })
-      setFeedback({
-        id: resposta.id,
-        titulo: tipo === 'AGENDAMENTO' ? 'Solicitacao de agendamento enviada' : 'Pedido de ajuda enviado',
-        texto:
-          tipo === 'AGENDAMENTO'
-            ? 'A equipe administrativa vai avaliar sua solicitacao e registrar o agendamento quando houver horario disponivel.'
-            : 'A equipe recebeu seu pedido de apoio. A classificacao clinica continua sendo feita apenas por profissional autorizado.',
-      })
+      await apiSend('POST', '/me/solicitacoes', { tipo, mensagem })
+      setRecarregar((v) => v + 1)
     } catch (e) {
-      setErroAcao(e.message || 'Falha de comunicacao com o backend.')
+      setErroAcao(e.message || 'Falha de comunicação com o backend.')
     } finally {
       setEnviando('')
     }
   }
-
-  useEffect(() => {
-    const secao = location.pathname.split('/')[2]
-    if (!secao) return
-    const alvo = document.getElementById(secao)
-    if (alvo) {
-      window.requestAnimationFrame(() => {
-        alvo.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      })
-    }
-  }, [location.pathname, perfil.data])
 
   if (perfil.erro) return <p className="text-sm text-red-600">{perfil.erro}</p>
   if (!perfil.data) return <Spinner />
@@ -256,91 +340,90 @@ export default function MinhaSaude() {
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader
-        title="Minha saude"
-        subtitle="Carteirinha, consultas, exames, receitas e orientacoes. A triagem clinica e feita pela equipe autorizada."
-        align="center"
+        title="Minha saúde"
+        subtitle="Carteirinha, consultas, exames, receitas e orientações. A triagem clínica é feita pela equipe autorizada."
       />
-      <div className="space-y-3">
-        <section id="carteirinha" className="scroll-mt-24">
-          <Carteirinha perfil={perfil.data} />
-        </section>
-        <section id="ajuda" className="scroll-mt-24">
-          <AcoesPaciente
-            feedback={feedback}
-            erroAcao={erroAcao}
-            enviando={enviando}
-            onSolicitarAgendamento={() => criarSolicitacao('AGENDAMENTO')}
-            onPedirAjuda={() => criarSolicitacao('AJUDA')}
-          />
-        </section>
-      </div>
-      <ListaCards
-        titulo="Proximas consultas"
-        id="consultas"
-        icon={ICONS.schedule}
-        rows={agendamentos.data}
-        erro={agendamentos.erro}
-        vazio="Nenhuma consulta agendada."
-        render={(a) => (
-          <Card key={a.id} className="p-4 text-center">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{a.data} as {a.horario}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Medico #{a.medicoId}</p>
-            <div className="mt-3 flex justify-center"><Badge tone="sky" icon={ICONS.schedule}>{a.status}</Badge></div>
-          </Card>
-        )}
-      />
-      <ListaCards
-        titulo="Meus exames e resultados"
-        id="exames"
-        icon={ICONS.lab}
-        rows={exames.data}
-        erro={exames.erro}
-        vazio="Nenhum exame pendente."
-        render={(e) => (
-          <Card key={e.id} className="p-4 text-center">
-            <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:justify-between">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Exame #{e.id} · Tipo {e.tipoExame}</p>
-              <Badge tone={e.status === 'CONCLUIDO' ? 'green' : 'amber'} icon={ICONS.lab}>{e.status}</Badge>
-            </div>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">{e.resultado || 'Resultado ainda nao disponivel.'}</p>
-          </Card>
-        )}
-      />
-      <ListaCards
-        titulo="Minhas receitas"
-        id="receitas"
-        icon={ICONS.prescription}
-        rows={receitas.data}
-        erro={receitas.erro}
-        vazio="Nenhuma receita ativa."
-        render={(r) => (
-          <Card key={r.id} className="p-4 text-center">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.medicamento}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.dosagem} · {r.frequencia}</p>
-            {r.observacoes && <p className="mx-auto mt-2 max-w-xl text-xs text-slate-500 dark:text-slate-400">{r.observacoes}</p>}
-          </Card>
-        )}
-      />
-      <ListaCards
-        titulo="Orientacoes e prontuarios"
-        id="orientacoes"
-        icon={ICONS.record}
-        rows={prontuarios.data}
-        erro={prontuarios.erro}
-        vazio="Nenhuma orientacao registrada."
-        render={(p) => (
-          <Card key={p.id} className="p-4 text-center">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{p.data}</p>
-            <p className="mx-auto mt-1 max-w-xl text-sm text-slate-500 dark:text-slate-400">{p.conduta || p.diagnostico}</p>
-          </Card>
-        )}
-      />
-      <section id="cobrancas" className="scroll-mt-24">
-        <Cobrancas />
-      </section>
-      <section id="dicas" className="scroll-mt-24">
-        <DicasExames />
-      </section>
+      <TabBar active={active} />
+
+      {active === '' && (
+        <VisaoGeral perfil={perfil.data} agendamentos={agendamentos.data} exames={exames.data} cobrancas={cobrancas.data} />
+      )}
+
+      {active === 'consultas' && <Consultas rows={agendamentos.data} erro={agendamentos.erro} />}
+
+      {active === 'exames' && (
+        <ListaCards
+          titulo="Meus exames e resultados"
+          icon={ICONS.lab}
+          rows={exames.data}
+          erro={exames.erro}
+          vazio="Nenhum exame pendente."
+          render={(e) => <ExameCard key={e.id} exame={e} />}
+        />
+      )}
+
+      {active === 'receitas' && (
+        <ListaCards
+          titulo="Minhas receitas"
+          icon={ICONS.prescription}
+          rows={receitas.data}
+          erro={receitas.erro}
+          vazio="Nenhuma receita ativa."
+          render={(r) => (
+            <Card key={r.id} className="p-4">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.medicamento}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.dosagem} · {r.frequencia}</p>
+              {r.observacoes && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{r.observacoes}</p>}
+            </Card>
+          )}
+        />
+      )}
+
+      {active === 'prontuarios' && (
+        <ListaCards
+          titulo="Orientações e prontuários"
+          icon={ICONS.record}
+          rows={prontuarios.data}
+          erro={prontuarios.erro}
+          vazio="Nenhuma orientação registrada."
+          render={(p) => (
+            <Card key={p.id} className="p-4">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{p.data}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{p.conduta || p.diagnostico}</p>
+            </Card>
+          )}
+        />
+      )}
+
+      {active === 'financeiro' && (
+        <ListaCards
+          titulo="Minhas cobranças"
+          icon={ICONS.billing}
+          rows={cobrancas.data}
+          erro={cobrancas.erro}
+          vazio="Nenhuma cobrança pendente."
+          render={(c) => (
+            <Card key={c.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.descricao || c.origem || `Cobrança #${c.id}`}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.forma}{c.vencimento ? ` · vence ${c.vencimento}` : ''}</p>
+                </div>
+                <Badge tone={STATUS_COBRANCA_TONE[c.status]} icon={ICONS.billing}>{c.status}</Badge>
+              </div>
+              <p className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{formatReais(c.valorCentavos)}</p>
+            </Card>
+          )}
+        />
+      )}
+
+      {active === 'solicitacoes' && (
+        <Solicitacoes
+          rows={solicitacoes.data}
+          erro={solicitacoes.erro}
+          acoes={{ enviando, erroAcao, criar: criarSolicitacao }}
+        />
+      )}
     </div>
   )
 }

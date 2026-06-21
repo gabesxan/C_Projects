@@ -15,6 +15,11 @@ int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tam
 /* Lista (JSON) os agendamentos de um paciente (todos os status). */
 int agendamento_repo_listar_por_paciente_json(int paciente_id, char *buffer, int tamanho);
 
+/* Igual a anterior, porem com nome e especialidade do medico (portal do
+ * paciente, para nao exibir apenas o id). */
+int agendamento_repo_listar_por_paciente_detalhe_json(int paciente_id, char *buffer,
+                                                      int tamanho);
+
 /* Cancela um agendamento; exige motivo (a consulta permanece no historico).
  * Retorna 1 se cancelou, 0 caso contrario. */
 int agendamento_repo_cancelar(int id, const char *motivo);

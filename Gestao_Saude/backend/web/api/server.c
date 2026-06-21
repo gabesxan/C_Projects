@@ -3072,6 +3072,24 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaTrocarSenha(cliente, consulta, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/me/exames/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "resultados") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL &&
+            exame_repo_listar_resultados_analito_do_paciente_json(
+                id, authPacienteId, json, TAM_JSON) == 1)
+        {
+            responder(cliente, "200 OK", json);
+        }
+        else
+        {
+            responder(cliente, "404 Not Found",
+                      "{\"erro\":\"exame nao encontrado\"}");
+        }
+        free(json);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/exames") == 0)
     {
         rotaMeExames(cliente, authPacienteId);
@@ -3105,7 +3123,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         char *json = malloc(TAM_JSON);
         if (json != NULL &&
-            agendamento_repo_listar_por_paciente_json(authPacienteId, json, TAM_JSON) == 1)
+            agendamento_repo_listar_por_paciente_detalhe_json(authPacienteId, json, TAM_JSON) == 1)
         {
             responder(cliente, "200 OK", json);
         }
