@@ -35,6 +35,7 @@ CHECKIN_SRC = repositories/checkin_repository.c
 FIN_SRC = repositories/financeiro_repository.c
 LOTE_SRC = repositories/lote_repository.c
 ANALITO_SRC = repositories/analito_repository.c
+SOLIC_SRC = repositories/solicitacao_repository.c
 
 PAC_SRC = repositories/paciente_repository.c
 MED_SRC = repositories/medico_repository.c
@@ -79,6 +80,7 @@ TEST_FIN = tests/test_financeiro_repository.c $(FIN_SRC) $(PAC_SRC) $(JSON_SRC) 
 TEST_LOTE = tests/test_lote_repository.c $(LOTE_SRC) $(FIN_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_ANALITO = tests/test_analito_repository.c $(ANALITO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_PRESC = tests/test_prescricao_repository.c $(PRESC_SRC) $(PAC_SRC) $(MED_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_SOLIC = tests/test_solicitacao_repository.c $(SOLIC_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
 all: $(BUILD)/database.o api
@@ -94,7 +96,7 @@ $(BUILD)/database.o: $(DB_SRC) | $(BUILD)
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
 	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
-	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) \
+	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) $(SOLIC_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)
@@ -164,7 +166,7 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
 	test_sessao_repository test_migracoes test_lote_repository \
-	test_analito_repository
+	test_analito_repository test_solicitacao_repository
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -254,6 +256,10 @@ test_analito_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_ANALITO) -o $(BUILD)/test_analito_repository $(LDLIBS)
 	./$(BUILD)/test_analito_repository
 
+test_solicitacao_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_SOLIC) -o $(BUILD)/test_solicitacao_repository $(LDLIBS)
+	./$(BUILD)/test_solicitacao_repository
+
 clean:
 	rm -rf $(BUILD)
 
@@ -265,4 +271,4 @@ clean:
 	test_prescricao_repository test_auditoria_repository test_credencial_util \
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
 	test_sessao_repository test_migracoes test_lote_repository \
-	test_analito_repository
+	test_analito_repository test_solicitacao_repository
