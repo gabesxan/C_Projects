@@ -12,6 +12,7 @@ import {
   Badge,
   StatusBadge,
 } from '../components/ui'
+import { ICONS, Icon } from '../components/icons'
 
 const inputEvo =
   'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 outline-none'
@@ -284,7 +285,11 @@ export default function PacienteDetalhe() {
       {/* Alergias / alertas clinicos em destaque. */}
       {paciente.alergias ? (
         <Alert tone="red">
-          <span className="font-semibold">⚠️ Alergias / alertas:</span> {paciente.alergias}
+          <span className="inline-flex items-center gap-1 font-semibold">
+            <Icon icon={ICONS.alert} size={16} />
+            Alergias / alertas:
+          </span>{' '}
+          {paciente.alergias}
         </Alert>
       ) : (
         <Alert tone="teal">Sem alergias registradas.</Alert>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Button } from '../components/ui'
+import { ICONS, Icon } from '../components/icons'
 
 export default function Login() {
   const { login } = useAuth()
@@ -30,19 +31,21 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Painel de marca (lado esquerdo) */}
-      <div className="relative hidden flex-col justify-between bg-teal-700 p-12 text-white lg:flex">
+      <div className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 bg-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_12%,rgba(20,184,166,0.35),transparent_28rem),radial-gradient(circle_at_80%_50%,rgba(59,130,246,0.16),transparent_22rem)]" />
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-2xl">
-            ⚕️
+          <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white/12 text-teal-100 ring-1 ring-white/15">
+            <Icon icon={ICONS.hospital} size={23} />
           </div>
-          <div>
+          <div className="relative">
             <p className="text-lg font-bold leading-tight">SIGEH-DF</p>
             <p className="text-sm text-teal-100">Gestao Hospitalar</p>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-3xl font-bold leading-snug">
+        <div className="relative space-y-4">
+          <h2 className="text-4xl font-semibold leading-tight tracking-tight">
             Cuidado coordenado,
             <br />
             do acolhimento a alta.
@@ -53,23 +56,23 @@ export default function Login() {
           </p>
         </div>
 
-        <p className="text-xs text-teal-200">
+        <p className="relative text-xs text-teal-200">
           Acesso restrito a profissionais autorizados.
         </p>
       </div>
 
       {/* Formulario (lado direito) */}
-      <div className="flex items-center justify-center bg-slate-50 p-6">
-        <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-6">
+      <div className="flex items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
+        <form onSubmit={handleSubmit} className="premium-card w-full max-w-sm space-y-6 rounded-3xl p-7 shadow-xl ring-1 ring-slate-200/70">
           <div className="text-center lg:hidden">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-2xl">
-              ⚕️
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-lg">
+              <Icon icon={ICONS.hospital} size={24} />
             </div>
             <h1 className="text-xl font-bold text-slate-900">SIGEH-DF</h1>
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Entrar</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Entrar</h1>
             <p className="mt-1 text-sm text-slate-500">
               Use suas credenciais individuais.
             </p>

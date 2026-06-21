@@ -120,7 +120,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minha-saude"
+          path="/minha-saude/*"
           element={
             <RequireRole roles={['PACIENTE']}>
               <MinhaSaude />
