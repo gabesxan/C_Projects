@@ -501,6 +501,15 @@ request_and_assert "/prescricoes" "200" "/prescricoes (MEDICO)" "${MED_TOKEN}" c
 request_and_assert "/prescricoes" "200" "/prescricoes (ENFERMAGEM)" "${ENF_TOKEN}" contains 'DipironaSmoke'
 # PACIENTE ve as proprias receitas via /me/receitas.
 request_and_assert "/me/receitas" "200" "/me/receitas (PACIENTE)" "${PAC_TOKEN}" contains 'DipironaSmoke'
+# PACIENTE cria solicitacoes administrativas pelo portal, sem acionar triagem.
+request_json_and_assert "POST" "/me/solicitacoes" \
+    '{"tipo":"AGENDAMENTO","mensagem":"consulta comum pelo portal"}' \
+    "201" "/me/solicitacoes POST agendamento (PACIENTE)" "${PAC_TOKEN}" contains '"status":"ABERTA"'
+request_json_and_assert "POST" "/me/solicitacoes" \
+    '{"tipo":"AJUDA","mensagem":"preciso de orientacao"}' \
+    "201" "/me/solicitacoes POST ajuda (PACIENTE)" "${PAC_TOKEN}" contains '"tipo":"AJUDA"'
+request_and_assert "/me/solicitacoes" "200" "/me/solicitacoes (PACIENTE)" "${PAC_TOKEN}" contains 'consulta comum pelo portal'
+request_and_assert "/solicitacoes-paciente" "200" "/solicitacoes-paciente (ADMIN)" "${ADMIN_TOKEN}" contains '"pacienteId":1'
 # Regra critica: PACIENTE nao executa nem lista fluxo de triagem clinica.
 request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \

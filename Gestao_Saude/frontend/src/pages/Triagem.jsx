@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiGet, apiSend } from '../api/client'
 import { PageHeader, Card, Button, Alert, Spinner, Badge, EmptyState } from '../components/ui'
+import { ICONS, Icon } from '../components/icons'
 
 const RISCO = {
   Vermelho: 'red',
@@ -16,6 +17,25 @@ const inputCls =
 
 const tomRisco = (v) => RISCO[v] ?? 'slate'
 const classePorPeso = (peso) => (peso >= 5 ? 'Vermelho' : peso >= 4 ? 'Laranja' : peso >= 3 ? 'Amarelo' : peso >= 2 ? 'Verde' : 'Azul')
+
+function Stepper({ etapa }) {
+  const etapas = ['Paciente', 'Sinais', 'Decisao']
+  return (
+    <Card className="p-3">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {etapas.map((nome, idx) => {
+          const ativo = idx + 1 <= etapa
+          return (
+            <div key={nome} className={`rounded-xl px-3 py-2 text-sm ${ativo ? 'bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-100' : 'bg-slate-50 text-slate-500 dark:bg-slate-800'}`}>
+              <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold shadow-sm dark:bg-slate-900">{idx + 1}</span>
+              {nome}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
 
 function BuscaPaciente({ onSelecionar }) {
   const [q, setQ] = useState('')
@@ -40,7 +60,7 @@ function BuscaPaciente({ onSelecionar }) {
           <p className="text-sm font-semibold text-slate-700">1. Escolher paciente</p>
           <p className="mt-1 text-sm text-slate-500">Busque pelo nome ou documento antes de iniciar a avaliacao clinica.</p>
         </div>
-        <Badge tone="teal">Profissional</Badge>
+        <Badge tone="teal" icon={ICONS.doctor}>Profissional</Badge>
       </div>
       <form onSubmit={buscar} className="mt-4 flex gap-2">
         <input
@@ -49,7 +69,7 @@ function BuscaPaciente({ onSelecionar }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <Button type="submit">Buscar</Button>
+        <Button type="submit"><Icon icon={ICONS.search} size={16} />Buscar</Button>
       </form>
       {erro && <div className="mt-3"><Alert>{erro}</Alert></div>}
       {Array.isArray(rows) && rows.length === 0 && (
@@ -86,7 +106,7 @@ function PainelPaciente({ paciente, onLimpar }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {paciente.alergias ? <Badge tone="red">{paciente.alergias}</Badge> : <Badge tone="green">Sem alergias</Badge>}
+          {paciente.alergias ? <Badge tone="red" icon={ICONS.alert}>{paciente.alergias}</Badge> : <Badge tone="green">Sem alergias</Badge>}
           <Button variant="secondary" onClick={onLimpar}>Trocar</Button>
         </div>
       </div>
@@ -114,7 +134,7 @@ function SeletorProblemas({ especialidade, titulo, selecionados, onToggle }) {
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-slate-700">{titulo}</p>
-        <Badge tone="slate">{especialidade.nome}</Badge>
+        <Badge tone="slate" icon={ICONS.doctor}>{especialidade.nome}</Badge>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {problemas.map((p) => {
@@ -132,7 +152,7 @@ function SeletorProblemas({ especialidade, titulo, selecionados, onToggle }) {
             >
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium text-slate-800">{p.nome}</span>
-                <Badge tone={tomRisco(classePorPeso(p.pesoRisco))}>{classePorPeso(p.pesoRisco)}</Badge>
+                <Badge tone={tomRisco(classePorPeso(p.pesoRisco))} icon={ICONS.triage}>{classePorPeso(p.pesoRisco)}</Badge>
               </span>
               {p.exameSugerido && <span className="mt-1 block text-xs text-slate-500">{p.exameSugerido}</span>}
             </button>
@@ -155,11 +175,14 @@ function ResumoClinico({ selecionados }) {
 
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-700">Resumo calculado</p>
+      <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+        <Icon icon={ICONS.triage} className="text-teal-600" size={18} />
+        Resumo calculado
+      </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
           <p className="text-xs text-slate-500">Risco</p>
-          <div className="mt-1"><Badge tone={tomRisco(classificacao)}>{classificacao}</Badge></div>
+          <div className="mt-1"><Badge tone={tomRisco(classificacao)} icon={ICONS.alert}>{classificacao}</Badge></div>
         </div>
         <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
           <p className="text-xs text-slate-500">Prioridade</p>
@@ -171,7 +194,7 @@ function ResumoClinico({ selecionados }) {
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        {exames.length ? exames.map((e) => <Badge key={e} tone="sky">{e}</Badge>) : <Badge>Sem exame sugerido</Badge>}
+        {exames.length ? exames.map((e) => <Badge key={e} tone="sky" icon={ICONS.lab}>{e}</Badge>) : <Badge icon={ICONS.lab}>Sem exame sugerido</Badge>}
       </div>
     </Card>
   )
@@ -201,7 +224,7 @@ function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
             <p className="text-sm font-semibold text-slate-700">Avaliacao clinica</p>
             <p className="mt-1 text-sm text-slate-500">{avaliacao.justificativa}</p>
           </div>
-          <Badge tone={tomRisco(avaliacao.classificacao)}>{avaliacao.classificacao}</Badge>
+          <Badge tone={tomRisco(avaliacao.classificacao)} icon={ICONS.alert}>{avaliacao.classificacao}</Badge>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <Info label="Prioridade" value={avaliacao.prioridade} />
@@ -217,8 +240,8 @@ function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
         <p className="text-sm font-semibold text-slate-700">Exames sugeridos</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {exames.examesSugeridos?.length
-            ? exames.examesSugeridos.map((e) => <Badge key={e.nome} tone="sky">{e.nome}</Badge>)
-            : <Badge>Sem exame sugerido</Badge>}
+            ? exames.examesSugeridos.map((e) => <Badge key={e.nome} tone="sky" icon={ICONS.lab}>{e.nome}</Badge>)
+            : <Badge icon={ICONS.lab}>Sem exame sugerido</Badge>}
         </div>
       </Card>
 
@@ -238,9 +261,9 @@ function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => agendar(`/triagens/${triagem.id}/agendar`)}>Agendar</Button>
-          <Button variant="secondary" onClick={() => agendar(`/triagens/${triagem.id}/encaminhar`)}>Encaminhar</Button>
-          <Link to={`/paciente/${paciente.id}`}><Button variant="secondary">Abrir ficha</Button></Link>
+          <Button onClick={() => agendar(`/triagens/${triagem.id}/agendar`)}><Icon icon={ICONS.schedule} size={16} />Agendar</Button>
+          <Button variant="secondary" onClick={() => agendar(`/triagens/${triagem.id}/encaminhar`)}><Icon icon={ICONS.doctor} size={16} />Encaminhar</Button>
+          <Link to={`/paciente/${paciente.id}`}><Button variant="secondary"><Icon icon={ICONS.record} size={16} />Abrir ficha</Button></Link>
           <Button variant="secondary" onClick={onNova}>Nova triagem</Button>
         </div>
       </Card>
@@ -339,6 +362,7 @@ export default function Triagem() {
         subtitle="Fluxo guiado para profissional autorizado, com risco e encaminhamento calculados pelos sinais selecionados."
         actions={paciente && !resultado && <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>}
       />
+      <Stepper etapa={!paciente ? 1 : resultado ? 3 : 2} />
 
       {erro && <Alert>{erro}</Alert>}
       {!paciente && <BuscaPaciente onSelecionar={setPaciente} />}
@@ -407,11 +431,11 @@ export default function Triagem() {
           {selecionados.length > 0 ? (
             <ResumoClinico selecionados={selecionados} />
           ) : (
-            <EmptyState title="Selecione problemas clinicos" description="A avaliacao aparece assim que sinais ou sintomas forem marcados." />
+            <EmptyState icon={ICONS.triage} title="Selecione problemas clinicos" description="A avaliacao aparece assim que sinais ou sintomas forem marcados." />
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={salvando}>{salvando ? 'Registrando...' : 'Registrar triagem clinica'}</Button>
+            <Button type="submit" disabled={salvando}><Icon icon={ICONS.triage} size={16} />{salvando ? 'Registrando...' : 'Registrar triagem clinica'}</Button>
           </div>
         </form>
       )}

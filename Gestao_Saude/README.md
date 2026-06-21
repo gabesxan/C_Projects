@@ -398,7 +398,16 @@ Respostas: **`401`** sem credencial válida · **`403`** papel sem permissão.
 | `GET` | `/me/agenda` | MEDICO | Agenda do próprio médico |
 | `GET` | `/me/pacientes` | MEDICO | Pacientes do próprio médico |
 | `GET` | `/me/receitas` | PACIENTE | Prescrições do próprio paciente |
+| `GET` | `/me/solicitacoes` | PACIENTE | Solicitações administrativas próprias (`AGENDAMENTO`, `AJUDA`) |
+| `POST` | `/me/solicitacoes` | PACIENTE | Cria solicitação administrativa: `{tipo, mensagem}` |
 | `GET` | `/me/resumo` | MEDICO | Totais do próprio médico: pacientes, agendamentos, prontuários e exames |
+
+### Solicitações do paciente
+
+| Método | Rota | Papel | Descrição |
+|---|---|---|---|
+| `GET` | `/solicitacoes-paciente` · `/solicitacoes-paciente/contar` | ADMIN, CADASTRO, MEDICO, ENFERMAGEM | Fila operacional de pedidos do portal |
+| `POST` | `/me/solicitacoes` | PACIENTE | Solicita consulta comum ou ajuda. Não cria triagem, não define risco e não toma decisão clínica |
 
 ### Usuários · ADMIN
 
@@ -563,7 +572,7 @@ Profissional autorizado inicia triagem
                        └─▶ agenda ou encaminha                  (POST /triagens/{id}/...)
 ```
 
-O paciente não executa essa etapa. No frontend, o paciente vê carteirinha digital, próximas consultas, exames/resultados, receitas, cobranças próprias, orientações, dicas de exames e Fale Conosco. Pedido de ajuda ou consulta comum não é chamado de triagem.
+O paciente não executa essa etapa. No frontend, o paciente vê carteirinha digital, próximas consultas, exames/resultados, receitas, cobranças próprias, orientações, dicas de exames e Fale Conosco. Pedido de ajuda ou consulta comum não é chamado de triagem: ele gera uma solicitação administrativa em `/me/solicitacoes`, auditada e vinculada ao próprio paciente.
 
 **Mapa tipo de triagem → especialidade:**
 
@@ -614,6 +623,7 @@ O schema principal em [`schema_v3.sql`](backend/data/schema_v3.sql) cobre cadast
 **`problemas_clinicos`** — `id`, `especialidade_id`, `nome`, `peso_risco`, `exame_sugerido_id`, `exame_sugerido`, `ativo`
 **`triagem_problemas`** — `id`, `triagem_id`, `problema_id`, `especialidade_id`, `principal`, `observacao`, `ativo`
 **`agendamentos`** — `id`, `paciente_id` (FK), `medico_id` (FK), `data`, `horario`, `status`
+**`solicitacoes_paciente`** — `id`, `paciente_id` (FK), `tipo`, `mensagem`, `status`, `criado_em`, `atualizado_em`
 **`prontuarios`** — `id`, `paciente_id` (FK), `medico_id` (FK), `data`, `observacoes`, `diagnostico`, `conduta`, `alerta_importante`, `ativo`
 **`exames`** — `id`, `paciente_id` (FK), `medico_id` (FK), `prontuario_id` (FK), `tipo_exame`, `data_solicitacao`, `data_resultado`, `resultado`, `status`, `urgente`, `ativo`
 

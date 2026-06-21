@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 8
+#define LATEST_VERSION 9
 
 typedef struct
 {
@@ -162,6 +162,18 @@ static const Migracao MIGRACOES[] = {
      "  (33, 7, 'sangramento digestivo', 5, 1, 'Hemograma', 1);"
      "CREATE INDEX IF NOT EXISTS idx_triagem_problemas_triagem ON triagem_problemas(triagem_id);"
      "CREATE INDEX IF NOT EXISTS idx_problemas_especialidade ON problemas_clinicos(especialidade_id);"},
+    {9, "solicitacoes do paciente para ajuda e consulta comum",
+     "CREATE TABLE IF NOT EXISTS solicitacoes_paciente ("
+     "  id INTEGER PRIMARY KEY,"
+     "  paciente_id INTEGER NOT NULL,"
+     "  tipo TEXT NOT NULL,"
+     "  mensagem TEXT NOT NULL DEFAULT '',"
+     "  status TEXT NOT NULL DEFAULT 'ABERTA',"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  atualizado_em TEXT NOT NULL DEFAULT '',"
+     "  FOREIGN KEY (paciente_id) REFERENCES pacientes(id));"
+     "CREATE INDEX IF NOT EXISTS idx_solicitacoes_paciente ON solicitacoes_paciente(paciente_id);"
+     "CREATE INDEX IF NOT EXISTS idx_solicitacoes_status ON solicitacoes_paciente(status);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

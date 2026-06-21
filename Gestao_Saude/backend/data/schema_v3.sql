@@ -440,6 +440,21 @@ CREATE TABLE checkins (
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
 
+-- Solicitacoes abertas pelo paciente no portal. Nao sao triagem nem decisao
+-- clinica: representam pedido administrativo de ajuda ou consulta comum.
+CREATE TABLE solicitacoes_paciente (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    -- tipo: AGENDAMENTO, AJUDA.
+    tipo TEXT NOT NULL,
+    mensagem TEXT NOT NULL DEFAULT '',
+    -- status: ABERTA, EM_ANALISE, CONCLUIDA, CANCELADA.
+    status TEXT NOT NULL DEFAULT 'ABERTA',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    atualizado_em TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+);
+
 -- Administracao de medicamentos pela enfermagem (MAR). Cada linha registra
 -- que uma prescricao foi aplicada, por quem e quando. Nunca e apagada.
 CREATE TABLE administracoes (
@@ -480,6 +495,8 @@ CREATE INDEX idx_triagens_paciente ON triagens(paciente_id);
 CREATE INDEX idx_triagem_problemas_triagem ON triagem_problemas(triagem_id);
 CREATE INDEX idx_problemas_especialidade ON problemas_clinicos(especialidade_id);
 CREATE INDEX idx_auditoria_entidade ON auditoria(entidade, entidade_id);
+CREATE INDEX idx_solicitacoes_paciente ON solicitacoes_paciente(paciente_id);
+CREATE INDEX idx_solicitacoes_status ON solicitacoes_paciente(status);
 
 -- Nao permite dois pacientes ATIVOS com o mesmo CPF (documento alternativo
 -- nao entra na regra). Indice parcial: a unicidade so vale para CPF ativo.
@@ -504,4 +521,4 @@ CREATE UNIQUE INDEX idx_exame_resultados_exame_analito
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 8;
+PRAGMA user_version = 9;

@@ -16,6 +16,7 @@
 #include "financeiro_repository.h"
 #include "lote_repository.h"
 #include "analito_repository.h"
+#include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
@@ -542,7 +543,8 @@ static int ehCadastro(const char *caminho)
            comecaCom(caminho, "/alas") || comecaCom(caminho, "/leitos") ||
            comecaCom(caminho, "/checkins") || comecaCom(caminho, "/convenios") ||
            comecaCom(caminho, "/cobrancas") || comecaCom(caminho, "/lotes") ||
-           comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis");
+           comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis") ||
+           comecaCom(caminho, "/solicitacoes-paciente");
 }
 
 static int ehClinico(const char *caminho)
@@ -647,6 +649,7 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
                (comecaCom(caminho, "/alas") ||
                 comecaCom(caminho, "/medicos") ||
                 comecaCom(caminho, "/especialidades") ||
+                comecaCom(caminho, "/solicitacoes-paciente") ||
                 comecaCom(caminho, "/analitos") ||
                 comecaCom(caminho, "/paineis"));
     }
@@ -2213,6 +2216,64 @@ static void rotaMeReceitas(int cliente, int paciente_id)
     free(json);
 }
 
+static void rotaMeSolicitacoes(int cliente, const Sessao *s)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (strcmp(s->papel, "PACIENTE") != 0 || s->paciente_id <= 0)
+    {
+        responder(cliente, "403 Forbidden",
+                  "{\"erro\":\"rota exclusiva do paciente\"}");
+        free(json);
+        return;
+    }
+
+    if (json != NULL &&
+        solicitacao_repo_listar_por_paciente_json(s->paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar solicitacoes\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMeCriarSolicitacao(int cliente, const char *consulta,
+                                   const Sessao *s)
+{
+    char tipo[32];
+    char mensagem[512];
+    char resposta[160];
+    int id = 0;
+
+    if (strcmp(s->papel, "PACIENTE") != 0 || s->paciente_id <= 0)
+    {
+        responder(cliente, "403 Forbidden",
+                  "{\"erro\":\"rota exclusiva do paciente\"}");
+        return;
+    }
+
+    extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "mensagem", mensagem, sizeof(mensagem));
+
+    if (solicitacao_repo_criar(s->paciente_id, tipo, mensagem, &id) == 1)
+    {
+        auditar(s, "SOLICITAR", "solicitacao_paciente", id, tipo);
+        snprintf(resposta, sizeof(resposta),
+                 "{\"id\":%d,\"tipo\":\"%s\",\"status\":\"ABERTA\"}", id, tipo);
+        responder(cliente, "201 Created", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"solicitacao invalida\"}");
+    }
+}
+
 static void rotaMeAgenda(int cliente, int medico_id)
 {
     char *json = malloc(TAM_JSON);
@@ -2404,6 +2465,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/convenios") || comecaCom(caminho, "/cobrancas") ||
            comecaCom(caminho, "/lotes") ||
            comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis") ||
+           comecaCom(caminho, "/solicitacoes-paciente") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3022,6 +3084,14 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaMeReceitas(cliente, authPacienteId);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
+    {
+        rotaMeSolicitacoes(cliente, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
+    {
+        rotaMeCriarSolicitacao(cliente, consulta, &s);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/cobrancas") == 0)
     {
         char *json = malloc(TAM_JSON);
@@ -3121,6 +3191,15 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/auditoria/contar") == 0)
     {
         responderContagem(cliente, auditoria_contar);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/solicitacoes-paciente") == 0)
+    {
+        responderLista(cliente, solicitacao_repo_listar_json,
+                       "{\"erro\":\"falha ao listar solicitacoes\"}");
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/solicitacoes-paciente/contar") == 0)
+    {
+        responderContagem(cliente, solicitacao_repo_contar_abertas);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/checkins") == 0)
     {
