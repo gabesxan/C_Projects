@@ -40,6 +40,7 @@ MEDICAMENTO_SRC = repositories/medicamento_repository.c
 ESTOQUE_SRC = repositories/estoque_repository.c
 VACINA_SRC = repositories/vacina_repository.c
 ANEXO_SRC = repositories/anexo_repository.c
+CONSENT_SRC = repositories/consentimento_repository.c
 
 PAC_SRC = repositories/paciente_repository.c
 MED_SRC = repositories/medico_repository.c
@@ -56,6 +57,7 @@ TRIAGEM_SVC_SRC = services/triagem_service.c
 RELAT_SVC_SRC = services/relatorio_service.c
 FARMACIA_SVC_SRC = services/farmacia_service.c
 ANEXO_SVC_SRC = services/anexo_service.c
+CONSENT_SVC_SRC = services/consentimento_service.c
 
 API_SRC = api/server.c
 SEED_SRC = tools/seed.c
@@ -91,6 +93,7 @@ TEST_MEDICAMENTO = tests/test_medicamento_repository.c $(MEDICAMENTO_SRC) $(JSON
 TEST_ESTOQUE = tests/test_estoque_repository.c $(ESTOQUE_SRC) $(MEDICAMENTO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_VACINA = tests/test_vacina_repository.c $(VACINA_SRC) $(ESTOQUE_SRC) $(MEDICAMENTO_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_ANEXO = tests/test_anexo_repository.c $(ANEXO_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_CONSENT = tests/test_consentimento_repository.c $(CONSENT_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
 all: $(BUILD)/database.o api
@@ -107,8 +110,8 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
 	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
 	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) $(SOLIC_SRC) $(MEDICAMENTO_SRC) \
-	$(ESTOQUE_SRC) $(VACINA_SRC) $(ANEXO_SRC) $(FARMACIA_SVC_SRC) $(ANEXO_SVC_SRC) \
-	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
+	$(ESTOQUE_SRC) $(VACINA_SRC) $(ANEXO_SRC) $(CONSENT_SRC) $(FARMACIA_SVC_SRC) $(ANEXO_SVC_SRC) \
+	$(CONSENT_SVC_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(TLS_LIB) $(MATH_LIB) $(THREAD_LIB)
@@ -182,7 +185,8 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
 	test_sessao_repository test_migracoes test_lote_repository \
 	test_analito_repository test_solicitacao_repository test_medicamento_repository \
-	test_estoque_repository test_vacina_repository test_anexo_repository
+	test_estoque_repository test_vacina_repository test_anexo_repository \
+	test_consentimento_repository
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -292,6 +296,10 @@ test_anexo_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_ANEXO) -o $(BUILD)/test_anexo_repository $(LDLIBS)
 	./$(BUILD)/test_anexo_repository
 
+test_consentimento_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_CONSENT) -o $(BUILD)/test_consentimento_repository $(LDLIBS)
+	./$(BUILD)/test_consentimento_repository
+
 clean:
 	rm -rf $(BUILD)
 
@@ -304,4 +312,5 @@ clean:
 	test_enfermagem_repository test_checkin_repository test_financeiro_repository \
 	test_sessao_repository test_migracoes test_lote_repository \
 	test_analito_repository test_solicitacao_repository test_medicamento_repository \
-	test_estoque_repository test_vacina_repository
+	test_estoque_repository test_vacina_repository test_anexo_repository \
+	test_consentimento_repository
