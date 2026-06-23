@@ -519,6 +519,53 @@ CREATE INDEX idx_exame_resultados_exame ON exame_resultados_analitos(exame_id);
 CREATE UNIQUE INDEX idx_exame_resultados_exame_analito
     ON exame_resultados_analitos(exame_id, analito_id);
 
+-- Farmacia / estoque (v10).
+-- medicamentos: catalogo. estoque_minimo alimenta o alerta de estoque baixo.
+CREATE TABLE medicamentos (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL,
+    apresentacao TEXT NOT NULL DEFAULT '',
+    unidade TEXT NOT NULL DEFAULT '',
+    estoque_minimo INTEGER NOT NULL DEFAULT 0,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- estoque_itens: lotes fisicos de um medicamento. Saldo do medicamento = soma
+-- das quantidades dos seus itens. validade em texto YYYY-MM-DD (UTC).
+CREATE TABLE estoque_itens (
+    id INTEGER PRIMARY KEY,
+    medicamento_id INTEGER NOT NULL,
+    lote TEXT NOT NULL DEFAULT '',
+    validade TEXT NOT NULL DEFAULT '',
+    quantidade INTEGER NOT NULL DEFAULT 0,
+    localizacao TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id)
+);
+
+-- movimentacoes: trilha imutavel de ENTRADA/SAIDA/AJUSTE de estoque. Correcao
+-- e feita por AJUSTE (nunca update destrutivo). prescricao_id fica preparado
+-- para o vinculo futuro com a prescricao/MAR (sem regra de negocio por ora).
+CREATE TABLE movimentacoes (
+    id INTEGER PRIMARY KEY,
+    medicamento_id INTEGER NOT NULL,
+    estoque_item_id INTEGER,
+    tipo TEXT NOT NULL,
+    quantidade INTEGER NOT NULL,
+    motivo TEXT NOT NULL DEFAULT '',
+    prescricao_id INTEGER,
+    usuario_id INTEGER NOT NULL DEFAULT 0,
+    usuario_login TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id),
+    FOREIGN KEY (estoque_item_id) REFERENCES estoque_itens(id)
+);
+
+CREATE INDEX idx_estoque_itens_medicamento ON estoque_itens(medicamento_id);
+CREATE INDEX idx_estoque_itens_validade ON estoque_itens(validade);
+CREATE INDEX idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 9;
+PRAGMA user_version = 10;

@@ -16,6 +16,7 @@
 #include "financeiro_repository.h"
 #include "lote_repository.h"
 #include "analito_repository.h"
+#include "medicamento_repository.h"
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
@@ -558,6 +559,15 @@ static int ehCadastro(const char *caminho)
            comecaCom(caminho, "/solicitacoes-paciente");
 }
 
+/* Farmacia/estoque: catalogo, lotes e movimentacoes. Gerido por ADMIN e
+ * ENFERMAGEM (sub-etapas 5b/5c adicionam /estoque e /movimentacoes). */
+static int ehFarmacia(const char *caminho)
+{
+    return comecaCom(caminho, "/medicamentos") ||
+           comecaCom(caminho, "/estoque") ||
+           comecaCom(caminho, "/movimentacoes");
+}
+
 static int ehClinico(const char *caminho)
 {
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
@@ -613,6 +623,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "ENFERMAGEM") == 0)
     {
+        /* Farmacia/estoque: enfermagem gerencia catalogo, lotes e dispensacao. */
+        if (ehFarmacia(caminho))
+        {
+            return 1;
+        }
+
         /* Triagem e o fluxo principal da enfermagem: classificar risco e
          * registrar triagem (buscar/cadastrar paciente faz parte do fluxo). */
         if (comecaCom(caminho, "/triagens") || comecaCom(caminho, "/triagem/"))
@@ -986,6 +1002,55 @@ static void rotaDesativarMedico(int cliente, int id)
         responder(cliente, "404 Not Found",
                   "{\"erro\":\"medico nao encontrado ou ja inativo\"}");
     }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Farmacia: catalogo de medicamentos (sub-etapa 5a)                        */
+/* ----------------------------------------------------------------------- */
+
+static void rotaListarMedicamentos(int cliente)
+{
+    responderLista(cliente, medicamento_listar_json,
+                   "{\"erro\":\"falha ao listar medicamentos\"}");
+}
+
+static void rotaContarMedicamentos(int cliente)
+{
+    responderContagem(cliente, medicamento_contar_ativos);
+}
+
+static void rotaCriarMedicamento(int cliente, const char *consulta, const Sessao *s)
+{
+    char nome[128];
+    char apresentacao[128];
+    char unidade[48];
+    char minimoStr[16];
+    int ok;
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "apresentacao", apresentacao, sizeof(apresentacao));
+    extrairParam(consulta, "unidade", unidade, sizeof(unidade));
+    extrairParam(consulta, "estoque_minimo", minimoStr, sizeof(minimoStr));
+
+    ok = medicamento_criar(nome, apresentacao, unidade, atoi(minimoStr)) == 1;
+    if (ok)
+    {
+        auditar(s, "CRIAR", "medicamento", 0, nome);
+    }
+    responderCriacao(cliente, ok,
+                     "{\"erro\":\"dados invalidos para medicamento\"}");
+}
+
+static void rotaDesativarMedicamento(int cliente, int id, const Sessao *s)
+{
+    int ok = medicamento_desativar(id) == 1;
+
+    if (ok)
+    {
+        auditar(s, "DESATIVAR", "medicamento", id, "");
+    }
+    responderRemocao(cliente, ok,
+                     "{\"erro\":\"medicamento nao encontrado ou ja inativo\"}");
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -2655,6 +2720,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/lotes") ||
            comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis") ||
            comecaCom(caminho, "/solicitacoes-paciente") ||
+           comecaCom(caminho, "/medicamentos") ||
            comecaCom(caminho, "/me");
 }
 
@@ -2840,6 +2906,22 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicos/%d", &id) == 1)
     {
         rotaDesativarMedico(cliente, id);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/medicamentos") == 0)
+    {
+        rotaListarMedicamentos(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/medicamentos/contar") == 0)
+    {
+        rotaContarMedicamentos(cliente);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/medicamentos") == 0)
+    {
+        rotaCriarMedicamento(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicamentos/%d", &id) == 1)
+    {
+        rotaDesativarMedicamento(cliente, id, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
     {

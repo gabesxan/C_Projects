@@ -13,6 +13,7 @@ export const SECTIONS = [
   'Atendimento',
   'Clinico',
   'Internacao',
+  'Farmacia',
   'Financeiro',
   'Administracao',
   'Conta',
@@ -51,6 +52,10 @@ const NAV = [
   // de cair no index.html (fallback de SPA). Por isso /internacao e /enfermagem.
   { to: '/internacao', label: 'Internações', icon: 'admission', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'], section: 'Internacao' },
   { to: '/enfermagem', label: 'Leitos', icon: 'bed', roles: ['ADMIN', 'ENFERMAGEM', 'CADASTRO'], section: 'Internacao' },
+
+  // Farmacia. Catalogo de medicamentos via recurso generico (/r/medicamentos);
+  // estoque/movimentacoes/alertas chegam nas sub-etapas 5b/5c.
+  { to: '/r/medicamentos', label: 'Medicamentos', icon: 'prescription', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Farmacia' },
 
   // Financeiro.
   { to: '/financeiro', label: 'Financeiro', icon: 'finance', roles: ['ADMIN', 'CADASTRO'], section: 'Financeiro' },

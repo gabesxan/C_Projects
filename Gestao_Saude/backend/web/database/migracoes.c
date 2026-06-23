@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 9
+#define LATEST_VERSION 10
 
 typedef struct
 {
@@ -174,6 +174,40 @@ static const Migracao MIGRACOES[] = {
      "  FOREIGN KEY (paciente_id) REFERENCES pacientes(id));"
      "CREATE INDEX IF NOT EXISTS idx_solicitacoes_paciente ON solicitacoes_paciente(paciente_id);"
      "CREATE INDEX IF NOT EXISTS idx_solicitacoes_status ON solicitacoes_paciente(status);"},
+    {10, "farmacia/estoque: catalogo de medicamentos, lotes e movimentacoes",
+     "CREATE TABLE IF NOT EXISTS medicamentos ("
+     "  id INTEGER PRIMARY KEY,"
+     "  nome TEXT NOT NULL,"
+     "  apresentacao TEXT NOT NULL DEFAULT '',"
+     "  unidade TEXT NOT NULL DEFAULT '',"
+     "  estoque_minimo INTEGER NOT NULL DEFAULT 0,"
+     "  ativo INTEGER NOT NULL DEFAULT 1,"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')));"
+     "CREATE TABLE IF NOT EXISTS estoque_itens ("
+     "  id INTEGER PRIMARY KEY,"
+     "  medicamento_id INTEGER NOT NULL,"
+     "  lote TEXT NOT NULL DEFAULT '',"
+     "  validade TEXT NOT NULL DEFAULT '',"
+     "  quantidade INTEGER NOT NULL DEFAULT 0,"
+     "  localizacao TEXT NOT NULL DEFAULT '',"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id));"
+     "CREATE TABLE IF NOT EXISTS movimentacoes ("
+     "  id INTEGER PRIMARY KEY,"
+     "  medicamento_id INTEGER NOT NULL,"
+     "  estoque_item_id INTEGER,"
+     "  tipo TEXT NOT NULL,"
+     "  quantidade INTEGER NOT NULL,"
+     "  motivo TEXT NOT NULL DEFAULT '',"
+     "  prescricao_id INTEGER,"
+     "  usuario_id INTEGER NOT NULL DEFAULT 0,"
+     "  usuario_login TEXT NOT NULL DEFAULT '',"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id),"
+     "  FOREIGN KEY (estoque_item_id) REFERENCES estoque_itens(id));"
+     "CREATE INDEX IF NOT EXISTS idx_estoque_itens_medicamento ON estoque_itens(medicamento_id);"
+     "CREATE INDEX IF NOT EXISTS idx_estoque_itens_validade ON estoque_itens(validade);"
+     "CREATE INDEX IF NOT EXISTS idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

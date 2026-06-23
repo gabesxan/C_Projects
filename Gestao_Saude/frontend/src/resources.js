@@ -103,6 +103,28 @@ export const RESOURCES = [
     ],
   },
   {
+    key: 'medicamentos',
+    label: 'Medicamentos',
+    path: '/medicamentos',
+    roles: ['ADMIN', 'ENFERMAGEM'],
+    createRoles: ['ADMIN', 'ENFERMAGEM'],
+    deleteRoles: ['ADMIN', 'ENFERMAGEM'],
+    deleteLabel: 'Desativar',
+    columns: [
+      { key: 'id', label: 'ID' },
+      { key: 'nome', label: 'Nome' },
+      { key: 'apresentacao', label: 'Apresentacao' },
+      { key: 'unidade', label: 'Unidade' },
+      { key: 'estoqueMinimo', label: 'Estoque minimo' },
+    ],
+    createFields: [
+      { name: 'nome', label: 'Nome', type: 'text' },
+      { name: 'apresentacao', label: 'Apresentacao', type: 'text' },
+      { name: 'unidade', label: 'Unidade', type: 'text' },
+      { name: 'estoque_minimo', label: 'Estoque minimo', type: 'number' },
+    ],
+  },
+  {
     key: 'agendamentos',
     label: 'Agendamentos',
     path: '/agendamentos',

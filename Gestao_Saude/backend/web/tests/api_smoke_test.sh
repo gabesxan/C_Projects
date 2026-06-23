@@ -532,6 +532,17 @@ request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_
 request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \
     "403" "/triagens POST bloqueado para PACIENTE" "${PAC_TOKEN}"
 
+# Farmacia / estoque (5a): catalogo de medicamentos (ADMIN/ENFERMAGEM).
+echo "--- Farmacia: catalogo de medicamentos ---"
+request_json_and_assert "POST" "/medicamentos" \
+    '{"nome":"Dipirona Smoke","apresentacao":"500mg comprimido","unidade":"comprimido","estoque_minimo":"20"}' \
+    "201" "/medicamentos POST (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_and_assert "/medicamentos" "200" "/medicamentos (ADMIN)" "${ADMIN_TOKEN}" contains '"nome":"Dipirona Smoke"'
+request_and_assert "/medicamentos/contar" "200" "/medicamentos/contar (ADMIN)" "${ADMIN_TOKEN}" contains '"ativos":1'
+# Escopo por papel: MEDICO e PACIENTE nao acessam a farmacia.
+request_and_assert "/medicamentos" "403" "/medicamentos bloqueado para MEDICO" "${MED_TOKEN}"
+request_and_assert "/medicamentos" "403" "/medicamentos bloqueado para PACIENTE" "${PAC_TOKEN}"
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.
