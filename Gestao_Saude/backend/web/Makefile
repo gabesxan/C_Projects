@@ -112,7 +112,11 @@ api: $(API_DEPS) | $(BUILD)
 
 # Ferramenta de seed: recria o banco oficial e popula dados minimos.
 SEED_DEPS = $(SEED_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(PAC_SRC) $(MED_SRC) \
-	$(ALA_SRC) $(LEITO_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
+	$(ALA_SRC) $(LEITO_SRC) $(CHECKIN_SRC) $(TRIAGEM_SRC) $(AGEND_SRC) \
+	$(PRONT_SRC) $(EXAME_SRC) $(ANALITO_SRC) $(FIN_SRC) $(LOTE_SRC) \
+	$(MEDICAMENTO_SRC) $(ESTOQUE_SRC) $(PRESC_SRC) $(ENF_SRC) \
+	$(FARMACIA_SVC_SRC) $(VACINA_SRC) $(INTERN_SRC) $(SOLIC_SRC) \
+	$(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 seed: $(SEED_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(SEED_DEPS) -o $(BUILD)/seed $(LDLIBS) $(CRYPTO_LIBS)
