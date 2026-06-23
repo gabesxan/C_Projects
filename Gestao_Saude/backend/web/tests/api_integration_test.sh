@@ -221,4 +221,21 @@ expect 200 "cobranca paga (baixa)"
 api GET /cobrancas/demonstrativo
 expect 200 "demonstrativo financeiro"; body_has '"recebidoCentavos":20000' "demonstrativo reflete a baixa"
 
+echo "--- Fluxo 5: validacoes de entrada invalida (400) ---"
+# POST /sessao sem credenciais (cai antes da autenticacao; nao conta como falha
+# de login para o rate-limit por IP).
+api POST /sessao '{}'
+expect 400 "sessao sem login/senha"; body_has "informe login e senha" "sessao 400 informativo"
+# Cadastros com corpo vazio: o repository recusa e a rota devolve 400.
+api POST /pacientes '{}'
+expect 400 "paciente com dados invalidos"; body_has "dados invalidos" "paciente 400 informativo"
+api POST /medicos '{}'
+expect 400 "medico com dados invalidos"; body_has "dados invalidos para medico" "medico 400 informativo"
+# Prontuario sem medico autor definido.
+api POST /prontuarios '{}'
+expect 400 "prontuario sem medico autor"; body_has "medico autor do prontuario indefinido" "prontuario 400 informativo"
+# Relatorio por periodo exige inicio e fim.
+api GET "/relatorios/agendamentos"
+expect 400 "relatorio sem datas"; body_has "informe inicio e fim" "relatorio 400 informativo"
+
 echo "[OK] Teste de integracao da API concluido com sucesso"

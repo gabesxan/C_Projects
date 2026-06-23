@@ -201,6 +201,12 @@ int main(void)
         assert(triagem_repo_adicionar_problema(triagemId, 1, 1, "") == 1);  /* Cardiologia: dor no peito */
         assert(triagem_repo_adicionar_problema(triagemId, 13, 0, "") == 1); /* Pneumologia: falta de ar */
 
+        /* Recalculo persiste especialidade/prioridade/classificacao a partir
+         * dos problemas. Parametro invalido ou triagem inexistente -> 0. */
+        assert(triagem_service_recalcular_triagem(0) == 0);
+        assert(triagem_service_recalcular_triagem(999999) == 0);
+        assert(triagem_service_recalcular_triagem(triagemId) == 1);
+
         assert(triagem_service_avaliar_triagem_json(triagemId, json, sizeof(json)) == 1);
         assert(strstr(json, "\"classificacao\":\"Vermelho\"") != NULL);
         assert(strstr(json, "\"prioridade\":5") != NULL);
