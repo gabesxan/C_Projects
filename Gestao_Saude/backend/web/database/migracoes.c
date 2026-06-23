@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 15
+#define LATEST_VERSION 16
 
 typedef struct
 {
@@ -260,6 +260,21 @@ static const Migracao MIGRACOES[] = {
      "  autor_login TEXT NOT NULL DEFAULT '',"
      "  criado_em TEXT NOT NULL DEFAULT (datetime('now')));"
      "CREATE INDEX IF NOT EXISTS idx_anexos_entidade ON anexos(entidade, entidade_id);"},
+    {16, "consentimentos LGPD: registro imutavel com estado logico (status/ativo)",
+     "CREATE TABLE IF NOT EXISTS consentimentos ("
+     "  id INTEGER PRIMARY KEY,"
+     "  paciente_id INTEGER NOT NULL,"
+     "  finalidade TEXT NOT NULL,"
+     "  versao_termo TEXT NOT NULL,"
+     "  status TEXT NOT NULL,"
+     "  concedido_em TEXT NOT NULL DEFAULT '',"
+     "  revogado_em TEXT NOT NULL DEFAULT '',"
+     "  motivo_revogacao TEXT NOT NULL DEFAULT '',"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  ativo INTEGER NOT NULL DEFAULT 1);"
+     "CREATE INDEX IF NOT EXISTS idx_consentimentos_paciente ON consentimentos(paciente_id);"
+     "CREATE INDEX IF NOT EXISTS idx_consentimentos_status ON consentimentos(status);"
+     "CREATE INDEX IF NOT EXISTS idx_consentimentos_finalidade ON consentimentos(finalidade);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

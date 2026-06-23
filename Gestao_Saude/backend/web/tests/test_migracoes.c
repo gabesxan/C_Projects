@@ -115,7 +115,7 @@ int main(void)
 
     /* Schema completo: nasce ja na ultima versao, com indices e colunas novos. */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(versao() == 15);
+    assert(versao() == 16);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
@@ -159,8 +159,16 @@ int main(void)
     assert(coluna_existe("agendamentos", "especialidade") == 1);
     assert(tabela_existe("anexos") == 1);
     assert(indice_existe("idx_anexos_entidade") == 1);
+    assert(tabela_existe("consentimentos") == 1);
+    assert(indice_existe("idx_consentimentos_paciente") == 1);
+    assert(indice_existe("idx_consentimentos_status") == 1);
+    assert(indice_existe("idx_consentimentos_finalidade") == 1);
 
-    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos v2..v15. */
+    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos v2..v16. */
+    assert(db_executar("DROP INDEX IF EXISTS idx_consentimentos_paciente;") == 1);
+    assert(db_executar("DROP INDEX IF EXISTS idx_consentimentos_status;") == 1);
+    assert(db_executar("DROP INDEX IF EXISTS idx_consentimentos_finalidade;") == 1);
+    assert(db_executar("DROP TABLE consentimentos;") == 1);
     assert(db_executar("DROP INDEX IF EXISTS idx_anexos_entidade;") == 1);
     assert(db_executar("DROP TABLE anexos;") == 1);
     assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_paciente;") == 1);
@@ -231,13 +239,14 @@ int main(void)
     assert(tabela_existe("vacinas") == 0);
     assert(tabela_existe("aplicacoes_vacinas") == 0);
     assert(tabela_existe("anexos") == 0);
+    assert(tabela_existe("consentimentos") == 0);
     assert(coluna_existe("agendamentos", "especialidade") == 0);
     assert(coluna_existe("triagens", "profissional_id") == 0);
     assert(versao() == 1);
 
     /* Migra: aplica v2..v15, sobe para a v15 e mantem os dados. */
     assert(db_migrar() == 1);
-    assert(versao() == 15);
+    assert(versao() == 16);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
@@ -280,12 +289,16 @@ int main(void)
     assert(coluna_existe("agendamentos", "especialidade") == 1);
     assert(tabela_existe("anexos") == 1);
     assert(indice_existe("idx_anexos_entidade") == 1);
+    assert(tabela_existe("consentimentos") == 1);
+    assert(indice_existe("idx_consentimentos_paciente") == 1);
+    assert(indice_existe("idx_consentimentos_status") == 1);
+    assert(indice_existe("idx_consentimentos_finalidade") == 1);
     assert(contar("SELECT COUNT(*) FROM especialidades_clinicas WHERE ativo = 1;") >= 7);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     /* Idempotente: rodar de novo num banco ja atualizado nao muda nada. */
     assert(db_migrar() == 1);
-    assert(versao() == 15);
+    assert(versao() == 16);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     printf("test_migracoes: OK\n");

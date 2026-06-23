@@ -625,6 +625,27 @@ CREATE TABLE anexos (
 
 CREATE INDEX idx_anexos_entidade ON anexos(entidade, entidade_id);
 
+-- Consentimentos LGPD (v16): registro de consentimento de um paciente para uma
+-- finalidade especifica. O historico e imutavel: a revogacao nao apaga o
+-- registro, apenas muda o status para REVOGADO e preenche revogado_em/motivo.
+-- Estado logico via 'status' e 'ativo'; nunca delete fisico.
+CREATE TABLE consentimentos (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    finalidade TEXT NOT NULL,
+    versao_termo TEXT NOT NULL,
+    status TEXT NOT NULL,
+    concedido_em TEXT NOT NULL DEFAULT '',
+    revogado_em TEXT NOT NULL DEFAULT '',
+    motivo_revogacao TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    ativo INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX idx_consentimentos_paciente ON consentimentos(paciente_id);
+CREATE INDEX idx_consentimentos_status ON consentimentos(status);
+CREATE INDEX idx_consentimentos_finalidade ON consentimentos(finalidade);
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 15;
+PRAGMA user_version = 16;
