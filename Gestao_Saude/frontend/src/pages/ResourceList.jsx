@@ -29,7 +29,7 @@ export default function ResourceList() {
   }, [recurso])
 
   useEffect(() => {
-    carregar()
+    queueMicrotask(carregar)
   }, [carregar])
 
   if (!recurso) {

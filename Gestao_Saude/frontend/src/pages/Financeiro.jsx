@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiSend } from '../api/client'
 import { formatReais, parseReaisParaCentavos } from '../money'
+import { SearchSelect } from '../components/FieldSelect'
 import {
   PageHeader,
   StatCard,
@@ -153,8 +154,13 @@ function NovaCobranca({ onCriada, onErro }) {
       <p className="text-sm font-semibold text-slate-700">Nova cobranca</p>
       <form onSubmit={submit} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm text-slate-600">
-          Paciente ID
-          <input className={inputCls} type="number" value={v.paciente_id} onChange={(e) => set('paciente_id', e.target.value)} />
+          Paciente
+          <SearchSelect
+            value={v.paciente_id}
+            onChange={(val) => set('paciente_id', val)}
+            path="/pacientes/buscar"
+            optionLabel={(p) => `${p.nome}${p.documento ? ` · ${p.documento}` : ''}`}
+          />
         </label>
         <label className="text-sm text-slate-600">
           Forma
@@ -295,13 +301,15 @@ function Lotes({ cobrancas, onMudou, onErro }) {
     apiGet('/convenios').then(setConvenios).catch(() => setConvenios([]))
   }, [])
   useEffect(() => {
-    if (sel == null) { setFatura(null); return }
-    apiGet(`/lotes/${sel}`).then(setFatura).catch((e) => onErro(e.message))
+    queueMicrotask(() => {
+      if (sel == null) { setFatura(null); return }
+      apiGet(`/lotes/${sel}`).then(setFatura).catch((e) => onErro(e.message))
+    })
   }, [sel, onErro])
 
   function recarregar() {
     carregarLotes()
-    if (sel != null) apiGet(`/lotes/${sel}`).then(setFatura).catch(() => {})
+    if (sel != null) apiGet(`/lotes/${sel}`).then(setFatura).catch(() => { })
     onMudou()
   }
 
@@ -342,12 +350,12 @@ function Lotes({ cobrancas, onMudou, onErro }) {
   const elegiveis =
     loteSel && loteSel.status === 'ABERTO' && Array.isArray(cobrancas)
       ? cobrancas.filter(
-          (c) =>
-            c.forma === 'CONVENIO' &&
-            c.status === 'AUTORIZADA' &&
-            c.loteId === 0 &&
-            c.convenioId === loteSel.convenioId,
-        )
+        (c) =>
+          c.forma === 'CONVENIO' &&
+          c.status === 'AUTORIZADA' &&
+          c.loteId === 0 &&
+          c.convenioId === loteSel.convenioId,
+      )
       : []
 
   return (
@@ -456,7 +464,7 @@ export default function Financeiro() {
     apiGet('/cobrancas/demonstrativo').then(setDemonstrativo).catch((e) => setErro(e.message))
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function mudarStatus(c, destino) {
     // GLOSADA/CANCELADA exigem justificativa (o backend tambem barra sem ela).

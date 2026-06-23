@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apiSend } from '../api/client'
+import { RefSelect } from './FieldSelect'
 
 // Estado inicial do formulario: todos os campos vazios.
 function estadoInicial(fields) {
@@ -59,7 +60,9 @@ export default function ResourceForm({ recurso, onCreated }) {
         {recurso.createFields.map((f) => (
           <label key={f.name} className="text-sm text-slate-600">
             {f.label}
-            {f.type === 'select' ? (
+            {f.type === 'ref' ? (
+              <RefSelect field={f} value={valores[f.name]} onChange={(v) => set(f.name, v)} valores={valores} />
+            ) : f.type === 'select' ? (
               <select
                 value={valores[f.name]}
                 onChange={(e) => set(f.name, e.target.value)}

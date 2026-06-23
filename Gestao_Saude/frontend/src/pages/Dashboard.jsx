@@ -168,12 +168,12 @@ function PainelVazio() {
 
 function PainelPaciente() {
   const atalhos = [
-    { to: '/minha-saude/carteirinha', label: 'Carteirinha digital', icon: 'patient' },
+    { to: '/minha-saude', label: 'Carteirinha digital', icon: 'patient' },
     { to: '/minha-saude/consultas', label: 'Proximas consultas', icon: 'schedule' },
     { to: '/minha-saude/exames', label: 'Exames e resultados', icon: 'lab' },
     { to: '/minha-saude/receitas', label: 'Receitas', icon: 'prescription' },
-    { to: '/minha-saude/cobrancas', label: 'Cobranças', icon: 'billing' },
-    { to: '/minha-saude/ajuda', label: 'Pedir ajuda', icon: 'alert' },
+    { to: '/minha-saude/financeiro', label: 'Cobranças', icon: 'billing' },
+    { to: '/minha-saude/solicitacoes', label: 'Pedir ajuda', icon: 'alert' },
   ]
 
   return (
@@ -194,7 +194,7 @@ function PainelPaciente() {
               <Link to="/minha-saude">
                 <Button><Icon icon={ICONS.health} size={16} />Abrir visão geral</Button>
               </Link>
-              <Link to="/minha-saude/ajuda">
+              <Link to="/minha-saude/solicitacoes">
                 <Button variant="secondary"><Icon icon={ICONS.alert} size={16} />Pedir ajuda</Button>
               </Link>
             </div>

@@ -276,7 +276,10 @@ export default function PacienteDetalhe() {
         title={paciente.nome}
         subtitle={`${paciente.idade} anos • ${paciente.tipoDocumento} ${paciente.documento}`}
         actions={
-          <Button variant="secondary" onClick={() => navigate('/r/pacientes')}>
+          <Button
+            variant="secondary"
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+          >
             ← Voltar
           </Button>
         }

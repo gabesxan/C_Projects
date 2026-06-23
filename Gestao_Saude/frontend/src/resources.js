@@ -15,12 +15,40 @@ const RISCO = {
 }
 const tomRisco = (v) => RISCO[v] ?? 'slate'
 
+// Rotulos das opcoes dos campos de referencia (FK por nome). Cada funcao recebe
+// uma linha da API e devolve o texto exibido na selecao.
+const rotuloPaciente = (p) => `${p.nome}${p.documento ? ` · ${p.documento}` : ''}`
+const rotuloMedico = (m) => `${m.nome}${m.especialidade ? ` · ${m.especialidade}` : ''}`
+const rotuloProntuario = (p) =>
+  `#${p.id} · ${p.diagnostico || p.data || 'sem diagnostico'}`
+
+// Campos de referencia reutilizaveis: buscam opcoes na API e enviam o id.
+// Paciente usa BUSCA pela rota nao escopada /pacientes/buscar: o GET /pacientes
+// e escopado por papel (o medico so ve quem tem agendamento com ele), o que
+// esconderia pacientes validos para criar registros clinicos.
+const fkPaciente = {
+  name: 'paciente_id',
+  label: 'Paciente',
+  type: 'ref',
+  searchPath: '/pacientes/buscar',
+  optionLabel: rotuloPaciente,
+}
+const fkMedicoVinculo = {
+  name: 'medico_id',
+  label: 'Medico',
+  type: 'ref',
+  path: '/medicos',
+  optionLabel: rotuloMedico,
+  allowEmpty: true,
+  emptyLabel: 'Usar meu vinculo',
+}
+
 export const RESOURCES = [
   {
     key: 'pacientes',
     label: 'Pacientes',
     path: '/pacientes',
-    roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'],
+    roles: ['ADMIN', 'CADASTRO'],
     createRoles: ['ADMIN', 'CADASTRO'],
     deleteRoles: ['ADMIN', 'CADASTRO'],
     deleteLabel: 'Remover',
@@ -56,7 +84,7 @@ export const RESOURCES = [
     key: 'medicos',
     label: 'Medicos',
     path: '/medicos',
-    roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'],
+    roles: ['ADMIN', 'CADASTRO'],
     createRoles: ['ADMIN', 'CADASTRO'],
     deleteRoles: ['ADMIN', 'CADASTRO'],
     deleteLabel: 'Remover',
@@ -85,15 +113,15 @@ export const RESOURCES = [
     requireReason: true,
     columns: [
       { key: 'id', label: 'ID' },
-      { key: 'pacienteId', label: 'Paciente' },
-      { key: 'medicoId', label: 'Medico' },
+      { key: 'pacienteNome', label: 'Paciente' },
+      { key: 'medicoNome', label: 'Medico' },
       { key: 'data', label: 'Data' },
       { key: 'horario', label: 'Horario' },
       { key: 'status', label: 'Status', type: 'badge' },
     ],
     createFields: [
-      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID', type: 'number' },
+      fkPaciente,
+      { ...fkMedicoVinculo, allowEmpty: false, emptyLabel: undefined },
       { name: 'data', label: 'Data', type: 'date' },
       { name: 'horario', label: 'Horario', type: 'text', placeholder: 'HH:MM' },
     ],
@@ -129,16 +157,16 @@ export const RESOURCES = [
     deleteLabel: 'Remover',
     columns: [
       { key: 'id', label: 'ID' },
-      { key: 'pacienteId', label: 'Paciente' },
-      { key: 'medicoId', label: 'Medico' },
+      { key: 'pacienteNome', label: 'Paciente' },
+      { key: 'medicoNome', label: 'Medico' },
       { key: 'data', label: 'Data' },
       { key: 'diagnostico', label: 'Diagnostico' },
       { key: 'conduta', label: 'Conduta' },
       { key: 'versao', label: 'Versao' },
     ],
     createFields: [
-      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
+      fkPaciente,
+      fkMedicoVinculo,
       { name: 'data', label: 'Data', type: 'date' },
       { name: 'observacoes', label: 'Observacoes', type: 'text' },
       { name: 'diagnostico', label: 'Diagnostico', type: 'text' },
@@ -157,16 +185,25 @@ export const RESOURCES = [
     requireReason: true,
     columns: [
       { key: 'id', label: 'ID' },
-      { key: 'pacienteId', label: 'Paciente' },
-      { key: 'medicoId', label: 'Medico' },
+      { key: 'pacienteNome', label: 'Paciente' },
+      { key: 'medicoNome', label: 'Medico' },
       { key: 'tipoExame', label: 'Tipo' },
       { key: 'dataSolicitacao', label: 'Solicitacao' },
       { key: 'status', label: 'Status', type: 'badge' },
     ],
     createFields: [
-      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
-      { name: 'prontuario_id', label: 'Prontuario ID', type: 'number' },
+      fkPaciente,
+      fkMedicoVinculo,
+      {
+        name: 'prontuario_id',
+        label: 'Prontuario',
+        type: 'ref',
+        path: '/prontuarios',
+        optionLabel: rotuloProntuario,
+        // So oferece prontuarios do paciente escolhido (quando ja selecionado).
+        filter: (row, valores) =>
+          !valores?.paciente_id || String(row.pacienteId) === String(valores.paciente_id),
+      },
       { name: 'tipo', label: 'Tipo', type: 'number' },
       { name: 'data_solicitacao', label: 'Solicitacao', type: 'date' },
       { name: 'urgente', label: 'Urgente', type: 'select', options: ['0', '1'] },
@@ -185,8 +222,8 @@ export const RESOURCES = [
     administravel: true,
     columns: [
       { key: 'id', label: 'ID' },
-      { key: 'pacienteId', label: 'Paciente' },
-      { key: 'medicoId', label: 'Medico' },
+      { key: 'pacienteNome', label: 'Paciente' },
+      { key: 'medicoNome', label: 'Medico' },
       { key: 'medicamento', label: 'Medicamento' },
       { key: 'dosagem', label: 'Dosagem' },
       { key: 'frequencia', label: 'Frequencia' },
@@ -195,8 +232,8 @@ export const RESOURCES = [
       { key: 'observacoes', label: 'Observacoes' },
     ],
     createFields: [
-      { name: 'paciente_id', label: 'Paciente ID', type: 'number' },
-      { name: 'medico_id', label: 'Medico ID (deixe vazio: usa seu vinculo)', type: 'number' },
+      fkPaciente,
+      fkMedicoVinculo,
       { name: 'medicamento', label: 'Medicamento', type: 'text' },
       { name: 'dosagem', label: 'Dosagem', type: 'text' },
       { name: 'frequencia', label: 'Frequencia', type: 'text' },

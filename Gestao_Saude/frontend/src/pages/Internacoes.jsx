@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiSend } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { SearchSelect, ApiSelect } from '../components/FieldSelect'
 import {
   PageHeader,
   Card,
@@ -45,14 +46,31 @@ function FormInternar({ onCriado }) {
       <form onSubmit={submit} className="space-y-4">
         {erro && <Alert>{erro}</Alert>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm text-slate-600">Paciente ID
-            <input type="number" className={inputCls} value={v.paciente_id} onChange={(e) => set('paciente_id', e.target.value)} required />
+          <label className="text-sm text-slate-600">Paciente
+            <SearchSelect
+              value={v.paciente_id}
+              onChange={(val) => set('paciente_id', val)}
+              path="/pacientes/buscar"
+              optionLabel={(p) => `${p.nome}${p.documento ? ` · ${p.documento}` : ''}`}
+            />
           </label>
-          <label className="text-sm text-slate-600">Ala ID
-            <input type="number" className={inputCls} value={v.ala_id} onChange={(e) => set('ala_id', e.target.value)} required />
+          <label className="text-sm text-slate-600">Ala
+            <ApiSelect
+              value={v.ala_id}
+              onChange={(val) => setV((s) => ({ ...s, ala_id: val, leito_id: '' }))}
+              path="/alas"
+              optionLabel={(a) => a.nome}
+            />
           </label>
-          <label className="text-sm text-slate-600">Leito ID
-            <input type="number" className={inputCls} value={v.leito_id} onChange={(e) => set('leito_id', e.target.value)} required />
+          <label className="text-sm text-slate-600">Leito (disponivel)
+            <ApiSelect
+              value={v.leito_id}
+              onChange={(val) => set('leito_id', val)}
+              path="/leitos"
+              placeholder={v.ala_id ? 'Selecione...' : 'Escolha a ala primeiro'}
+              optionLabel={(l) => `Leito ${l.numero}`}
+              filter={(l) => String(l.alaId) === String(v.ala_id) && l.status === 'DISPONIVEL'}
+            />
           </label>
           <label className="text-sm text-slate-600">Data de entrada
             <input type="date" className={inputCls} value={v.data_entrada} onChange={(e) => set('data_entrada', e.target.value)} required />
@@ -85,7 +103,7 @@ export default function Internacoes() {
     apiGet('/internacoes').then(setRows).catch((e) => setErro(e.message))
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function darAlta(row) {
     const resumo = window.prompt('Resumo clinico da alta:')

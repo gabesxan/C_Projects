@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { navForRole } from '../nav'
+import { navForRole, SECTIONS } from '../nav'
 import { Badge, papelLabel, PAPEL_INFO } from './ui'
 import { ICONS, Icon } from './icons'
 
@@ -14,7 +14,24 @@ function linkClass({ isActive }) {
   ].join(' ')
 }
 
+function NavItem({ item, onNavigate }) {
+  return (
+    <NavLink to={item.to} end={item.end} className={linkClass} onClick={onNavigate}>
+      <Icon icon={ICONS[item.icon]} className="text-slate-300 transition group-hover:text-white" size={18} />
+      {item.label}
+    </NavLink>
+  )
+}
+
+// Agrupa os itens visiveis em secoes (na ordem de SECTIONS). Itens sem secao
+// (ex.: Painel) ficam no topo, fora de qualquer grupo.
 function SidebarContent({ itens, onNavigate }) {
+  const semSecao = itens.filter((i) => !i.section)
+  const grupos = SECTIONS.map((nome) => ({
+    nome,
+    itens: itens.filter((i) => i.section === nome),
+  })).filter((g) => g.itens.length > 0)
+
   return (
     <>
       <div className="flex items-center gap-3 px-2 py-1">
@@ -27,18 +44,23 @@ function SidebarContent({ itens, onNavigate }) {
         </div>
       </div>
 
-      <nav className="mt-6 space-y-1">
-        {itens.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={linkClass}
-            onClick={onNavigate}
-          >
-            <Icon icon={ICONS[item.icon]} className="text-slate-300 transition group-hover:text-white" size={18} />
-            {item.label}
-          </NavLink>
+      <nav className="mt-6 space-y-5">
+        {semSecao.length > 0 && (
+          <div className="space-y-1">
+            {semSecao.map((item) => (
+              <NavItem key={item.to} item={item} onNavigate={onNavigate} />
+            ))}
+          </div>
+        )}
+        {grupos.map((g) => (
+          <div key={g.nome} className="space-y-1">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              {g.nome}
+            </p>
+            {g.itens.map((item) => (
+              <NavItem key={item.to} item={item} onNavigate={onNavigate} />
+            ))}
+          </div>
         ))}
       </nav>
     </>
