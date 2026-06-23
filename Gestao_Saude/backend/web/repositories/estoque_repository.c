@@ -412,3 +412,154 @@ int movimentacao_listar_json(int medicamento_id, char *buffer, int tamanho)
     db_fechar(db);
     return repo_json_anexar(buffer, tamanho, &usado, "]");
 }
+
+static int anexar_saldos_json(sqlite3 *db, char *buffer, int tamanho, int *usado,
+                              const char *sql)
+{
+    sqlite3_stmt *stmt = NULL;
+    int primeiro = 1;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char nomeJson[256];
+        char apresentacaoJson[256];
+        char unidadeJson[64];
+        char objeto[760];
+        int id = sqlite3_column_int(stmt, 0);
+        int estoqueMinimo = sqlite3_column_int(stmt, 4);
+        int saldo = sqlite3_column_int(stmt, 5);
+        int escrito;
+
+        if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 1)) == 0 ||
+            repo_json_escapar(apresentacaoJson, sizeof(apresentacaoJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
+            repo_json_escapar(unidadeJson, sizeof(unidadeJson), (const char *)sqlite3_column_text(stmt, 3)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"medicamentoId\":%d,\"nome\":%s,\"apresentacao\":%s,"
+            "\"unidade\":%s,\"estoqueMinimo\":%d,\"saldo\":%d}",
+            primeiro ? "" : ",",
+            id, nomeJson, apresentacaoJson, unidadeJson, estoqueMinimo, saldo);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            return 0;
+        }
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return 1;
+}
+
+static int anexar_validade_proxima_json(sqlite3 *db, char *buffer, int tamanho,
+                                        int *usado)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT e.id, m.id, m.nome, e.lote, e.validade, e.quantidade, e.localizacao "
+        "FROM estoque_itens e "
+        "JOIN medicamentos m ON m.id = e.medicamento_id "
+        "WHERE m.ativo = 1 AND e.quantidade > 0 AND e.validade <> '' "
+        "AND date(e.validade) BETWEEN date('now') AND date('now', '+30 days') "
+        "ORDER BY e.validade, m.nome, e.id;";
+    int primeiro = 1;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char nomeJson[256];
+        char loteJson[96];
+        char validadeJson[32];
+        char localizacaoJson[96];
+        char objeto[760];
+        int id = sqlite3_column_int(stmt, 0);
+        int medicamentoId = sqlite3_column_int(stmt, 1);
+        int quantidade = sqlite3_column_int(stmt, 5);
+        int escrito;
+
+        if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
+            repo_json_escapar(loteJson, sizeof(loteJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
+            repo_json_escapar(validadeJson, sizeof(validadeJson), (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
+            repo_json_escapar(localizacaoJson, sizeof(localizacaoJson), (const char *)sqlite3_column_text(stmt, 6)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"id\":%d,\"medicamentoId\":%d,\"nome\":%s,\"lote\":%s,"
+            "\"validade\":%s,\"quantidade\":%d,\"localizacao\":%s}",
+            primeiro ? "" : ",",
+            id, medicamentoId, nomeJson, loteJson, validadeJson, quantidade, localizacaoJson);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            return 0;
+        }
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return 1;
+}
+
+int estoque_alertas_json(char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    int usado = 0;
+    const char *sqlSaldos =
+        "SELECT m.id, m.nome, m.apresentacao, m.unidade, m.estoque_minimo, "
+        "COALESCE(SUM(e.quantidade), 0) AS saldo "
+        "FROM medicamentos m "
+        "LEFT JOIN estoque_itens e ON e.medicamento_id = m.id "
+        "WHERE m.ativo = 1 "
+        "GROUP BY m.id, m.nome, m.apresentacao, m.unidade, m.estoque_minimo "
+        "ORDER BY m.nome;";
+    const char *sqlBaixo =
+        "SELECT m.id, m.nome, m.apresentacao, m.unidade, m.estoque_minimo, "
+        "COALESCE(SUM(e.quantidade), 0) AS saldo "
+        "FROM medicamentos m "
+        "LEFT JOIN estoque_itens e ON e.medicamento_id = m.id "
+        "WHERE m.ativo = 1 "
+        "GROUP BY m.id, m.nome, m.apresentacao, m.unidade, m.estoque_minimo "
+        "HAVING saldo < m.estoque_minimo "
+        "ORDER BY m.nome;";
+
+    if (buffer == NULL || tamanho <= 0 || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    buffer[0] = '\0';
+    if (repo_json_anexar(buffer, tamanho, &usado, "{\"saldos\":[") == 0 ||
+        anexar_saldos_json(db, buffer, tamanho, &usado, sqlSaldos) == 0 ||
+        repo_json_anexar(buffer, tamanho, &usado, "],\"estoqueBaixo\":[") == 0 ||
+        anexar_saldos_json(db, buffer, tamanho, &usado, sqlBaixo) == 0 ||
+        repo_json_anexar(buffer, tamanho, &usado, "],\"validadeProxima\":[") == 0 ||
+        anexar_validade_proxima_json(db, buffer, tamanho, &usado) == 0 ||
+        repo_json_anexar(buffer, tamanho, &usado, "]}") == 0)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    db_fechar(db);
+    return 1;
+}

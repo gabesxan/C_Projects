@@ -31,4 +31,8 @@ int estoque_itens_listar_json(int medicamento_id, char *buffer, int tamanho);
 /* Lista (JSON) as movimentacoes do medicamento, mais recentes primeiro. */
 int movimentacao_listar_json(int medicamento_id, char *buffer, int tamanho);
 
+/* Relatorio agregado da farmacia: saldos consolidados por medicamento, itens
+ * com estoque baixo e lotes com validade nos proximos 30 dias. */
+int estoque_alertas_json(char *buffer, int tamanho);
+
 #endif

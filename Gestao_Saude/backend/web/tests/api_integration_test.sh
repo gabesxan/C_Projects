@@ -228,6 +228,8 @@ api POST /estoque '{"medicamento_id":"1","lote":"L1","validade":"2026-12-31","qu
 expect 201 "entrada de estoque (50)"
 api GET /medicamentos/1/estoque
 expect 200 "estoque do medicamento"; body_has '"quantidade":50' "saldo apos entrada"
+api GET /estoque/alertas
+expect 200 "alertas de farmacia listados"; body_has '"saldos"' "relatorio de saldos"
 # Dispensa 3 ao paciente 1: debita o estoque (50 -> 47) e gera cobranca
 # PARTICULAR de 3 x 150 = 450 centavos (vinculo com o financeiro).
 api POST /medicamentos/1/dispensar '{"paciente_id":"1","quantidade":"3","motivo":"pos-consulta"}'

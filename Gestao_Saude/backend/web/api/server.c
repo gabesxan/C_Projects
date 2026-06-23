@@ -1152,6 +1152,22 @@ static void rotaMovimentacaoListar(int cliente, int medicamento_id)
     free(json);
 }
 
+static void rotaEstoqueAlertas(int cliente)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && estoque_alertas_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar alertas de estoque\"}");
+    }
+    free(json);
+}
+
 /* POST /medicamentos/{id}/dispensar: debita o estoque e gera a cobranca
  * PARTICULAR (vinculo com o financeiro), via farmacia_service. */
 static void rotaMedicamentoDispensar(int cliente, int medicamento_id,
@@ -3079,6 +3095,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/estoque") == 0)
     {
         rotaEstoqueEntrada(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/estoque/alertas") == 0)
+    {
+        rotaEstoqueAlertas(cliente);
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/movimentacoes") == 0)
     {

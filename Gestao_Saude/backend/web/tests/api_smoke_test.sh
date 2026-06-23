@@ -545,6 +545,7 @@ request_json_and_assert "POST" "/estoque" \
     '{"medicamento_id":"1","lote":"L1","validade":"2026-12-31","quantidade":"100","localizacao":"Prateleira A"}' \
     "201" "/estoque POST entrada (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"criado"'
 request_and_assert "/medicamentos/1/estoque" "200" "/medicamentos/1/estoque" "${ADMIN_TOKEN}" contains '"quantidade":100'
+request_and_assert "/estoque/alertas" "200" "/estoque/alertas (ADMIN)" "${ADMIN_TOKEN}" contains '"saldos"'
 # Saida (ajuste/perda) debita o estoque.
 request_json_and_assert "POST" "/movimentacoes" \
     '{"medicamento_id":"1","tipo":"SAIDA","quantidade":"10","motivo":"perda"}' \
@@ -558,6 +559,7 @@ request_json_and_assert "POST" "/movimentacoes" \
 request_and_assert "/medicamentos" "403" "/medicamentos bloqueado para MEDICO" "${MED_TOKEN}"
 request_and_assert "/medicamentos" "403" "/medicamentos bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_and_assert "/medicamentos/1/estoque" "403" "/estoque bloqueado para MEDICO" "${MED_TOKEN}"
+request_and_assert "/estoque/alertas" "403" "/estoque/alertas bloqueado para MEDICO" "${MED_TOKEN}"
 
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).

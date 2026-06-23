@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static const char *BANCO_TESTE = "build/test_sigeh_estoque.db";
 static const char *SCHEMA = "../data/schema_v3.sql";
@@ -12,6 +13,14 @@ static const char *SCHEMA = "../data/schema_v3.sql";
 int main(void)
 {
     char json[4096];
+    char validadeProxima[16];
+    time_t agora = time(NULL);
+    struct tm *tm = localtime(&agora);
+
+    assert(tm != NULL);
+    tm->tm_mday += 10;
+    assert(mktime(tm) != (time_t)-1);
+    assert(strftime(validadeProxima, sizeof(validadeProxima), "%Y-%m-%d", tm) > 0);
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
@@ -61,6 +70,21 @@ int main(void)
     assert(strstr(json, "\"tipo\":\"ENTRADA\"") != NULL);
     assert(strstr(json, "\"tipo\":\"SAIDA\"") != NULL);
     assert(strstr(json, "\"tipo\":\"AJUSTE\"") != NULL);
+
+    /* Relatorio/alertas: saldo consolidado, estoque baixo e validade proxima. */
+    assert(medicamento_criar("Amoxicilina", "250mg", "frasco", 30, 1200) == 1);
+    assert(estoque_entrada(2, "AMX1", validadeProxima, 10, "Geladeira", 1, "admin") == 1);
+    assert(estoque_alertas_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "\"saldos\"") != NULL);
+    assert(strstr(json, "\"estoqueBaixo\"") != NULL);
+    assert(strstr(json, "\"validadeProxima\"") != NULL);
+    assert(strstr(json, "\"nome\":\"Dipirona\"") != NULL);
+    assert(strstr(json, "\"saldo\":50") != NULL);
+    assert(strstr(json, "\"nome\":\"Amoxicilina\"") != NULL);
+    assert(strstr(json, "\"saldo\":10") != NULL);
+    assert(strstr(json, "\"estoqueMinimo\":30") != NULL);
+    assert(strstr(json, "\"lote\":\"AMX1\"") != NULL);
+    assert(strstr(json, validadeProxima) != NULL);
 
     printf("test_estoque_repository: OK\n");
     return 0;

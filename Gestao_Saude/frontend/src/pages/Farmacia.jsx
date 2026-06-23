@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiSend } from '../api/client'
-import { PageHeader, Card, Button, Alert, Spinner, EmptyState, Badge } from '../components/ui'
+import { PageHeader, Card, Button, Alert, Spinner, EmptyState, Badge, StatCard } from '../components/ui'
 import { SearchSelect } from '../components/FieldSelect'
 import { formatReais } from '../money'
+import { AlertTriangle, Boxes, CalendarClock } from 'lucide-react'
 
 const TIPO_TONE = { ENTRADA: 'green', SAIDA: 'amber', AJUSTE: 'violet' }
 
@@ -192,24 +193,96 @@ function Detalhe({ medicamento, onMudou }) {
 
 export default function Farmacia() {
   const [medicamentos, setMedicamentos] = useState(null)
+  const [alertas, setAlertas] = useState(null)
   const [erro, setErro] = useState('')
   const [selecionadoId, setSelecionadoId] = useState(null)
 
   const carregar = useCallback(() => {
-    apiGet('/medicamentos')
-      .then((d) => { setMedicamentos(d); setErro('') })
+    Promise.all([apiGet('/medicamentos'), apiGet('/estoque/alertas')])
+      .then(([lista, resumo]) => {
+        setMedicamentos(lista)
+        setAlertas(resumo)
+        setErro('')
+      })
       .catch((e) => setErro(e.message))
   }, [])
 
   useEffect(carregar, [carregar])
 
   const selecionado = (medicamentos || []).find((m) => m.id === selecionadoId) || null
+  const saldos = alertas?.saldos || []
+  const estoqueBaixo = alertas?.estoqueBaixo || []
+  const validadeProxima = alertas?.validadeProxima || []
 
   return (
     <div className="space-y-6">
       <PageHeader title="Farmácia" subtitle="Estoque, entradas, dispensação e movimentações" />
 
       {erro && <Alert tone="red">{erro}</Alert>}
+
+      {alertas == null ? (
+        <Spinner />
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <StatCard label="Medicamentos com saldo" value={saldos.length} icon={Boxes} tone="teal" />
+            <StatCard label="Estoque baixo" value={estoqueBaixo.length} icon={AlertTriangle} tone={estoqueBaixo.length > 0 ? 'red' : 'green'} />
+            <StatCard label="Validade em 30 dias" value={validadeProxima.length} icon={CalendarClock} tone={validadeProxima.length > 0 ? 'amber' : 'green'} />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-slate-800">Estoque baixo</h2>
+                <Badge tone={estoqueBaixo.length > 0 ? 'red' : 'green'}>{estoqueBaixo.length}</Badge>
+              </div>
+              {estoqueBaixo.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum item abaixo do mínimo.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {estoqueBaixo.slice(0, 6).map((m) => (
+                    <li key={m.medicamentoId} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                      <span>
+                        <span className="font-semibold text-slate-800">{m.nome}</span>
+                        <span className="block text-xs text-slate-400">{m.apresentacao}</span>
+                      </span>
+                      <span className="text-right text-xs text-slate-500">
+                        <strong className="block text-sm text-red-700">{m.saldo}</strong>
+                        mínimo {m.estoqueMinimo}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-slate-800">Validade próxima</h2>
+                <Badge tone={validadeProxima.length > 0 ? 'amber' : 'green'}>{validadeProxima.length}</Badge>
+              </div>
+              {validadeProxima.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum lote vence nos próximos 30 dias.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {validadeProxima.slice(0, 6).map((l) => (
+                    <li key={l.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                      <span>
+                        <span className="font-semibold text-slate-800">{l.nome}</span>
+                        <span className="block text-xs text-slate-400">{l.lote || '(sem lote)'} · {l.localizacao || 'sem localização'}</span>
+                      </span>
+                      <span className="text-right text-xs text-slate-500">
+                        <strong className="block text-sm text-amber-700">{l.validade}</strong>
+                        qtd. {l.quantidade}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+        </>
+      )}
 
       {medicamentos == null ? (
         <Spinner />
