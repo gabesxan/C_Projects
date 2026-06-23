@@ -2,13 +2,12 @@
 
 ## Organização
 
-- `src/backend/data`: schema SQLite e banco local. Dados de runtime não fazem
-  parte da estrutura versionada.
+- `src/backend/data`: schema SQLite, banco local e anexos de runtime.
 - `src/backend/web`: servidor HTTP/HTTPS, módulos C, testes e Makefile.
 - `src/frontend`: aplicação React/Vite e testes de componentes.
 - `docs`: documentação técnica complementar.
 - `imagens`: diagramas, capturas de tela e imagens da documentação.
-- `executavel`: binário e frontend preparados para distribuição.
+- `executavel`: distribuição gerada por `make release`.
 
 ## Backend
 
@@ -29,6 +28,6 @@ o build copiado para `src/backend/web/public`.
 
 ## Artefatos
 
-Diretórios `build`, `dist`, `public` gerado, bancos locais, arquivos enviados e
-certificados não fazem parte do código-fonte versionado. A distribuição final
-fica separada em `executavel/`.
+Diretórios `build`, `dist`, `public` gerado, bancos locais, anexos e
+certificados não fazem parte do código-fonte versionado. O alvo `make release`
+reúne o binário e o frontend em `executavel/`.
