@@ -7,11 +7,12 @@ const campoCls =
 // Combobox de busca: digita um termo, consulta a API (searchPath aceita ?q=) e
 // escolhe pelo NOME, guardando o id. Usado para entidades amplas (pacientes),
 // onde uma fonte nao escopada (/pacientes/buscar) evita esconder registros.
-export function SearchSelect({ path, value, onChange, optionLabel, placeholder = 'Buscar por nome ou documento...' }) {
+export function SearchSelect({ path, value, onChange, optionLabel, placeholder = 'Buscar por nome ou documento...', required = false, label }) {
   const [q, setQ] = useState('')
   const [resultados, setResultados] = useState(null)
   const [aberto, setAberto] = useState(false)
   const [rotulo, setRotulo] = useState('')
+  const [erro, setErro] = useState('')
 
   // Observacao: o modo "selecionado" so e exibido quando ha value E rotulo;
   // se o value for limpo externamente, a UI volta sozinha ao campo de busca
@@ -22,10 +23,11 @@ export function SearchSelect({ path, value, onChange, optionLabel, placeholder =
     const t = setTimeout(() => {
       apiGet(`${path}?q=${encodeURIComponent(q)}`)
         .then((rows) => setResultados(Array.isArray(rows) ? rows : []))
-        .catch(() => setResultados([]))
+        .catch((e) => { setResultados([]); setErro(e.message || 'Não foi possível carregar as opções.') })
     }, 250)
     return () => clearTimeout(t)
   }, [q, aberto, path])
+  const carregando = aberto && resultados === null && !erro
 
   function escolher(r) {
     onChange(String(r.id))
@@ -52,12 +54,19 @@ export function SearchSelect({ path, value, onChange, optionLabel, placeholder =
     <div className="relative mt-1">
       <input
         value={q}
+        aria-label={label}
+        required={required && !value}
         placeholder={placeholder}
-        onChange={(e) => { setQ(e.target.value); setAberto(true) }}
-        onFocus={() => setAberto(true)}
+        onChange={(e) => { setQ(e.target.value); setResultados(null); setErro(''); setAberto(true) }}
+        onFocus={() => { setResultados(null); setErro(''); setAberto(true) }}
         className="block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
       />
-      {aberto && resultados && (
+      {aberto && carregando && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-lg">
+          Carregando opções...
+        </div>
+      )}
+      {aberto && !carregando && resultados && (
         <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
           {resultados.length === 0 && (
             <li className="px-3 py-2 text-xs text-slate-400">Nenhum resultado.</li>
@@ -75,6 +84,7 @@ export function SearchSelect({ path, value, onChange, optionLabel, placeholder =
           ))}
         </ul>
       )}
+      {erro && <span className="mt-1 block text-xs text-red-600">{erro}</span>}
     </div>
   )
 }
@@ -83,6 +93,7 @@ export function SearchSelect({ path, value, onChange, optionLabel, placeholder =
 // vazia (allowEmpty) e filtro dependente de outros campos (filter(row, valores)).
 export function ApiSelect({
   path, value, onChange, optionLabel, allowEmpty, emptyLabel, placeholder, filter, valores,
+  required = false, disabled = false, label,
 }) {
   const [opcoes, setOpcoes] = useState(null)
   const [erro, setErro] = useState('')
@@ -102,8 +113,10 @@ export function ApiSelect({
     <>
       <select
         value={value}
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        disabled={carregando}
+        disabled={carregando || disabled}
+        required={required}
         className={campoCls}
       >
         <option value="">
@@ -115,6 +128,9 @@ export function ApiSelect({
           </option>
         ))}
       </select>
+      {!carregando && !erro && lista.length === 0 && (
+        <span className="mt-1 block text-xs text-slate-500">Nenhuma opção disponível.</span>
+      )}
       {erro && <span className="mt-1 block text-xs text-red-600">{erro}</span>}
     </>
   )
@@ -131,6 +147,8 @@ export function RefSelect({ field, value, onChange, valores }) {
         onChange={onChange}
         optionLabel={field.optionLabel}
         placeholder={field.placeholder}
+        required={field.required}
+        label={field.label}
       />
     )
   }
@@ -144,6 +162,9 @@ export function RefSelect({ field, value, onChange, valores }) {
       emptyLabel={field.emptyLabel}
       filter={field.filter}
       valores={valores}
+      required={field.required}
+      disabled={field.disabled?.(valores)}
+      label={field.label}
     />
   )
 }

@@ -10,6 +10,7 @@ import {
   Spinner,
   EmptyState,
 } from '../components/ui'
+import { statusLabel } from '../usability'
 
 const STATUS = ['DISPONIVEL', 'HIGIENIZACAO', 'MANUTENCAO', 'BLOQUEADO']
 const TONE = {
@@ -25,12 +26,20 @@ export default function Leitos() {
   const [leitos, setLeitos] = useState(null)
   const [ocupacao, setOcupacao] = useState(null)
   const [erro, setErro] = useState('')
+  const [alas, setAlas] = useState([])
+  const [pacientes, setPacientes] = useState([])
 
   const podeGerenciar = user.papel === 'ADMIN' || user.papel === 'ENFERMAGEM'
 
   const carregar = useCallback(() => {
     setErro('')
-    apiGet('/leitos').then(setLeitos).catch((e) => setErro(e.message))
+    Promise.all([apiGet('/leitos'), apiGet('/alas'), apiGet('/pacientes')])
+      .then(([listaLeitos, listaAlas, listaPacientes]) => {
+        setLeitos(listaLeitos)
+        setAlas(listaAlas)
+        setPacientes(listaPacientes)
+      })
+      .catch((e) => setErro(e.message))
     apiGet('/leitos/ocupacao').then(setOcupacao).catch(() => {})
   }, [])
 
@@ -45,6 +54,9 @@ export default function Leitos() {
       setErro(e.message)
     }
   }
+
+  const nomeAla = (id) => alas.find((a) => a.id === id)?.nome || `Ala ${id}`
+  const nomePaciente = (id) => pacientes.find((p) => p.id === id)?.nome || 'Paciente internado'
 
   return (
     <div className="space-y-6">
@@ -75,11 +87,11 @@ export default function Leitos() {
             <Card key={l.id} className="p-4">
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold text-slate-900">#{l.numero}</span>
-                <Badge tone={TONE[l.status]}>{l.status}</Badge>
+                <Badge tone={TONE[l.status]}>{statusLabel(l.status)}</Badge>
               </div>
-              <p className="mt-1 text-xs text-slate-500">Ala {l.alaId}</p>
+              <p className="mt-1 text-xs text-slate-500">{nomeAla(l.alaId)}</p>
               {l.pacienteId > 0 && (
-                <p className="mt-1 text-xs text-slate-500">Paciente #{l.pacienteId}</p>
+                <p className="mt-1 text-xs text-slate-500">{nomePaciente(l.pacienteId)}</p>
               )}
               {podeGerenciar && l.status !== 'OCUPADO' && (
                 <select
@@ -89,7 +101,7 @@ export default function Leitos() {
                 >
                   <option value="">Alterar status...</option>
                   {STATUS.filter((s) => s !== l.status).map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{statusLabel(s)}</option>
                   ))}
                 </select>
               )}

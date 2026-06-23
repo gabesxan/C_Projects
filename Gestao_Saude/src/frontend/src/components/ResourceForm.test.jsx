@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 
 vi.mock('../api/client', () => ({
   apiSend: vi.fn(),
+  apiGet: vi.fn(),
   ApiError: class ApiError extends Error {
     constructor(status, body) {
       super((body && body.erro) || `HTTP ${status}`)
@@ -12,7 +13,7 @@ vi.mock('../api/client', () => ({
     }
   },
 }))
-import { apiSend } from '../api/client'
+import { apiGet, apiSend } from '../api/client'
 import ResourceForm from './ResourceForm'
 
 // Recurso de teste com um campo texto e um select (sem campos ref, para nao
@@ -27,6 +28,7 @@ const recurso = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  apiGet.mockResolvedValue([])
 })
 
 describe('ResourceForm', () => {
@@ -76,5 +78,27 @@ describe('ResourceForm', () => {
         especialidade: 'Cardiologia',
       }),
     )
+  })
+
+  it('bloqueia o envio quando uma referencia obrigatoria esta vazia', async () => {
+    const user = userEvent.setup()
+    render(
+      <ResourceForm
+        recurso={{
+          path: '/exames',
+          createFields: [
+            { name: 'paciente_id', label: 'Paciente', type: 'ref', path: '/pacientes', required: true },
+          ],
+        }}
+        onCreated={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '+ Novo' }))
+    const select = screen.getByRole('combobox')
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    expect(select).toBeInvalid()
+    expect(apiSend).not.toHaveBeenCalled()
   })
 })

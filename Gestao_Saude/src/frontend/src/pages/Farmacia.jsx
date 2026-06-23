@@ -4,6 +4,7 @@ import { PageHeader, Card, Button, Alert, Spinner, EmptyState, Badge, StatCard }
 import { SearchSelect } from '../components/FieldSelect'
 import { formatReais } from '../money'
 import { AlertTriangle, Boxes, CalendarClock } from 'lucide-react'
+import { statusLabel } from '../usability'
 
 const TIPO_TONE = { ENTRADA: 'green', SAIDA: 'amber', AJUSTE: 'violet' }
 
@@ -59,6 +60,10 @@ function Detalhe({ medicamento, onMudou }) {
 
   function registrarEntrada(e) {
     e.preventDefault()
+    if (!entrada.lote.trim() || !entrada.validade || Number(entrada.quantidade) <= 0) {
+      setErro('Informe lote, validade e uma quantidade maior que zero.')
+      return
+    }
     enviar(async () => {
       await apiSend('POST', '/estoque', { medicamento_id: String(medicamento.id), ...entrada })
       setEntrada({ lote: '', validade: '', quantidade: '', localizacao: '' })
@@ -68,6 +73,10 @@ function Detalhe({ medicamento, onMudou }) {
 
   function registrarSaida(e) {
     e.preventDefault()
+    if (Number(saida.quantidade) <= 0 || !saida.motivo.trim()) {
+      setErro('Informe uma quantidade maior que zero e o motivo da movimentação.')
+      return
+    }
     enviar(async () => {
       await apiSend('POST', '/movimentacoes', { medicamento_id: String(medicamento.id), ...saida })
       setSaida({ tipo: 'SAIDA', quantidade: '', motivo: '' })
@@ -77,6 +86,10 @@ function Detalhe({ medicamento, onMudou }) {
 
   function dispensar(e) {
     e.preventDefault()
+    if (!disp.paciente_id || Number(disp.quantidade) <= 0) {
+      setErro('Selecione o paciente e informe uma quantidade maior que zero.')
+      return
+    }
     enviar(async () => {
       const r = await apiSend('POST', `/medicamentos/${medicamento.id}/dispensar`, disp)
       setDisp({ paciente_id: '', quantidade: '', motivo: '' })
@@ -142,8 +155,8 @@ function Detalhe({ medicamento, onMudou }) {
               value={saida.tipo}
               onChange={(e) => setSaida((s) => ({ ...s, tipo: e.target.value }))}
             >
-              <option value="SAIDA">SAIDA</option>
-              <option value="AJUSTE">AJUSTE</option>
+              <option value="SAIDA">{statusLabel('SAIDA')}</option>
+              <option value="AJUSTE">{statusLabel('AJUSTE')}</option>
             </select>
           </label>
           <Campo label="Quantidade" type="number" value={saida.quantidade} onChange={(v) => setSaida((s) => ({ ...s, quantidade: v }))} />
@@ -177,7 +190,7 @@ function Detalhe({ medicamento, onMudou }) {
               {movs.slice(0, 15).map((m) => (
                 <li key={m.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-1.5">
                   <span className="flex items-center gap-2">
-                    <Badge tone={TIPO_TONE[m.tipo] ?? 'slate'}>{m.tipo}</Badge>
+                    <Badge tone={TIPO_TONE[m.tipo] ?? 'slate'}>{statusLabel(m.tipo)}</Badge>
                     <span className="text-slate-500">{m.motivo || '—'}</span>
                   </span>
                   <span className="font-semibold">{m.quantidade}</span>

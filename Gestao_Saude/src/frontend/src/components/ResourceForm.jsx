@@ -6,7 +6,7 @@ import { RefSelect } from './FieldSelect'
 function estadoInicial(fields) {
   const o = {}
   fields.forEach((f) => {
-    o[f.name] = f.type === 'select' ? f.options[0] : ''
+    o[f.name] = f.type === 'select' ? String(f.options[0]?.value ?? f.options[0] ?? '') : ''
   })
   return o
 }
@@ -24,6 +24,11 @@ export default function ResourceForm({ recurso, onCreated }) {
   async function submit(e) {
     e.preventDefault()
     setErro('')
+    const ausente = recurso.createFields.find((f) => f.required && !String(valores[f.name] ?? '').trim())
+    if (ausente) {
+      setErro(`Selecione ou informe: ${ausente.label}.`)
+      return
+    }
     setSalvando(true)
     try {
       await apiSend('POST', recurso.path, valores)
@@ -67,10 +72,11 @@ export default function ResourceForm({ recurso, onCreated }) {
                 value={valores[f.name]}
                 onChange={(e) => set(f.name, e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                required={f.required}
               >
                 {f.options.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
+                  <option key={o.value ?? o} value={o.value ?? o}>
+                    {o.label ?? o}
                   </option>
                 ))}
               </select>
@@ -81,6 +87,7 @@ export default function ResourceForm({ recurso, onCreated }) {
                 placeholder={f.placeholder || ''}
                 onChange={(e) => set(f.name, e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                required={f.required}
               />
             )}
           </label>

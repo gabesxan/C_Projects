@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiSend } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader, Card, Button, Alert, Spinner, EmptyState, Badge } from '../components/ui'
+import { statusLabel, tipoExameLabel } from '../usability'
 
 const STATUS_TONE = {
   SOLICITADO: 'slate',
@@ -33,7 +34,7 @@ function statusTone(status) {
 
 function examLabel(exame) {
   if (!exame) return ''
-  return `#${exame.id} · Paciente ${exame.pacienteId} · Tipo ${exame.tipoExame}`
+  return `Exame #${exame.id} · ${exame.pacienteNome || 'Paciente'} · ${tipoExameLabel(exame.tipoExame)}`
 }
 
 function resultadoPorAnalito(resultados, analitoId) {
@@ -155,10 +156,10 @@ function PainelAdmin({ exame, analitos, painel, onAtualizar, onErro }) {
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Painel do tipo {exame.tipoExame}</h2>
+          <h2 className="text-lg font-bold text-slate-900">Painel de {tipoExameLabel(exame.tipoExame)}</h2>
           <p className="text-sm text-slate-500">{painel.length} analito(s) vinculado(s)</p>
         </div>
-        <Badge tone="sky">Tipo {exame.tipoExame}</Badge>
+        <Badge tone="sky">{tipoExameLabel(exame.tipoExame)}</Badge>
       </div>
 
       <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px_auto]" onSubmit={vincular}>
@@ -400,13 +401,13 @@ export default function Laboratorio() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-slate-900">Exame #{exame.id}</span>
-                    <Badge tone={statusTone(exame.status)}>{exame.status}</Badge>
+                    <Badge tone={statusTone(exame.status)}>{statusLabel(exame.status)}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-slate-500">
-                    Paciente {exame.pacienteId} · Medico {exame.medicoId}
+                    {exame.pacienteNome || 'Paciente'} · {exame.medicoNome || 'Médico solicitante'}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Tipo {exame.tipoExame} · {exame.dataSolicitacao}
+                    {tipoExameLabel(exame.tipoExame)} · {exame.dataSolicitacao}
                   </p>
                 </button>
               ))}
@@ -420,7 +421,7 @@ export default function Laboratorio() {
                   <h2 className="text-xl font-bold text-slate-900">{examLabel(selecionado)}</h2>
                   {selecionado && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <Badge tone={statusTone(selecionado.status)}>{selecionado.status}</Badge>
+                      <Badge tone={statusTone(selecionado.status)}>{statusLabel(selecionado.status)}</Badge>
                       <Badge tone="sky">Tipo {selecionado.tipoExame}</Badge>
                       <Badge tone="slate">Prontuario {selecionado.prontuarioId}</Badge>
                     </div>

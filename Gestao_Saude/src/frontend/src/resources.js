@@ -32,6 +32,7 @@ const fkPaciente = {
   type: 'ref',
   searchPath: '/pacientes/buscar',
   optionLabel: rotuloPaciente,
+  required: true,
 }
 const fkMedicoVinculo = {
   name: 'medico_id',
@@ -64,18 +65,18 @@ export const RESOURCES = [
       { key: 'alergias', label: 'Alergias', type: 'badge', tone: () => 'red' },
     ],
     createFields: [
-      { name: 'nome', label: 'Nome', type: 'text' },
-      { name: 'nascimento', label: 'Nascimento', type: 'date' },
-      { name: 'documento', label: 'Documento (CPF ou outro)', type: 'text' },
+      { name: 'nome', label: 'Nome', type: 'text', required: true },
+      { name: 'nascimento', label: 'Nascimento', type: 'date', required: true },
+      { name: 'documento', label: 'Documento (CPF ou outro)', type: 'text', required: true },
       {
         name: 'tipo_documento',
         label: 'Tipo de documento',
         type: 'select',
         options: ['CPF', 'OUTRO'],
       },
-      { name: 'telefone', label: 'Telefone', type: 'text' },
+      { name: 'telefone', label: 'Telefone', type: 'text', required: true },
       { name: 'sexo', label: 'Sexo', type: 'select', options: ['F', 'M'] },
-      { name: 'regiao', label: 'Regiao', type: 'number' },
+      { name: 'regiao', label: 'Região administrativa', type: 'select', options: REGIOES_DF, required: true },
       { name: 'responsavel', label: 'Responsavel (se menor)', type: 'text' },
       { name: 'alergias', label: 'Alergias / alertas', type: 'text' },
     ],
@@ -96,10 +97,10 @@ export const RESOURCES = [
       { key: 'regiaoAdministrativa', label: 'Regiao' },
     ],
     createFields: [
-      { name: 'nome', label: 'Nome', type: 'text' },
-      { name: 'crm', label: 'CRM', type: 'text' },
-      { name: 'especialidade', label: 'Especialidade', type: 'text' },
-      { name: 'regiao', label: 'Regiao', type: 'number' },
+      { name: 'nome', label: 'Nome', type: 'text', required: true },
+      { name: 'crm', label: 'CRM', type: 'text', required: true },
+      { name: 'especialidade', label: 'Especialidade', type: 'text', required: true },
+      { name: 'regiao', label: 'Região administrativa', type: 'select', options: REGIOES_DF, required: true },
     ],
   },
   {
@@ -118,10 +119,10 @@ export const RESOURCES = [
       { key: 'estoqueMinimo', label: 'Estoque minimo' },
     ],
     createFields: [
-      { name: 'nome', label: 'Nome', type: 'text' },
+      { name: 'nome', label: 'Nome', type: 'text', required: true },
       { name: 'apresentacao', label: 'Apresentacao', type: 'text' },
       { name: 'unidade', label: 'Unidade', type: 'text' },
-      { name: 'estoque_minimo', label: 'Estoque minimo', type: 'number' },
+      { name: 'estoque_minimo', label: 'Estoque mínimo', type: 'number', required: true },
     ],
   },
   {
@@ -143,7 +144,7 @@ export const RESOURCES = [
       { key: 'medicamentoId', label: 'Medicamento estoque' },
     ],
     createFields: [
-      { name: 'nome', label: 'Nome', type: 'text' },
+      { name: 'nome', label: 'Nome', type: 'text', required: true },
       { name: 'fabricante', label: 'Fabricante', type: 'text' },
       { name: 'doencas_alvo', label: 'Doencas alvo', type: 'text' },
       { name: 'doses_previstas', label: 'Doses previstas', type: 'number' },
@@ -175,13 +176,13 @@ export const RESOURCES = [
       { key: 'medicoNome', label: 'Medico' },
       { key: 'data', label: 'Data' },
       { key: 'horario', label: 'Horario' },
-      { key: 'status', label: 'Status', type: 'badge' },
+      { key: 'status', label: 'Status', type: 'badge', format: statusLabel },
     ],
     createFields: [
       fkPaciente,
-      { ...fkMedicoVinculo, allowEmpty: false, emptyLabel: undefined },
-      { name: 'data', label: 'Data', type: 'date' },
-      { name: 'horario', label: 'Horario', type: 'text', placeholder: 'HH:MM' },
+      { ...fkMedicoVinculo, allowEmpty: false, emptyLabel: undefined, required: true },
+      { name: 'data', label: 'Data', type: 'date', required: true },
+      { name: 'horario', label: 'Horário', type: 'time', required: true },
     ],
   },
   {
@@ -245,9 +246,9 @@ export const RESOURCES = [
       { key: 'id', label: 'ID' },
       { key: 'pacienteNome', label: 'Paciente' },
       { key: 'medicoNome', label: 'Medico' },
-      { key: 'tipoExame', label: 'Tipo' },
+      { key: 'tipoExame', label: 'Tipo', format: tipoExameLabel },
       { key: 'dataSolicitacao', label: 'Solicitacao' },
-      { key: 'status', label: 'Status', type: 'badge' },
+      { key: 'status', label: 'Status', type: 'badge', format: statusLabel },
     ],
     createFields: [
       fkPaciente,
@@ -262,9 +263,12 @@ export const RESOURCES = [
         filter: (row, valores) =>
           !valores?.paciente_id || String(row.pacienteId) === String(valores.paciente_id),
       },
-      { name: 'tipo', label: 'Tipo', type: 'number' },
-      { name: 'data_solicitacao', label: 'Solicitacao', type: 'date' },
-      { name: 'urgente', label: 'Urgente', type: 'select', options: ['0', '1'] },
+      { name: 'tipo', label: 'Tipo de exame', type: 'select', options: TIPOS_EXAME, required: true },
+      { name: 'data_solicitacao', label: 'Solicitação', type: 'date', required: true },
+      { name: 'urgente', label: 'Prioridade', type: 'select', options: [
+        { value: '0', label: 'Rotina' },
+        { value: '1', label: 'Urgente' },
+      ] },
     ],
   },
   {
@@ -292,9 +296,9 @@ export const RESOURCES = [
     createFields: [
       fkPaciente,
       fkMedicoVinculo,
-      { name: 'medicamento', label: 'Medicamento', type: 'text' },
-      { name: 'dosagem', label: 'Dosagem', type: 'text' },
-      { name: 'frequencia', label: 'Frequencia', type: 'text' },
+      { name: 'medicamento', label: 'Medicamento', type: 'text', required: true },
+      { name: 'dosagem', label: 'Dosagem', type: 'text', required: true },
+      { name: 'frequencia', label: 'Frequência', type: 'text', required: true },
       { name: 'via', label: 'Via', type: 'text' },
       { name: 'duracao', label: 'Duracao', type: 'text' },
       { name: 'observacoes', label: 'Observacoes', type: 'text' },
@@ -305,3 +309,4 @@ export const RESOURCES = [
 export function resourceByKey(key) {
   return RESOURCES.find((r) => r.key === key)
 }
+import { REGIOES_DF, TIPOS_EXAME, statusLabel, tipoExameLabel } from './usability'

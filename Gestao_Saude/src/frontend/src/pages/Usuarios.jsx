@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiSend } from '../api/client'
+import { ApiSelect, SearchSelect } from '../components/FieldSelect'
 import {
   PageHeader,
   Card,
@@ -19,7 +20,7 @@ function estadoInicial() {
   return { nome: '', login: '', senha: '', papel: 'CADASTRO', paciente_id: '', medico_id: '' }
 }
 
-function FormUsuario({ onCreated }) {
+export function FormUsuario({ onCreated }) {
   const [aberto, setAberto] = useState(false)
   const [v, setV] = useState(estadoInicial)
   const [erro, setErro] = useState('')
@@ -32,6 +33,14 @@ function FormUsuario({ onCreated }) {
   async function submit(e) {
     e.preventDefault()
     setErro('')
+    if (v.papel === 'MEDICO' && !v.medico_id) {
+      setErro('Selecione o médico vinculado.')
+      return
+    }
+    if (v.papel === 'PACIENTE' && !v.paciente_id) {
+      setErro('Selecione o paciente vinculado.')
+      return
+    }
     setSalvando(true)
     try {
       // So envia o vinculo relevante ao papel escolhido.
@@ -75,7 +84,11 @@ function FormUsuario({ onCreated }) {
           </label>
           <label className="text-sm text-slate-600">
             Papel
-            <select className={inputCls} value={v.papel} onChange={(e) => set('papel', e.target.value)}>
+            <select
+              className={inputCls}
+              value={v.papel}
+              onChange={(e) => setV((s) => ({ ...s, papel: e.target.value, medico_id: '', paciente_id: '' }))}
+            >
               {PAPEIS.map((p) => (
                 <option key={p} value={p}>{papelLabel(p)}</option>
               ))}
@@ -83,14 +96,26 @@ function FormUsuario({ onCreated }) {
           </label>
           {v.papel === 'MEDICO' && (
             <label className="text-sm text-slate-600">
-              Medico ID (vinculo)
-              <input type="number" className={inputCls} value={v.medico_id} onChange={(e) => set('medico_id', e.target.value)} />
+              Médico vinculado
+              <ApiSelect
+                path="/medicos"
+                value={v.medico_id}
+                onChange={(value) => set('medico_id', value)}
+                optionLabel={(m) => `${m.nome} · ${m.crm} · ${m.especialidade}`}
+                required
+              />
             </label>
           )}
           {v.papel === 'PACIENTE' && (
             <label className="text-sm text-slate-600">
-              Paciente ID (vinculo)
-              <input type="number" className={inputCls} value={v.paciente_id} onChange={(e) => set('paciente_id', e.target.value)} />
+              Paciente vinculado
+              <SearchSelect
+                path="/pacientes/buscar"
+                value={v.paciente_id}
+                onChange={(value) => set('paciente_id', value)}
+                optionLabel={(p) => `${p.nome}${p.documento ? ` · ${p.documento}` : ''}`}
+                required
+              />
             </label>
           )}
         </div>
@@ -185,7 +210,7 @@ export default function Usuarios() {
                     <Badge tone={PAPEL_INFO[u.papel]?.tone}>{papelLabel(u.papel)}</Badge>
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {u.medicoId ? `medico #${u.medicoId}` : u.pacienteId ? `paciente #${u.pacienteId}` : '—'}
+                    {u.medicoId ? 'Médico vinculado' : u.pacienteId ? 'Paciente vinculado' : 'Sem vínculo clínico'}
                   </td>
                   <td className="px-4 py-3"><StatusBadge ativo={u.ativo} /></td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{u.criadoEm}</td>

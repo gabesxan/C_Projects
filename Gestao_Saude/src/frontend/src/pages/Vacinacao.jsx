@@ -54,6 +54,7 @@ export default function Vacinacao() {
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [carregandoLotes, setCarregandoLotes] = useState(false)
 
   const carregar = useCallback(() => {
     Promise.all([apiGet('/vacinas'), apiGet('/aplicacoes-vacinas')])
@@ -81,6 +82,7 @@ export default function Vacinacao() {
     apiGet(`/medicamentos/${medicamentoId}/estoque`)
       .then((rows) => { if (vivo) setLotes(Array.isArray(rows) ? rows : []) })
       .catch((e) => { if (vivo) { setLotes([]); setErro(e.message) } })
+      .finally(() => { if (vivo) setCarregandoLotes(false) })
     return () => { vivo = false }
   }, [vacinaSelecionada])
 
@@ -89,6 +91,8 @@ export default function Vacinacao() {
     setErro('')
     if (campo === 'vacina_id') {
       setLotes([])
+      const vacina = (vacinas || []).find((v) => String(v.id) === String(valor))
+      setCarregandoLotes(Boolean(vacina?.medicamentoId))
     }
     setForm((atual) => {
       if (campo === 'vacina_id') {
@@ -164,7 +168,15 @@ export default function Vacinacao() {
                   className={CAMPO}
                   required
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">
+                    {!vacinaSelecionada?.medicamentoId
+                      ? 'Escolha uma vacina primeiro'
+                      : carregandoLotes
+                        ? 'Carregando lotes...'
+                        : lotes.length === 0
+                          ? 'Nenhum lote disponível'
+                          : 'Selecione o lote'}
+                  </option>
                   {vacinas.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.nome}{v.medicamentoId ? '' : ' - sem estoque'}
@@ -191,7 +203,7 @@ export default function Vacinacao() {
                   value={form.lote && form.validade ? `${form.lote}||${form.validade}` : ''}
                   onChange={(e) => escolherLote(e.target.value)}
                   className={CAMPO}
-                  disabled={!vacinaSelecionada?.medicamentoId}
+                  disabled={!vacinaSelecionada?.medicamentoId || carregandoLotes || lotes.length === 0}
                   required
                 >
                   <option value="">Selecione...</option>

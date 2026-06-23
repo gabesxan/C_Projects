@@ -14,17 +14,18 @@ function formatCell(value) {
 
 function Cell({ col, row }) {
   const value = row[col.key]
+  const formatted = col.format ? col.format(value, row) : value
 
   if (col.type === 'status') {
-    return <StatusBadge ativo={value} />
+    return <StatusBadge ativo={formatted} />
   }
 
   if (col.type === 'badge') {
-    if (value === null || value === undefined || value === '') return '—'
-    return <Badge tone={col.tone ? col.tone(value) : 'slate'}>{value}</Badge>
+    if (formatted === null || formatted === undefined || formatted === '') return '—'
+    return <Badge tone={col.tone ? col.tone(value) : 'slate'}>{formatted}</Badge>
   }
 
-  return formatCell(value)
+  return formatCell(formatted)
 }
 
 export default function DataTable({

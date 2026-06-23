@@ -202,7 +202,7 @@ function ResumoClinico({ selecionados }) {
   )
 }
 
-function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
+function Resultado({ triagem, avaliacao, exames, paciente, especialidades, onNova }) {
   const [agenda, setAgenda] = useState({ data: '', horario: '', especialidade: avaliacao?.especialidadeProvavel || '' })
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
@@ -210,6 +210,10 @@ function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
   async function agendar(path) {
     setMsg('')
     setErro('')
+    if (!agenda.data || !agenda.horario || !agenda.especialidade) {
+      setErro('Selecione data, horário e especialidade.')
+      return
+    }
     try {
       const r = await apiSend('POST', path, agenda)
       setMsg(r?.agendado || r?.encaminhado ? 'Acao registrada com sucesso.' : r?.motivo || 'Acao processada.')
@@ -256,15 +260,18 @@ function Resultado({ triagem, avaliacao, exames, paciente, onNova }) {
             <input type="date" className={inputCls} value={agenda.data} onChange={(e) => setAgenda((s) => ({ ...s, data: e.target.value }))} />
           </label>
           <label className="text-sm text-slate-600">Horario
-            <input className={inputCls} placeholder="09:00" value={agenda.horario} onChange={(e) => setAgenda((s) => ({ ...s, horario: e.target.value }))} />
+            <input type="time" step="1800" className={inputCls} value={agenda.horario} onChange={(e) => setAgenda((s) => ({ ...s, horario: e.target.value }))} />
           </label>
           <label className="text-sm text-slate-600">Especialidade
-            <input className={inputCls} value={agenda.especialidade} onChange={(e) => setAgenda((s) => ({ ...s, especialidade: e.target.value }))} />
+            <select className={inputCls} value={agenda.especialidade} onChange={(e) => setAgenda((s) => ({ ...s, especialidade: e.target.value }))}>
+              <option value="">Selecione...</option>
+              {especialidades.map((e) => <option key={e.id} value={e.nome}>{e.nome}</option>)}
+            </select>
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => agendar(`/triagens/${triagem.id}/agendar`)}><Icon icon={ICONS.schedule} size={16} />Agendar</Button>
-          <Button variant="secondary" onClick={() => agendar(`/triagens/${triagem.id}/encaminhar`)}><Icon icon={ICONS.doctor} size={16} />Encaminhar</Button>
+          <Button disabled={!agenda.data || !agenda.horario} onClick={() => agendar(`/triagens/${triagem.id}/agendar`)}><Icon icon={ICONS.schedule} size={16} />Agendar</Button>
+          <Button disabled={!agenda.data || !agenda.horario || !agenda.especialidade} variant="secondary" onClick={() => agendar(`/triagens/${triagem.id}/encaminhar`)}><Icon icon={ICONS.doctor} size={16} />Encaminhar</Button>
           <Link to={`/paciente/${paciente.id}`}><Button variant="secondary"><Icon icon={ICONS.record} size={16} />Abrir ficha</Button></Link>
           <Button variant="secondary" onClick={onNova}>Nova triagem</Button>
         </div>
@@ -448,6 +455,7 @@ export default function Triagem() {
           triagem={resultado.triagem}
           avaliacao={resultado.avaliacao}
           exames={resultado.exames}
+          especialidades={especialidades}
           onNova={reiniciar}
         />
       )}
