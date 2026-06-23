@@ -34,7 +34,7 @@ export default function Leitos() {
     apiGet('/leitos/ocupacao').then(setOcupacao).catch(() => {})
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function alterar(leito, valor) {
     if (!valor) return

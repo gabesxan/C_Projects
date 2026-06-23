@@ -115,7 +115,9 @@ export default function Usuarios() {
       .catch((e) => setErro(e.status === 403 ? 'Acesso restrito a administradores.' : e.message))
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  // queueMicrotask evita o setState sincrono no corpo do efeito (cascading
+  // renders) sinalizado pelo lint, mantendo o carregamento na montagem.
+  useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function alternarStatus(u) {
     const acao = u.ativo ? 'inativar' : 'reativar'

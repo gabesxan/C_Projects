@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiGet, apiSend } from '../api/client'
 import { PageHeader, Card, Button, Alert, Spinner, Badge, EmptyState } from '../components/ui'
@@ -120,10 +120,12 @@ function SeletorProblemas({ especialidade, titulo, selecionados, onToggle }) {
 
   useEffect(() => {
     if (!especialidade?.id) return
-    setProblemas(null)
-    apiGet(`/especialidades/${especialidade.id}/problemas`)
-      .then(setProblemas)
-      .catch((e) => setErro(e.message))
+    queueMicrotask(() => {
+      setProblemas(null)
+      apiGet(`/especialidades/${especialidade.id}/problemas`)
+        .then(setProblemas)
+        .catch((e) => setErro(e.message))
+    })
   }, [especialidade?.id])
 
   if (!especialidade) return null
@@ -167,11 +169,11 @@ function ResumoClinico({ selecionados }) {
   const maiorPeso = selecionados.reduce((max, p) => Math.max(max, p.pesoRisco), 1)
   const classificacao = classePorPeso(maiorPeso)
   const exames = [...new Set(selecionados.map((p) => p.exameSugerido).filter(Boolean))]
-  const porEspecialidade = useMemo(() => {
-    const mapa = new Map()
-    selecionados.forEach((p) => mapa.set(p.especialidadeNome, (mapa.get(p.especialidadeNome) || 0) + p.pesoRisco))
-    return [...mapa.entries()].sort((a, b) => b[1] - a[1])
-  }, [selecionados])
+  // Sem useMemo manual: o React Compiler ja memoiza; a lista de selecionados e
+  // pequena. (Evita o erro de lint "memoization could not be preserved".)
+  const mapa = new Map()
+  selecionados.forEach((p) => mapa.set(p.especialidadeNome, (mapa.get(p.especialidadeNome) || 0) + p.pesoRisco))
+  const porEspecialidade = [...mapa.entries()].sort((a, b) => b[1] - a[1])
 
   return (
     <Card className="p-5">

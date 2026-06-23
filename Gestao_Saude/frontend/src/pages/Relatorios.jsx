@@ -64,10 +64,12 @@ export default function Relatorios() {
   // Relatorio por periodo — refaz quando as datas mudam.
   useEffect(() => {
     if (!inicio || !fim) return
-    setPeriodo(null)
-    apiGet(`/relatorios/agendamentos?inicio=${inicio}&fim=${fim}`)
-      .then(setPeriodo)
-      .catch((e) => setErro(e.message))
+    queueMicrotask(() => {
+      setPeriodo(null)
+      apiGet(`/relatorios/agendamentos?inicio=${inicio}&fim=${fim}`)
+        .then(setPeriodo)
+        .catch((e) => setErro(e.message))
+    })
   }, [inicio, fim])
 
   if (erro) {

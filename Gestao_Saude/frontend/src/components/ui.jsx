@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components --
+   co-locacao intencional de PAPEL_INFO/papelLabel com os primitivos visuais. */
 // Primitivos visuais compartilhados do SIGEH-DF.
 // Tema hospitalar: alto contraste, badges de estado, feedback claro e
 // indicacao de proxima acao. Tudo via classes utilitarias do Tailwind.

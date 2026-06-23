@@ -126,7 +126,7 @@ export default function Recepcao() {
     apiGet('/checkins').then(setFila).catch((e) => setErro(e.message))
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function acao(id, qual) {
     try {

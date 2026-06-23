@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components --
+   co-locacao intencional do mapa ICONS com o componente Icon. */
 import {
   Activity,
   AlertTriangle,

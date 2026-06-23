@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components --
+   co-locacao intencional do hook useAuth com o AuthProvider. */
 import { createContext, useContext, useEffect, useState } from 'react'
 import { apiGet, apiLogin, apiLogout, loadToken } from '../api/client'
 
@@ -12,7 +14,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = loadToken()
     if (!token) {
-      setLoading(false)
+      queueMicrotask(() => setLoading(false))
       return
     }
     apiGet('/me')
