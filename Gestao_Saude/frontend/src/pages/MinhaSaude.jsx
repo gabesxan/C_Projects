@@ -4,6 +4,7 @@ import { apiGet, apiSend } from '../api/client'
 import { formatReais } from '../money'
 import { PageHeader, Spinner, Card, Badge, Button, EmptyState, StatCard } from '../components/ui'
 import { ICONS, Icon } from '../components/icons'
+import ConsentimentoWallet from '../components/ConsentimentoWallet'
 
 const STATUS_COBRANCA_TONE = {
   PENDENTE: 'amber',
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'prontuarios', label: 'Prontuários', icon: ICONS.record },
   { key: 'financeiro', label: 'Financeiro', icon: ICONS.billing },
   { key: 'solicitacoes', label: 'Agendar', icon: ICONS.schedule },
+  { key: 'privacidade', label: 'Privacidade', icon: ICONS.audit },
 ]
 
 function useApi(path) {
@@ -558,6 +560,8 @@ export default function MinhaSaude() {
           }}
         />
       )}
+
+      {active === 'privacidade' && <ConsentimentoWallet />}
     </div>
   )
 }

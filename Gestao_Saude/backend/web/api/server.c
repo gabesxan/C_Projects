@@ -1661,6 +1661,42 @@ static void rotaRevogarConsentimento(int cliente, int id, const char *consulta,
     }
 }
 
+/* POST /me/consentimentos/{id}/revogar: o proprio paciente revoga um
+ * consentimento seu (direito LGPD). Confere a posse antes de revogar para que
+ * um paciente nunca toque no consentimento de outro. */
+static void rotaMeRevogarConsentimento(int cliente, int id, int authPacienteId,
+                                       const char *consulta, const Sessao *s)
+{
+    char motivo[256];
+    char resposta[160];
+    int naoEncontrado = 0;
+    int dono = 0;
+
+    if (consentimento_buscar(id, &dono, NULL, 0) == 0 || dono != authPacienteId)
+    {
+        responder(cliente, "404 Not Found",
+                  "{\"erro\":\"consentimento nao encontrado\"}");
+        return;
+    }
+
+    extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+
+    if (consentimento_service_revogar(id, motivo, resposta, sizeof(resposta),
+                                      &naoEncontrado) == 1)
+    {
+        auditar(s, "REVOGAR", "consentimento", id, motivo);
+        responder(cliente, "200 OK", resposta);
+    }
+    else if (naoEncontrado)
+    {
+        responder(cliente, "404 Not Found", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request", resposta);
+    }
+}
+
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
 {
     char *json = malloc(TAM_JSON);
@@ -4232,6 +4268,13 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         /* Escopo por identidade: o paciente so ve os proprios consentimentos. */
         rotaListarConsentimentosPaciente(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/me/consentimentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "revogar") == 0)
+    {
+        /* O paciente revoga consentimento proprio (posse conferida no handler). */
+        rotaMeRevogarConsentimento(cliente, id, authPacienteId, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/relatorio-acessos") == 0)
     {

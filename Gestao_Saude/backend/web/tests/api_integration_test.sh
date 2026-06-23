@@ -299,6 +299,9 @@ body_has '"motivoRevogacao":"Paciente revogou consentimento"' "motivo da revogac
 # Revogar de novo nao reabre o estado (transicao invalida).
 api POST /consentimentos/1/revogar '{"motivo":"tentativa duplicada"}'
 expect 400 "revogacao duplicada recusada"; body_has "ja revogado" "consentimento ja revogado"
+# Segundo consentimento (CONCEDIDO) que o proprio paciente revoga no Fluxo 7.
+api POST /consentimentos '{"paciente_id":1,"finalidade":"PESQUISA_CLINICA","versao_termo":"v2.0"}'
+expect 201 "segundo consentimento registrado"
 
 echo "--- Fluxo 6d: relatorio LGPD de acessos aos dados do paciente ---"
 # O relatorio deriva da trilha de auditoria e e filtrado por paciente. O
@@ -331,6 +334,16 @@ expect 200 "paciente ve o relatorio de acessos proprio"; body_has '"pacienteId":
 # O paciente nao acessa o relatorio de acessos de outro paciente.
 api GET /pacientes/2/relatorio-acessos
 expect 403 "paciente nao acessa relatorio de outro"
+# O paciente revoga um consentimento PROPRIO (direito LGPD), exigindo motivo.
+api POST /me/consentimentos/2/revogar '{}'
+expect 400 "paciente revoga sem motivo recusado"; body_has "motivo" "revogacao pelo paciente exige motivo"
+api POST /me/consentimentos/2/revogar '{"motivo":"Nao autorizo mais o uso"}'
+expect 200 "paciente revoga consentimento proprio"; body_has '"status":"REVOGADO"' "revogacao confirmada pelo paciente"
+api GET /me/consentimentos
+expect 200 "consentimento aparece revogado pelo paciente"; body_has '"motivoRevogacao":"Nao autorizo mais o uso"' "motivo gravado"
+# O paciente nao revoga consentimento que nao e seu (posse conferida -> 404).
+api POST /me/consentimentos/999/revogar '{"motivo":"x"}'
+expect 404 "paciente nao revoga consentimento de outro"
 api GET /me/vacinas
 expect 200 "paciente ve carteira vacinal"; body_has '"vacinaNome":"Influenza"' "vacina aplicada aparece na carteira"
 api GET '/me/agendamentos/especialidades'

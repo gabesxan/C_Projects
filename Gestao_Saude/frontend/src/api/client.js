@@ -156,3 +156,24 @@ export async function baixarAnexo(id) {
 export function removerAnexo(id, motivo) {
   return apiSend('DELETE', `/anexos/${id}`, { motivo })
 }
+
+// --- LGPD: carteira de consentimentos e relatorio de acessos ----------------
+// Tudo escopado ao paciente autenticado (rotas /me). O historico de
+// consentimentos e imutavel: revogar nao apaga, apenas muda o status.
+
+// Lista os consentimentos do proprio paciente (concedidos e revogados).
+export function listarMeusConsentimentos() {
+  return apiGet('/me/consentimentos')
+}
+
+// Revoga um consentimento proprio. O motivo e obrigatorio (acao sensivel) e
+// vai no corpo JSON. So afeta consentimentos do paciente autenticado.
+export function revogarConsentimento(id, motivo) {
+  return apiSend('POST', `/me/consentimentos/${id}/revogar`, { motivo })
+}
+
+// Relatorio LGPD de acessos aos dados do proprio paciente (quem acessou o que,
+// quando e com qual detalhe), derivado da trilha de auditoria.
+export function listarMeuRelatorioAcessos() {
+  return apiGet('/me/relatorio-acessos')
+}
