@@ -369,11 +369,12 @@ int vacina_aplicar(int paciente_id, int vacina_id, int dose_numero,
     return 1;
 }
 
-int vacina_aplicacoes_listar_json(char *buffer, int tamanho)
+static int vacina_aplicacoes_listar_filtrado_json(int paciente_id,
+                                                  char *buffer, int tamanho)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    const char *sql =
+    const char *sql_todos =
         "SELECT a.id, a.paciente_id, COALESCE(p.nome, ''), a.vacina_id, "
         "COALESCE(v.nome, ''), a.medicamento_id, a.dose_numero, a.lote, "
         "a.validade, a.aplicador_login, a.observacao, a.aplicada_em "
@@ -381,18 +382,32 @@ int vacina_aplicacoes_listar_json(char *buffer, int tamanho)
         "LEFT JOIN pacientes p ON p.id = a.paciente_id "
         "LEFT JOIN vacinas v ON v.id = a.vacina_id "
         "ORDER BY a.id DESC;";
+    const char *sql_paciente =
+        "SELECT a.id, a.paciente_id, COALESCE(p.nome, ''), a.vacina_id, "
+        "COALESCE(v.nome, ''), a.medicamento_id, a.dose_numero, a.lote, "
+        "a.validade, a.aplicador_login, a.observacao, a.aplicada_em "
+        "FROM aplicacoes_vacinas a "
+        "LEFT JOIN pacientes p ON p.id = a.paciente_id "
+        "LEFT JOIN vacinas v ON v.id = a.vacina_id "
+        "WHERE a.paciente_id = ? "
+        "ORDER BY a.id DESC;";
     int usado = 0;
     int primeiro = 1;
 
-    if (buffer == NULL || tamanho <= 0 || db_abrir(&db) == 0)
+    if (buffer == NULL || tamanho <= 0 || paciente_id < 0 || db_abrir(&db) == 0)
     {
         return 0;
     }
 
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    if (sqlite3_prepare_v2(db, paciente_id > 0 ? sql_paciente : sql_todos,
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
+    }
+    if (paciente_id > 0)
+    {
+        sqlite3_bind_int(stmt, 1, paciente_id);
     }
 
     buffer[0] = '\0';
@@ -457,4 +472,15 @@ int vacina_aplicacoes_listar_json(char *buffer, int tamanho)
     sqlite3_finalize(stmt);
     db_fechar(db);
     return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
+int vacina_aplicacoes_listar_json(char *buffer, int tamanho)
+{
+    return vacina_aplicacoes_listar_filtrado_json(0, buffer, tamanho);
+}
+
+int vacina_aplicacoes_listar_por_paciente_json(int paciente_id,
+                                               char *buffer, int tamanho)
+{
+    return vacina_aplicacoes_listar_filtrado_json(paciente_id, buffer, tamanho);
 }

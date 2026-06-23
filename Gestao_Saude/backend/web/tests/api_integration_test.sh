@@ -268,6 +268,8 @@ api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac12
 expect 201 "usuario paciente criado"
 TOKEN="$(obter_token pacportal pac123)"
 [[ -n "${TOKEN}" ]] || fail "nao obteve token do paciente"
+api GET /me/vacinas
+expect 200 "paciente ve carteira vacinal"; body_has '"vacinaNome":"Influenza"' "vacina aplicada aparece na carteira"
 api GET '/me/agendamentos/especialidades'
 expect 200 "paciente lista especialidades"; body_has '"especialidade":"Cardiologia"' "especialidade disponivel"
 api GET '/me/agendamentos/disponibilidade?especialidade=Cardiologia&data=2026-08-10'

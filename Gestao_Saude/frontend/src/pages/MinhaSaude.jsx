@@ -20,6 +20,7 @@ const TABS = [
   { key: 'consultas', label: 'Consultas', icon: ICONS.schedule },
   { key: 'exames', label: 'Exames', icon: ICONS.lab },
   { key: 'receitas', label: 'Receitas', icon: ICONS.prescription },
+  { key: 'vacinas', label: 'Vacinas', icon: ICONS.vaccine },
   { key: 'prontuarios', label: 'Prontuários', icon: ICONS.record },
   { key: 'financeiro', label: 'Financeiro', icon: ICONS.billing },
   { key: 'solicitacoes', label: 'Agendar', icon: ICONS.schedule },
@@ -370,6 +371,7 @@ export default function MinhaSaude() {
   const perfil = useApi('/me/perfil')
   const agendamentos = useApi(`/me/agendamentos?v=${recarregar}`)
   const receitas = useApi('/me/receitas')
+  const vacinas = useApi('/me/vacinas')
   const exames = useApi('/me/exames')
   const prontuarios = useApi('/me/prontuarios')
   const cobrancas = useApi('/me/cobrancas')
@@ -435,7 +437,7 @@ export default function MinhaSaude() {
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader
         title="Minha saúde"
-        subtitle="Carteirinha, consultas, exames, receitas e orientações. A triagem clínica é feita pela equipe autorizada."
+        subtitle="Carteirinha, consultas, exames, receitas, vacinas e orientações. A triagem clínica é feita pela equipe autorizada."
       />
       <TabBar active={active} />
 
@@ -468,6 +470,33 @@ export default function MinhaSaude() {
               <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.medicamento}</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.dosagem} · {r.frequencia}</p>
               {r.observacoes && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{r.observacoes}</p>}
+            </Card>
+          )}
+        />
+      )}
+
+      {active === 'vacinas' && (
+        <ListaCards
+          titulo="Carteira vacinal"
+          icon={ICONS.vaccine}
+          rows={vacinas.data}
+          erro={vacinas.erro}
+          vazio="Nenhuma vacina aplicada."
+          render={(v) => (
+            <Card key={v.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{v.vacinaNome}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Dose {v.doseNumero} · lote {v.lote}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Validade {v.validade} · aplicada em {v.aplicadaEm}
+                  </p>
+                </div>
+                <Badge tone="green" icon={ICONS.vaccine}>Aplicada</Badge>
+              </div>
+              {v.observacao && <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{v.observacao}</p>}
             </Card>
           )}
         />

@@ -29,6 +29,7 @@ const NAV = [
   { to: '/minha-saude/consultas', label: 'Consultas', icon: 'schedule', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/exames', label: 'Exames', icon: 'lab', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/receitas', label: 'Receitas', icon: 'prescription', roles: ['PACIENTE'], section: 'Minha saude' },
+  { to: '/minha-saude/vacinas', label: 'Vacinas', icon: 'vaccine', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/prontuarios', label: 'Prontuários', icon: 'record', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/financeiro', label: 'Financeiro', icon: 'billing', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/solicitacoes', label: 'Agendar', icon: 'schedule', roles: ['PACIENTE'], section: 'Minha saude' },

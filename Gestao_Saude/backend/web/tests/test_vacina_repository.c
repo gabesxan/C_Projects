@@ -22,6 +22,8 @@ int main(void)
     assert(estoque_entrada(1, "VAC1", "2027-05-31", 5, "Geladeira", 1, "admin") == 1);
     assert(paciente_repo_criar("Maria Vacina", "1990-01-01", "11122233344",
                                "CPF", "61999990000", "F", 1, "", "") == 1);
+    assert(paciente_repo_criar("Joao Imune", "1988-03-02", "22233344455",
+                               "CPF", "61988880000", "M", 1, "", "") == 1);
 
     assert(vacina_contar_ativas() == 0);
 
@@ -66,13 +68,21 @@ int main(void)
         assert(strstr(json, "\"validade\":\"2027-05-31\"") != NULL);
         assert(strstr(json, "\"aplicadorLogin\":\"enf\"") != NULL);
 
+        assert(vacina_aplicar(2, 1, 1, "VAC1", "2027-05-31",
+                              7, "enf", "outro paciente", NULL) == 1);
+        assert(estoque_saldo(1) == 3);
+        assert(vacina_aplicacoes_listar_por_paciente_json(1, json, sizeof(json)) == 1);
+        assert(strstr(json, "\"pacienteNome\":\"Maria Vacina\"") != NULL);
+        assert(strstr(json, "\"vacinaNome\":\"Influenza\"") != NULL);
+        assert(strstr(json, "\"pacienteNome\":\"Joao Imune\"") == NULL);
+
         assert(vacina_aplicar(999, 2, 1, "VAC1", "2027-05-31",
                               7, "enf", "", NULL) == 0);
         assert(vacina_aplicar(1, 3, 1, "VAC1", "2027-05-31",
                               7, "enf", "", NULL) == 0);
         assert(vacina_aplicar(1, 2, 1, "SEMLOTE", "2027-05-31",
                               7, "enf", "", NULL) == 0);
-        assert(estoque_saldo(1) == 4);
+        assert(estoque_saldo(1) == 3);
     }
 
     assert(vacina_desativar(1) == 1);

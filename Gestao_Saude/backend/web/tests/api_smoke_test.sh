@@ -579,12 +579,14 @@ request_json_and_assert "POST" "/aplicacoes-vacinas" \
     '{"paciente_id":"1","vacina_id":"1","dose_numero":"1","lote":"L1","validade":"2026-12-31","observacao":"smoke"}' \
     "201" "/aplicacoes-vacinas POST (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"aplicada"'
 request_and_assert "/aplicacoes-vacinas" "200" "/aplicacoes-vacinas (ADMIN)" "${ADMIN_TOKEN}" contains '"vacinaNome":"COVID-19 bivalente"'
+request_and_assert "/me/vacinas" "200" "/me/vacinas (PACIENTE)" "${PAC_TOKEN}" contains '"vacinaNome":"COVID-19 bivalente"'
 request_and_assert "/medicamentos/1/estoque" "200" "/estoque baixa vacina" "${ADMIN_TOKEN}" contains '"quantidade":89'
 request_json_and_assert "DELETE" "/vacinas/1" '{}' \
     "200" "/vacinas/1 DELETE (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"removido"'
 request_and_assert "/vacinas" "403" "/vacinas bloqueado para MEDICO" "${MED_TOKEN}"
 request_and_assert "/vacinas" "403" "/vacinas bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_and_assert "/aplicacoes-vacinas" "403" "/aplicacoes-vacinas bloqueado para MEDICO" "${MED_TOKEN}"
+request_and_assert "/me/vacinas" "403" "/me/vacinas bloqueado para MEDICO" "${MED_TOKEN}"
 
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).

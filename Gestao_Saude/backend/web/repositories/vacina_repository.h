@@ -25,4 +25,7 @@ int vacina_aplicar(int paciente_id, int vacina_id, int dose_numero,
 
 int vacina_aplicacoes_listar_json(char *buffer, int tamanho);
 
+int vacina_aplicacoes_listar_por_paciente_json(int paciente_id,
+                                               char *buffer, int tamanho);
+
 #endif

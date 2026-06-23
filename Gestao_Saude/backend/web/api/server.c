@@ -2740,6 +2740,32 @@ static void rotaMeReceitas(int cliente, int paciente_id)
     free(json);
 }
 
+static int sessaoPaciente(int cliente, const Sessao *s);
+
+static void rotaMeVacinas(int cliente, const Sessao *s)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (sessaoPaciente(cliente, s) == 0)
+    {
+        free(json);
+        return;
+    }
+
+    if (json != NULL &&
+        vacina_aplicacoes_listar_por_paciente_json(s->paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar vacinas do paciente\"}");
+    }
+
+    free(json);
+}
+
 static void rotaMeSolicitacoes(int cliente, const Sessao *s)
 {
     char *json = malloc(TAM_JSON);
@@ -3813,6 +3839,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/receitas") == 0)
     {
         rotaMeReceitas(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/vacinas") == 0)
+    {
+        rotaMeVacinas(cliente, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
     {
