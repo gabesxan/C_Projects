@@ -300,6 +300,20 @@ body_has '"motivoRevogacao":"Paciente revogou consentimento"' "motivo da revogac
 api POST /consentimentos/1/revogar '{"motivo":"tentativa duplicada"}'
 expect 400 "revogacao duplicada recusada"; body_has "ja revogado" "consentimento ja revogado"
 
+echo "--- Fluxo 6d: relatorio LGPD de acessos aos dados do paciente ---"
+# O relatorio deriva da trilha de auditoria e e filtrado por paciente. O
+# paciente 1 ja acumulou acoes auditadas (consentimento, exames, etc.).
+api GET /pacientes/1/relatorio-acessos
+expect 200 "ADMIN acessa relatorio de acessos do paciente"
+body_has '"pacienteId":1' "relatorio identifica o paciente filtrado"
+body_has '"acessos"' "relatorio traz a lista de acessos"
+body_has '"entidade":"consentimento"' "relatorio inclui acesso a entidade ligada ao paciente"
+body_has '"usuarioLogin":"admin"' "relatorio identifica quem acessou"
+# Acessar o relatorio e sensivel: o proprio acesso fica auditado.
+api GET /auditoria
+expect 200 "trilha de auditoria acessivel ao ADMIN"
+body_has '"acao":"RELATORIO_ACESSOS"' "acesso ao relatorio LGPD foi auditado"
+
 echo "--- Fluxo 7: paciente -> escolhe especialidade/data -> recepcao ve agenda ---"
 api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
 expect 201 "usuario paciente criado"
@@ -311,6 +325,12 @@ expect 200 "paciente ve os proprios consentimentos"; body_has '"finalidade":"COM
 # O paciente nao acessa a rota administrativa de outro paciente.
 api GET /consentimentos/paciente/2
 expect 403 "paciente nao acessa consentimento de outro"
+# O paciente ve o relatorio de acessos aos proprios dados via /me.
+api GET /me/relatorio-acessos
+expect 200 "paciente ve o relatorio de acessos proprio"; body_has '"pacienteId":1' "relatorio do proprio paciente"
+# O paciente nao acessa o relatorio de acessos de outro paciente.
+api GET /pacientes/2/relatorio-acessos
+expect 403 "paciente nao acessa relatorio de outro"
 api GET /me/vacinas
 expect 200 "paciente ve carteira vacinal"; body_has '"vacinaNome":"Influenza"' "vacina aplicada aparece na carteira"
 api GET '/me/agendamentos/especialidades'

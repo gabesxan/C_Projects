@@ -634,6 +634,28 @@ request_json_and_assert "POST" "/consentimentos/1/revogar" \
 # O historico imutavel mostra o consentimento como revogado.
 request_and_assert "/me/consentimentos" "200" "/me/consentimentos revogado (PACIENTE)" "${PAC_TOKEN}" contains '"status":"REVOGADO"'
 
+# Relatorio LGPD de acessos (8d): quem acessou os dados do paciente, derivado
+# da trilha de auditoria. O acesso ao relatorio e sensivel e fica auditado.
+echo "--- Relatorio LGPD de acessos do paciente ---"
+# Usuario CADASTRO para validar o bloqueio de acesso a dado clinico.
+post_json "/usuarios" '{"nome":"CadSmoke","login":"cadsmoke","senha":"cad123","papel":"CADASTRO"}'
+CAD_TOKEN="$(obter_token cadsmoke cad123)"
+# ADMIN acessa o relatorio de qualquer paciente; ja existem acoes auditadas.
+request_and_assert "/pacientes/1/relatorio-acessos" "200" "/pacientes/1/relatorio-acessos (ADMIN)" "${ADMIN_TOKEN}" contains '"pacienteId":1'
+assert_contains '"acessos"' "relatorio LGPD tem lista de acessos"
+assert_contains '"entidade":"consentimento"' "relatorio inclui acesso a entidade ligada ao paciente"
+# Equipe clinica (escopo existente) tambem consulta.
+request_and_assert "/pacientes/1/relatorio-acessos" "200" "/pacientes/1/relatorio-acessos (MEDICO)" "${MED_TOKEN}" contains '"pacienteId":1'
+request_and_assert "/pacientes/1/relatorio-acessos" "200" "/pacientes/1/relatorio-acessos (ENFERMAGEM)" "${ENF_TOKEN}" contains '"pacienteId":1'
+# PACIENTE ve apenas o proprio relatorio via /me.
+request_and_assert "/me/relatorio-acessos" "200" "/me/relatorio-acessos (PACIENTE)" "${PAC_TOKEN}" contains '"pacienteId":1'
+# PACIENTE nao acessa o relatorio de outro paciente (rota administrativa).
+request_and_assert "/pacientes/2/relatorio-acessos" "403" "/pacientes/2/relatorio-acessos bloqueado (PACIENTE)" "${PAC_TOKEN}"
+# CADASTRO nao acessa dado clinico (espelha a regra do historico).
+request_and_assert "/pacientes/1/relatorio-acessos" "403" "/pacientes/1/relatorio-acessos bloqueado (CADASTRO)" "${CAD_TOKEN}"
+# O proprio acesso ao relatorio fica auditado (visivel na trilha geral).
+request_and_assert "/auditoria" "200" "/auditoria registra RELATORIO_ACESSOS (ADMIN)" "${ADMIN_TOKEN}" contains '"acao":"RELATORIO_ACESSOS"'
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.

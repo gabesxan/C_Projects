@@ -28,6 +28,7 @@
 #include "farmacia_service.h"
 #include "anexo_service.h"
 #include "consentimento_service.h"
+#include "lgpd_service.h"
 #include "credencial_util.h"
 
 #include <stdio.h>
@@ -1022,6 +1023,38 @@ static void rotaHistoricoPaciente(int cliente, int id, const Sessao *s)
     free(administracoes);
     free(evolucoes);
     free(saida);
+}
+
+/* Relatorio LGPD de acessos aos dados do paciente (GET /pacientes/{id}/
+ * relatorio-acessos e GET /me/relatorio-acessos). O acesso ao relatorio e em
+ * si um dado sensivel, entao e auditado. CADASTRO nao acessa dado clinico,
+ * espelhando a regra do historico. */
+static void rotaRelatorioAcessosPaciente(int cliente, int paciente_id,
+                                         const Sessao *s)
+{
+    char *json;
+
+    if (strcmp(s->papel, "CADASTRO") == 0)
+    {
+        responder(cliente, "403 Forbidden",
+                  "{\"erro\":\"sem acesso ao relatorio de acessos\"}");
+        return;
+    }
+
+    json = malloc(TAM_JSON);
+    if (json != NULL &&
+        lgpd_service_relatorio_acessos_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        auditar(s, "RELATORIO_ACESSOS", "paciente", paciente_id, "consulta LGPD");
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  json != NULL ? json
+                               : "{\"erro\":\"falha ao montar relatorio de acessos\"}");
+    }
+    free(json);
 }
 
 static void rotaListarMedicos(int cliente)
@@ -3553,6 +3586,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         rotaHistoricoPaciente(cliente, id, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "relatorio-acessos") == 0)
+    {
+        rotaRelatorioAcessosPaciente(cliente, id, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && sscanf(caminho, "/pacientes/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "evolucoes") == 0)
     {
         char *json = malloc(TAM_JSON);
@@ -4194,6 +4232,12 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         /* Escopo por identidade: o paciente so ve os proprios consentimentos. */
         rotaListarConsentimentosPaciente(cliente, authPacienteId);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/relatorio-acessos") == 0)
+    {
+        /* Escopo por identidade: o paciente so ve o relatorio de acessos aos
+         * proprios dados (LGPD: direito de saber quem acessou o que). */
+        rotaRelatorioAcessosPaciente(cliente, authPacienteId, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
     {

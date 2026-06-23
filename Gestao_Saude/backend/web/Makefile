@@ -58,6 +58,7 @@ RELAT_SVC_SRC = services/relatorio_service.c
 FARMACIA_SVC_SRC = services/farmacia_service.c
 ANEXO_SVC_SRC = services/anexo_service.c
 CONSENT_SVC_SRC = services/consentimento_service.c
+LGPD_SVC_SRC = services/lgpd_service.c
 
 API_SRC = api/server.c
 SEED_SRC = tools/seed.c
@@ -111,7 +112,7 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
 	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) $(SOLIC_SRC) $(MEDICAMENTO_SRC) \
 	$(ESTOQUE_SRC) $(VACINA_SRC) $(ANEXO_SRC) $(CONSENT_SRC) $(FARMACIA_SVC_SRC) $(ANEXO_SVC_SRC) \
-	$(CONSENT_SVC_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
+	$(CONSENT_SVC_SRC) $(LGPD_SVC_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)
 	$(CC) $(CFLAGS) $(API_DEPS) -o $(BUILD)/sigeh_api $(LDLIBS) $(CRYPTO_LIBS) $(TLS_LIB) $(MATH_LIB) $(THREAD_LIB)
