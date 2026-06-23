@@ -1,0 +1,64 @@
+name: CI
+
+# Roda a bateria completa de verificacao a cada push e pull request.
+# Qualquer erro (build, testes, smoke, integration ou lint) reprova o build.
+on:
+  push:
+  pull_request:
+
+# Cancela execucoes antigas do mesmo ref quando chega um push novo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (test + smoke + integration)
+    runs-on: ubuntu-latest
+    # No Ubuntu o OpenSSL fica no prefixo do sistema, e nao no Homebrew do macOS.
+    env:
+      OPENSSL_DIR: /usr
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libsqlite3-dev libssl-dev curl
+
+      - name: Unit tests (make test)
+        working-directory: backend/web
+        run: make test
+
+      - name: API smoke test
+        working-directory: backend/web
+        run: make api-smoke-test
+
+      - name: API integration test
+        working-directory: backend/web
+        run: make api-integration-test
+
+  frontend:
+    name: Frontend (build + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
