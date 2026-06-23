@@ -22,7 +22,7 @@ const TABS = [
   { key: 'receitas', label: 'Receitas', icon: ICONS.prescription },
   { key: 'prontuarios', label: 'Prontuários', icon: ICONS.record },
   { key: 'financeiro', label: 'Financeiro', icon: ICONS.billing },
-  { key: 'solicitacoes', label: 'Solicitações', icon: ICONS.alert },
+  { key: 'solicitacoes', label: 'Agendar', icon: ICONS.schedule },
 ]
 
 function useApi(path) {
@@ -258,18 +258,72 @@ function Consultas({ rows, erro }) {
   )
 }
 
-function Solicitacoes({ rows, erro, acoes }) {
+function Solicitacoes({ rows, erro, especialidades, agenda, horarios, acoes }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-2">
-        <ActionCard
-          icon={ICONS.schedule}
-          title="Agendar consulta comum"
-          text="Envie uma solicitação para a equipe encontrar um horário eletivo."
-          button={acoes.enviando === 'AGENDAMENTO' ? 'Enviando...' : 'Solicitar agendamento'}
-          onClick={() => acoes.criar('AGENDAMENTO')}
-          disabled={Boolean(acoes.enviando)}
-        />
+        <Card className="p-5">
+          <div className="flex items-center gap-2">
+            <Icon icon={ICONS.schedule} className="text-teal-700" size={20} />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Agendar consulta</p>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <label className="text-sm text-slate-600 dark:text-slate-300">
+              Especialidade
+              <select
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                value={agenda.especialidade}
+                onChange={(e) => acoes.setAgenda({ ...agenda, especialidade: e.target.value, horario: '' })}
+              >
+                <option value="">Selecione</option>
+                {(especialidades || []).map((e) => (
+                  <option key={e.especialidade} value={e.especialidade}>
+                    {e.especialidade}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-slate-600 dark:text-slate-300">
+              Data
+              <input
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                type="date"
+                value={agenda.data}
+                onChange={(e) => acoes.setAgenda({ ...agenda, data: e.target.value, horario: '' })}
+              />
+            </label>
+            <Button
+              variant="secondary"
+              onClick={acoes.buscarHorarios}
+              disabled={!agenda.especialidade || !agenda.data || acoes.enviando === 'HORARIOS'}
+            >
+              {acoes.enviando === 'HORARIOS' ? 'Buscando...' : 'Ver horários disponíveis'}
+            </Button>
+            {horarios === null ? null : horarios.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum horário disponível para essa data.</p>
+            ) : (
+              <label className="text-sm text-slate-600 dark:text-slate-300">
+                Horário
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  value={agenda.horario}
+                  onChange={(e) => acoes.setAgenda({ ...agenda, horario: e.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  {horarios.map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <Button
+              onClick={acoes.confirmarAgendamento}
+              disabled={!agenda.especialidade || !agenda.data || !agenda.horario || acoes.enviando === 'AGENDAMENTO'}
+            >
+              {acoes.enviando === 'AGENDAMENTO' ? 'Confirmando...' : 'Confirmar agendamento'}
+            </Button>
+          </div>
+        </Card>
         <ActionCard
           icon={ICONS.alert}
           title="Pedir atendimento"
@@ -281,6 +335,7 @@ function Solicitacoes({ rows, erro, acoes }) {
         />
       </div>
       {acoes.erroAcao && <p className="text-sm text-red-600">{acoes.erroAcao}</p>}
+      {acoes.okAcao && <p className="text-sm text-teal-700">{acoes.okAcao}</p>}
       <ListaCards
         titulo="Histórico de solicitações"
         icon={ICONS.alert}
@@ -306,16 +361,53 @@ export default function MinhaSaude() {
   const location = useLocation()
   const active = location.pathname.split('/')[2] || ''
   const [erroAcao, setErroAcao] = useState('')
+  const [okAcao, setOkAcao] = useState('')
   const [enviando, setEnviando] = useState('')
   const [recarregar, setRecarregar] = useState(0)
+  const [agenda, setAgenda] = useState({ especialidade: '', data: '', horario: '' })
+  const [horarios, setHorarios] = useState(null)
 
   const perfil = useApi('/me/perfil')
-  const agendamentos = useApi('/me/agendamentos')
+  const agendamentos = useApi(`/me/agendamentos?v=${recarregar}`)
   const receitas = useApi('/me/receitas')
   const exames = useApi('/me/exames')
   const prontuarios = useApi('/me/prontuarios')
   const cobrancas = useApi('/me/cobrancas')
   const solicitacoes = useApi(`/me/solicitacoes?v=${recarregar}`)
+  const especialidades = useApi('/me/agendamentos/especialidades')
+
+  async function buscarHorarios() {
+    setEnviando('HORARIOS')
+    setErroAcao('')
+    setOkAcao('')
+    try {
+      const params = new URLSearchParams({ especialidade: agenda.especialidade, data: agenda.data })
+      const rows = await apiGet(`/me/agendamentos/disponibilidade?${params.toString()}`)
+      setHorarios(rows)
+      setAgenda((v) => ({ ...v, horario: '' }))
+    } catch (e) {
+      setErroAcao(e.message || 'Falha ao buscar horários.')
+    } finally {
+      setEnviando('')
+    }
+  }
+
+  async function confirmarAgendamento() {
+    setEnviando('AGENDAMENTO')
+    setErroAcao('')
+    setOkAcao('')
+    try {
+      await apiSend('POST', '/me/agendamentos', agenda)
+      setOkAcao('Consulta agendada. A recepção já consegue visualizar esse agendamento.')
+      setAgenda({ especialidade: '', data: '', horario: '' })
+      setHorarios(null)
+      setRecarregar((v) => v + 1)
+    } catch (e) {
+      setErroAcao(e.message || 'Falha ao confirmar agendamento.')
+    } finally {
+      setEnviando('')
+    }
+  }
 
   async function criarSolicitacao(tipo) {
     const mensagem =
@@ -324,8 +416,10 @@ export default function MinhaSaude() {
         : 'Pedido de ajuda/atendimento pelo portal do paciente.'
     setEnviando(tipo)
     setErroAcao('')
+    setOkAcao('')
     try {
       await apiSend('POST', '/me/solicitacoes', { tipo, mensagem })
+      setOkAcao('Solicitação enviada para a equipe.')
       setRecarregar((v) => v + 1)
     } catch (e) {
       setErroAcao(e.message || 'Falha de comunicação com o backend.')
@@ -421,7 +515,18 @@ export default function MinhaSaude() {
         <Solicitacoes
           rows={solicitacoes.data}
           erro={solicitacoes.erro}
-          acoes={{ enviando, erroAcao, criar: criarSolicitacao }}
+          especialidades={especialidades.data}
+          agenda={agenda}
+          horarios={horarios}
+          acoes={{
+            enviando,
+            erroAcao,
+            okAcao,
+            criar: criarSolicitacao,
+            setAgenda,
+            buscarHorarios,
+            confirmarAgendamento,
+          }}
         />
       )}
     </div>

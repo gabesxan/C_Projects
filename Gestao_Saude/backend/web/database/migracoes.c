@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 12
+#define LATEST_VERSION 13
 
 typedef struct
 {
@@ -222,6 +222,11 @@ static const Migracao MIGRACOES[] = {
      "  ativo INTEGER NOT NULL DEFAULT 1,"
      "  criado_em TEXT NOT NULL DEFAULT (datetime('now')));"
      "CREATE UNIQUE INDEX IF NOT EXISTS idx_vacinas_nome_ativo ON vacinas(nome) WHERE ativo = 1;"},
+    {13, "agendamentos: especialidade solicitada pelo paciente",
+     "ALTER TABLE agendamentos ADD COLUMN especialidade TEXT NOT NULL DEFAULT '';"
+     "UPDATE agendamentos SET especialidade = ("
+     "  SELECT COALESCE(m.especialidade, '') FROM medicos m WHERE m.id = agendamentos.medico_id"
+     ") WHERE especialidade = '';"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

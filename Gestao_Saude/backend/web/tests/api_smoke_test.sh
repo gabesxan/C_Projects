@@ -527,6 +527,12 @@ request_and_assert "/me/exames/1/resultados" "200" "/me/exames/1/resultados nome
 request_and_assert "/me/exames/2/resultados" "404" "/me/exames/2/resultados (exame de outro paciente)" "${PAC_TOKEN}"
 # Agendamentos do portal trazem o nome do medico (nao apenas o id).
 request_and_assert "/me/agendamentos" "200" "/me/agendamentos com nome do medico (PACIENTE)" "${PAC_TOKEN}" contains '"medicoNome":"DrSmoke"'
+request_and_assert "/me/agendamentos/especialidades" "200" "/me/agendamentos/especialidades (PACIENTE)" "${PAC_TOKEN}" contains '"especialidade":"Cardiologia"'
+request_and_assert "/me/agendamentos/disponibilidade?especialidade=Cardiologia&data=2026-06-20" "200" "/me/agendamentos/disponibilidade (PACIENTE)" "${PAC_TOKEN}" contains '"08:00"'
+request_json_and_assert "POST" "/me/agendamentos" \
+    '{"especialidade":"Cardiologia","data":"2026-06-20","horario":"08:00"}' \
+    "201" "/me/agendamentos POST autoagendamento (PACIENTE)" "${PAC_TOKEN}" contains '"status":"AGENDADO"'
+request_and_assert "/agendamentos" "200" "/agendamentos recebe autoagendamento (ADMIN)" "${ADMIN_TOKEN}" contains '"especialidade":"Cardiologia"'
 # Regra critica: PACIENTE nao executa nem lista fluxo de triagem clinica.
 request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \

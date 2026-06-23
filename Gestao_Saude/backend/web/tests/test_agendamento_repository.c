@@ -16,6 +16,8 @@ int main(void)
 {
     char json[4096];
     int antes;
+    int agendamentoId = 0;
+    int medicoId = 0;
 
     assert(db_definir_caminho(BANCO_TESTE) == 1);
     assert(db_resetar_com_schema(SCHEMA) == 1);
@@ -53,6 +55,7 @@ int main(void)
     assert(json[0] == '[');
     assert(strstr(json, "2026-06-14") != NULL);
     assert(strstr(json, "AGENDADO") != NULL);
+    assert(strstr(json, "\"especialidade\":\"Cardiologia\"") != NULL);
 
     /* Conflito: mesmo medico, mesmo data/horario (paciente 1 ja ocupa). */
     assert(agendamento_repo_criar(2, 1, "2026-06-14", "09:00") == 0);
@@ -65,6 +68,22 @@ int main(void)
     assert(agendamento_repo_criar(2, 2, "2026-06-15", "10:30") == 1);
     antes = agendamento_repo_contar_ativos();
     assert(antes == 2);
+
+    /* Autoagendamento do paciente por especialidade: escolhe medico livre. */
+    assert(agendamento_repo_especialidades_json(json, sizeof(json)) == 1);
+    assert(strstr(json, "\"especialidade\":\"Clinico Geral\"") != NULL);
+    assert(strstr(json, "\"especialidade\":\"Cardiologia\"") != NULL);
+    assert(strstr(json, "\"especialidade\":\"Pediatria\"") != NULL);
+    assert(agendamento_repo_slots_disponiveis_json(1, "Cardiologia", "2026-06-16", json, sizeof(json)) == 1);
+    assert(strstr(json, "\"08:00\"") != NULL);
+    assert(agendamento_repo_criar_por_especialidade(1, "Cardiologia", "2026-06-16", "08:00",
+                                                    &agendamentoId, &medicoId) == 1);
+    assert(agendamentoId > 0);
+    assert(medicoId == 1);
+    assert(agendamento_repo_slots_disponiveis_json(1, "Cardiologia", "2026-06-16", json, sizeof(json)) == 1);
+    assert(strstr(json, "\"08:00\"") == NULL); /* paciente ja ocupado nesse slot */
+    assert(agendamento_repo_criar_por_especialidade(2, "Neurologia", "2026-06-16", "08:00",
+                                                    NULL, NULL) == 0);
 
     /* Reagendamento valido (status AGENDADO) para slot livre. */
     assert(agendamento_repo_reagendar(2, "2026-06-15", "11:00") == 1);
@@ -83,6 +102,7 @@ int main(void)
     assert(strstr(json, "Ana") == NULL);
 
     /* Cancelar exige motivo; com motivo, status passa a CANCELADO. */
+    antes = agendamento_repo_contar_ativos();
     assert(agendamento_repo_cancelar(1, "") == 0);
     assert(agendamento_repo_cancelar(1, "Paciente faltou") == 1);
     assert(agendamento_repo_contar_ativos() == antes - 1);

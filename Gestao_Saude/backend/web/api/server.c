@@ -613,6 +613,10 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "CADASTRO") == 0)
     {
+        if (comecaCom(caminho, "/agendamentos"))
+        {
+            return strcmp(metodo, "GET") == 0;
+        }
         return ehCadastro(caminho);
     }
 
@@ -637,6 +641,11 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         if (ehFarmacia(caminho))
         {
             return 1;
+        }
+
+        if (comecaCom(caminho, "/agendamentos"))
+        {
+            return strcmp(metodo, "GET") == 0;
         }
 
         if (ehVacinacao(caminho))
@@ -2744,6 +2753,119 @@ static void rotaMeCriarSolicitacao(int cliente, const char *consulta,
     }
 }
 
+static int sessaoPaciente(int cliente, const Sessao *s)
+{
+    if (strcmp(s->papel, "PACIENTE") != 0 || s->paciente_id <= 0)
+    {
+        responder(cliente, "403 Forbidden",
+                  "{\"erro\":\"rota exclusiva do paciente\"}");
+        return 0;
+    }
+    return 1;
+}
+
+static void rotaMeEspecialidadesAgendamento(int cliente, const Sessao *s)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (sessaoPaciente(cliente, s) == 0)
+    {
+        free(json);
+        return;
+    }
+
+    if (json != NULL && agendamento_repo_especialidades_json(json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar especialidades\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMeDisponibilidadeAgendamento(int cliente, const char *consulta,
+                                             const Sessao *s)
+{
+    char especialidade[64];
+    char data[32];
+    char *json = malloc(TAM_JSON);
+
+    if (sessaoPaciente(cliente, s) == 0)
+    {
+        free(json);
+        return;
+    }
+
+    extrairParam(consulta, "especialidade", especialidade, sizeof(especialidade));
+    extrairParam(consulta, "data", data, sizeof(data));
+
+    if (especialidade[0] == '\0' || data[0] == '\0')
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"informe especialidade e data\"}");
+        free(json);
+        return;
+    }
+
+    if (json != NULL &&
+        agendamento_repo_slots_disponiveis_json(s->paciente_id, especialidade,
+                                                data, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar horarios\"}");
+    }
+
+    free(json);
+}
+
+static void rotaMeCriarAgendamento(int cliente, const char *consulta,
+                                   const Sessao *s)
+{
+    char especialidade[64];
+    char data[32];
+    char horario[16];
+    char corpo[180];
+    int agendamentoId = 0;
+    int medicoId = 0;
+    int ok;
+
+    if (sessaoPaciente(cliente, s) == 0)
+    {
+        return;
+    }
+
+    extrairParam(consulta, "especialidade", especialidade, sizeof(especialidade));
+    extrairParam(consulta, "data", data, sizeof(data));
+    extrairParam(consulta, "horario", horario, sizeof(horario));
+
+    ok = agendamento_repo_criar_por_especialidade(s->paciente_id, especialidade,
+                                                  data, horario,
+                                                  &agendamentoId, &medicoId) == 1;
+    if (ok)
+    {
+        char detalhe[128];
+        snprintf(detalhe, sizeof(detalhe), "%s %s %s", especialidade, data, horario);
+        auditar(s, "AGENDAR", "agendamento", agendamentoId, detalhe);
+        snprintf(corpo, sizeof(corpo),
+                 "{\"id\":%d,\"status\":\"AGENDADO\",\"medicoId\":%d}",
+                 agendamentoId, medicoId);
+        responder(cliente, "201 Created", corpo);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"sem horario disponivel para especialidade/data informadas\"}");
+    }
+}
+
 static void rotaMeAgenda(int cliente, int medico_id)
 {
     char *json = malloc(TAM_JSON);
@@ -3645,6 +3767,18 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
     {
         rotaMeCriarSolicitacao(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agendamentos/especialidades") == 0)
+    {
+        rotaMeEspecialidadesAgendamento(cliente, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/agendamentos/disponibilidade") == 0)
+    {
+        rotaMeDisponibilidadeAgendamento(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/agendamentos") == 0)
+    {
+        rotaMeCriarAgendamento(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/cobrancas") == 0)
     {

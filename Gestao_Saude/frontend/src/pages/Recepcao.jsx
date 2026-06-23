@@ -117,14 +117,19 @@ function CheckinForm({ onFeito }) {
 export default function Recepcao() {
   const { user } = useAuth()
   const [fila, setFila] = useState(null)
+  const [agendamentos, setAgendamentos] = useState(null)
   const [erro, setErro] = useState('')
 
   const podeCheckin = user.papel === 'ADMIN' || user.papel === 'CADASTRO'
+  const podeVerAgendamentos = ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'].includes(user.papel)
 
   const carregar = useCallback(() => {
     setErro('')
     apiGet('/checkins').then(setFila).catch((e) => setErro(e.message))
-  }, [])
+    if (podeVerAgendamentos) {
+      apiGet('/agendamentos').then(setAgendamentos).catch((e) => setErro(e.message))
+    }
+  }, [podeVerAgendamentos])
 
   useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
@@ -148,6 +153,20 @@ export default function Recepcao() {
       setErro(e.message)
     }
   }
+
+  async function checkinAgendamento(a) {
+    setErro('')
+    try {
+      await apiSend('POST', '/checkins', { paciente_id: String(a.pacienteId), destino: 'CONSULTA' })
+      carregar()
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  const consultasAgendadas = Array.isArray(agendamentos)
+    ? agendamentos.filter((a) => a.status !== 'CANCELADO')
+    : null
 
   return (
     <div className="space-y-6">
@@ -226,6 +245,55 @@ export default function Recepcao() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {podeVerAgendamentos && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-700">Consultas agendadas</h2>
+            {Array.isArray(consultasAgendadas) && <Badge tone="slate">{consultasAgendadas.length}</Badge>}
+          </div>
+          {!erro && consultasAgendadas === null && <Spinner />}
+          {!erro && Array.isArray(consultasAgendadas) && consultasAgendadas.length === 0 && (
+            <EmptyState title="Sem consultas agendadas" description="Agendamentos confirmados pelos pacientes aparecem aqui." />
+          )}
+          {!erro && Array.isArray(consultasAgendadas) && consultasAgendadas.length > 0 && (
+            <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
+                    <th className="px-4 py-3 font-semibold">Data</th>
+                    <th className="px-4 py-3 font-semibold">Paciente</th>
+                    <th className="px-4 py-3 font-semibold">Especialidade</th>
+                    <th className="px-4 py-3 font-semibold">Médico</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {consultasAgendadas.map((a) => (
+                    <tr key={a.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                      <td className="px-4 py-3 font-semibold text-slate-900">{a.data} às {a.horario}</td>
+                      <td className="px-4 py-3 text-slate-700">{a.pacienteNome || `#${a.pacienteId}`}</td>
+                      <td className="px-4 py-3"><Badge tone="sky">{a.especialidade || 'Consulta'}</Badge></td>
+                      <td className="px-4 py-3 text-slate-700">{a.medicoNome || `#${a.medicoId}`}</td>
+                      <td className="px-4 py-3"><Badge tone="teal">{a.status}</Badge></td>
+                      <td className="px-4 py-3">
+                        {podeCheckin ? (
+                          <Button variant="secondary" className="px-3 py-1" onClick={() => checkinAgendamento(a)}>
+                            Gerar senha
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-400">Recepção</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </div>
   )

@@ -257,7 +257,24 @@ expect 200 "vacinas listadas"; body_has '"nome":"Influenza"' "catalogo de vacina
 api GET /vacinas/contar
 expect 200 "vacinas contadas"; body_has '"ativos":1' "contagem de vacinas"
 
-echo "--- Fluxo 7: validacoes de entrada invalida (400) ---"
+echo "--- Fluxo 7: paciente -> escolhe especialidade/data -> recepcao ve agenda ---"
+api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
+expect 201 "usuario paciente criado"
+TOKEN="$(obter_token pacportal pac123)"
+[[ -n "${TOKEN}" ]] || fail "nao obteve token do paciente"
+api GET '/me/agendamentos/especialidades'
+expect 200 "paciente lista especialidades"; body_has '"especialidade":"Cardiologia"' "especialidade disponivel"
+api GET '/me/agendamentos/disponibilidade?especialidade=Cardiologia&data=2026-08-10'
+expect 200 "paciente lista horarios livres"; body_has '"08:00"' "horario livre"
+api POST /me/agendamentos '{"especialidade":"Cardiologia","data":"2026-08-10","horario":"08:00"}'
+expect 201 "paciente confirma agendamento"; body_has '"status":"AGENDADO"' "agendamento confirmado"
+api GET /me/agendamentos
+expect 200 "paciente ve consulta confirmada"; body_has '"especialidade":"Cardiologia"' "consulta do paciente"
+TOKEN="$(obter_token admin secreta)"
+api GET /agendamentos
+expect 200 "recepcao lista agendamento do paciente"; body_has '"data":"2026-08-10"' "agendamento chega na recepcao"
+
+echo "--- Fluxo 8: validacoes de entrada invalida (400) ---"
 # POST /sessao sem credenciais (cai antes da autenticacao; nao conta como falha
 # de login para o rate-limit por IP).
 api POST /sessao '{}'

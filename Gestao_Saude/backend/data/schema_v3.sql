@@ -149,6 +149,7 @@ CREATE TABLE agendamentos (
     id INTEGER PRIMARY KEY,
     paciente_id INTEGER NOT NULL,
     medico_id INTEGER NOT NULL,
+    especialidade TEXT NOT NULL DEFAULT '',
     data TEXT NOT NULL,
     horario TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -584,4 +585,4 @@ CREATE UNIQUE INDEX idx_vacinas_nome_ativo ON vacinas(nome) WHERE ativo = 1;
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 12;
+PRAGMA user_version = 13;

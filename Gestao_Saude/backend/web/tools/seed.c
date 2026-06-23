@@ -53,11 +53,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Cadastros de exemplo (id 1 em cada tabela apos o reset). */
+    /* Cadastros de exemplo. O portal de paciente mostra as especialidades
+     * oficiais e a agenda precisa de medicos ativos nelas para ofertar horario. */
     if (medico_repo_criar("Dra. Helena Prado", "CRM-DF 1001",
-                          "Clinica Geral", 1) != 1)
+                          "Clinico Geral", 1) != 1 ||
+        medico_repo_criar("Dr. Marcos Vieira", "CRM-DF 1002",
+                          "Cardiologia", 1) != 1 ||
+        medico_repo_criar("Dra. Livia Rocha", "CRM-DF 1003",
+                          "Ortopedia", 1) != 1 ||
+        medico_repo_criar("Dr. Paulo Nunes", "CRM-DF 1004",
+                          "Pediatria", 1) != 1)
     {
-        fprintf(stderr, "falha ao criar medico de exemplo\n");
+        fprintf(stderr, "falha ao criar medicos de exemplo\n");
         return 1;
     }
 

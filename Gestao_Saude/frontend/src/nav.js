@@ -31,7 +31,7 @@ const NAV = [
   { to: '/minha-saude/receitas', label: 'Receitas', icon: 'prescription', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/prontuarios', label: 'Prontuários', icon: 'record', roles: ['PACIENTE'], section: 'Minha saude' },
   { to: '/minha-saude/financeiro', label: 'Financeiro', icon: 'billing', roles: ['PACIENTE'], section: 'Minha saude' },
-  { to: '/minha-saude/solicitacoes', label: 'Solicitações', icon: 'alert', roles: ['PACIENTE'], section: 'Minha saude' },
+  { to: '/minha-saude/solicitacoes', label: 'Agendar', icon: 'schedule', roles: ['PACIENTE'], section: 'Minha saude' },
 
   // Atendimento (recepcao, triagem e cadastros).
   { to: '/recepcao', label: 'Recepção', icon: 'reception', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'], section: 'Atendimento' },

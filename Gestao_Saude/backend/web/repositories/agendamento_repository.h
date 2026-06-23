@@ -9,6 +9,26 @@
 
 int agendamento_repo_criar(int paciente_id, int medico_id,
                            const char *data, const char *horario);
+
+/* Paciente agenda por especialidade: escolhe o primeiro medico ativo livre
+ * naquela especialidade e grava status AGENDADO. */
+int agendamento_repo_criar_por_especialidade(int paciente_id,
+                                             const char *especialidade,
+                                             const char *data,
+                                             const char *horario,
+                                             int *agendamento_id_out,
+                                             int *medico_id_out);
+
+/* Lista as especialidades com medicos ativos para autoagendamento do paciente. */
+int agendamento_repo_especialidades_json(char *buffer, int tamanho);
+
+/* Lista horarios livres para uma especialidade/data considerando qualquer
+ * medico ativo da especialidade e a agenda do proprio paciente. */
+int agendamento_repo_slots_disponiveis_json(int paciente_id,
+                                            const char *especialidade,
+                                            const char *data,
+                                            char *buffer, int tamanho);
+
 int agendamento_repo_listar_json(char *buffer, int tamanho);
 int agendamento_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho);
 
