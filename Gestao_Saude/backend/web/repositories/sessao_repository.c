@@ -59,9 +59,9 @@ int sessao_repo_criar(int usuario_id, int validade_horas,
     snprintf(janela, sizeof(janela), "+%d hours", validade_horas);
 
     if (sqlite3_prepare_v2(db,
-            "INSERT INTO sessoes (token, usuario_id, expira_em) "
-            "VALUES (?, ?, datetime('now', ?));",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "INSERT INTO sessoes (token, usuario_id, expira_em) "
+                           "VALUES (?, ?, datetime('now', ?));",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -119,9 +119,12 @@ int sessao_repo_validar(const char *token,
             strncpy(papel, papelArmazenado, (size_t)papel_tam - 1);
             papel[papel_tam - 1] = '\0';
         }
-        if (paciente_id != NULL) *paciente_id = sqlite3_column_int(stmt, 1);
-        if (medico_id != NULL) *medico_id = sqlite3_column_int(stmt, 2);
-        if (usuario_id != NULL) *usuario_id = sqlite3_column_int(stmt, 3);
+        if (paciente_id != NULL)
+            *paciente_id = sqlite3_column_int(stmt, 1);
+        if (medico_id != NULL)
+            *medico_id = sqlite3_column_int(stmt, 2);
+        if (usuario_id != NULL)
+            *usuario_id = sqlite3_column_int(stmt, 3);
         if (login_out != NULL && login_tam > 0 && login != NULL)
         {
             strncpy(login_out, login, (size_t)login_tam - 1);

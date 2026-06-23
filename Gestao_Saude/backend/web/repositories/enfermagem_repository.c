@@ -25,8 +25,8 @@ int administracao_criar(int prescricao_id, int usuario_id,
 
     /* Deriva o paciente da prescricao ativa. */
     if (sqlite3_prepare_v2(db,
-            "SELECT paciente_id FROM prescricoes WHERE id = ? AND ativo = 1;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "SELECT paciente_id FROM prescricoes WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -45,10 +45,10 @@ int administracao_criar(int prescricao_id, int usuario_id,
     }
 
     if (sqlite3_prepare_v2(db,
-            "INSERT INTO administracoes "
-            "(prescricao_id, paciente_id, usuario_id, usuario_login, observacao) "
-            "VALUES (?, ?, ?, ?, ?);",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "INSERT INTO administracoes "
+                           "(prescricao_id, paciente_id, usuario_id, usuario_login, observacao) "
+                           "VALUES (?, ?, ?, ?, ?);",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -125,10 +125,10 @@ int administracao_listar_por_paciente_json(int paciente_id, char *buffer, int ta
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"prescricaoId\":%d,\"medicamento\":%s,\"por\":%s,"
-            "\"observacao\":%s,\"criadoEm\":%s}",
-            primeiro ? "" : ",",
-            id, prescricaoId, medJson, loginJson, obsJson, criadoJson);
+                           "%s{\"id\":%d,\"prescricaoId\":%d,\"medicamento\":%s,\"por\":%s,"
+                           "\"observacao\":%s,\"criadoEm\":%s}",
+                           primeiro ? "" : ",",
+                           id, prescricaoId, medJson, loginJson, obsJson, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
@@ -253,12 +253,12 @@ int evolucao_listar_por_paciente_json(int paciente_id, char *buffer, int tamanho
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-            "%s{\"id\":%d,\"autor\":%s,\"texto\":%s,\"pressao\":%s,"
-            "\"temperatura\":%s,\"freqCardiaca\":%s,\"saturacao\":%s,"
-            "\"criadoEm\":%s}",
-            primeiro ? "" : ",",
-            id, autorJson, textoJson, pressaoJson, temperaturaJson, freqJson,
-            saturacaoJson, criadoJson);
+                           "%s{\"id\":%d,\"autor\":%s,\"texto\":%s,\"pressao\":%s,"
+                           "\"temperatura\":%s,\"freqCardiaca\":%s,\"saturacao\":%s,"
+                           "\"criadoEm\":%s}",
+                           primeiro ? "" : ",",
+                           id, autorJson, textoJson, pressaoJson, temperaturaJson, freqJson,
+                           saturacaoJson, criadoJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)

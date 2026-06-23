@@ -23,11 +23,11 @@ int main(void)
 
     /* Cobrancas: 1 e 2 sao CONVENIO conv1 (vao ao lote); 3 e de outro convenio;
      * 4 e particular; 5 fica pendente (nao autorizada). */
-    assert(cobranca_criar(1, 1, "CONVENIO", "consulta", "C1", 10000, "", "", "") == 1); /* id 1 */
-    assert(cobranca_criar(1, 1, "CONVENIO", "exame", "C2", 20000, "", "", "") == 1);    /* id 2 */
-    assert(cobranca_criar(1, 2, "CONVENIO", "consulta", "C3", 5000, "", "", "") == 1);  /* id 3 */
-    assert(cobranca_criar(1, 0, "PARTICULAR", "consulta", "C4", 3000, "", "", "") == 1);/* id 4 */
-    assert(cobranca_criar(1, 1, "CONVENIO", "exame", "C5", 7000, "", "", "") == 1);     /* id 5 */
+    assert(cobranca_criar(1, 1, "CONVENIO", "consulta", "C1", 10000, "", "", "") == 1);  /* id 1 */
+    assert(cobranca_criar(1, 1, "CONVENIO", "exame", "C2", 20000, "", "", "") == 1);     /* id 2 */
+    assert(cobranca_criar(1, 2, "CONVENIO", "consulta", "C3", 5000, "", "", "") == 1);   /* id 3 */
+    assert(cobranca_criar(1, 0, "PARTICULAR", "consulta", "C4", 3000, "", "", "") == 1); /* id 4 */
+    assert(cobranca_criar(1, 1, "CONVENIO", "exame", "C5", 7000, "", "", "") == 1);      /* id 5 */
     assert(cobranca_atualizar_status(1, "AUTORIZADA", "") == 1);
     assert(cobranca_atualizar_status(2, "AUTORIZADA", "") == 1);
     assert(cobranca_atualizar_status(3, "AUTORIZADA", "") == 1);

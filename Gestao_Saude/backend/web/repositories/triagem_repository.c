@@ -119,7 +119,9 @@ int triagem_repo_criar_completa(int paciente_id, int tipo_triagem, int pontuacao
     return triagem_repo_criar_clinica(paciente_id, 0, tipo_triagem, pontuacao,
                                       classificacao, itens, queixa, "",
                                       pressao, temperatura, freq_cardiaca,
-                                      saturacao) > 0 ? 1 : 0;
+                                      saturacao) > 0
+               ? 1
+               : 0;
 }
 
 /* Versao simples (sem sinais vitais/itens): mantida para compatibilidade. */
@@ -693,8 +695,8 @@ int triagem_repo_paciente_id(int id, int *paciente_id)
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT paciente_id FROM triagens WHERE id = ? AND ativo = 1 AND vigente = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "SELECT paciente_id FROM triagens WHERE id = ? AND ativo = 1 AND vigente = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, id);
         if (sqlite3_step(stmt) == SQLITE_ROW)
@@ -719,8 +721,8 @@ int triagem_repo_profissional_id(int id, int *profissional_id)
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT profissional_id FROM triagens WHERE id = ? AND ativo = 1 AND vigente = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "SELECT profissional_id FROM triagens WHERE id = ? AND ativo = 1 AND vigente = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, id);
         if (sqlite3_step(stmt) == SQLITE_ROW)
@@ -746,8 +748,8 @@ int triagem_repo_especialidades_json(char *buffer, int tamanho)
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT id, nome FROM especialidades_clinicas WHERE ativo = 1 ORDER BY id;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "SELECT id, nome FROM especialidades_clinicas WHERE ativo = 1 ORDER BY id;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -798,9 +800,9 @@ int triagem_repo_problemas_por_especialidade_json(int especialidade_id,
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT id, especialidade_id, nome, peso_risco, exame_sugerido_id, exame_sugerido "
-            "FROM problemas_clinicos WHERE ativo = 1 AND especialidade_id = ? ORDER BY peso_risco DESC, nome;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "SELECT id, especialidade_id, nome, peso_risco, exame_sugerido_id, exame_sugerido "
+                           "FROM problemas_clinicos WHERE ativo = 1 AND especialidade_id = ? ORDER BY peso_risco DESC, nome;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -860,8 +862,8 @@ int triagem_repo_adicionar_problema(int triagem_id, int problema_id,
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "SELECT especialidade_id FROM problemas_clinicos WHERE id = ? AND ativo = 1;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "SELECT especialidade_id FROM problemas_clinicos WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -881,8 +883,8 @@ int triagem_repo_adicionar_problema(int triagem_id, int problema_id,
     {
         sqlite3_stmt *upd = NULL;
         if (sqlite3_prepare_v2(db,
-                "UPDATE triagem_problemas SET principal = 0 WHERE triagem_id = ? AND ativo = 1;",
-                -1, &upd, NULL) == SQLITE_OK)
+                               "UPDATE triagem_problemas SET principal = 0 WHERE triagem_id = ? AND ativo = 1;",
+                               -1, &upd, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int(upd, 1, triagem_id);
             sqlite3_step(upd);
@@ -890,10 +892,10 @@ int triagem_repo_adicionar_problema(int triagem_id, int problema_id,
         }
     }
     if (sqlite3_prepare_v2(db,
-            "INSERT INTO triagem_problemas "
-            "(triagem_id, problema_id, especialidade_id, principal, observacao, ativo) "
-            "VALUES (?, ?, ?, ?, ?, 1);",
-            -1, &ins, NULL) == SQLITE_OK)
+                           "INSERT INTO triagem_problemas "
+                           "(triagem_id, problema_id, especialidade_id, principal, observacao, ativo) "
+                           "VALUES (?, ?, ?, ?, ?, 1);",
+                           -1, &ins, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(ins, 1, triagem_id);
         sqlite3_bind_int(ins, 2, problema_id);
@@ -918,9 +920,9 @@ int triagem_repo_remover_problema(int triagem_id, int problema_id)
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "UPDATE triagem_problemas SET ativo = 0 "
-            "WHERE triagem_id = ? AND problema_id = ? AND ativo = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "UPDATE triagem_problemas SET ativo = 0 "
+                           "WHERE triagem_id = ? AND problema_id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, triagem_id);
         sqlite3_bind_int(stmt, 2, problema_id);
@@ -945,10 +947,10 @@ int triagem_repo_atualizar_resultado(int id, int especialidade_id, int prioridad
         return 0;
     }
     if (sqlite3_prepare_v2(db,
-            "UPDATE triagens SET especialidade_principal_id = ?, tipo_triagem = ?, "
-            "pontuacao = ?, prioridade = ?, classificacao = ? "
-            "WHERE id = ? AND ativo = 1 AND vigente = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "UPDATE triagens SET especialidade_principal_id = ?, tipo_triagem = ?, "
+                           "pontuacao = ?, prioridade = ?, classificacao = ? "
+                           "WHERE id = ? AND ativo = 1 AND vigente = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, especialidade_id);
         sqlite3_bind_int(stmt, 2, tipo);

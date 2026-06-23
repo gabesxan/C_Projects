@@ -212,9 +212,12 @@ int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
                 strncpy(papel, papelArmazenado, (size_t)papel_tam - 1);
                 papel[papel_tam - 1] = '\0';
             }
-            if (paciente_id != NULL) *paciente_id = sqlite3_column_int(stmt, 3);
-            if (medico_id != NULL) *medico_id = sqlite3_column_int(stmt, 4);
-            if (usuario_id != NULL) *usuario_id = usuarioId;
+            if (paciente_id != NULL)
+                *paciente_id = sqlite3_column_int(stmt, 3);
+            if (medico_id != NULL)
+                *medico_id = sqlite3_column_int(stmt, 4);
+            if (usuario_id != NULL)
+                *usuario_id = usuarioId;
             autenticado = 1;
         }
     }
@@ -232,8 +235,9 @@ int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
         /* Acerto: zera o contador e remove qualquer bloqueio. */
         sqlite3_stmt *up = NULL;
         if (sqlite3_prepare_v2(db,
-                "UPDATE usuarios SET tentativas_invalidas = 0, bloqueado_ate = '' "
-                "WHERE id = ?;", -1, &up, NULL) == SQLITE_OK)
+                               "UPDATE usuarios SET tentativas_invalidas = 0, bloqueado_ate = '' "
+                               "WHERE id = ?;",
+                               -1, &up, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int(up, 1, usuarioId);
             sqlite3_step(up);
@@ -242,7 +246,8 @@ int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
     }
     else if (estaBloqueado == 1)
     {
-        if (bloqueado != NULL) *bloqueado = 1;
+        if (bloqueado != NULL)
+            *bloqueado = 1;
     }
     else
     {
@@ -251,9 +256,9 @@ int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
         int atingiuLimite = novas >= MAX_TENTATIVAS;
         sqlite3_stmt *up = NULL;
         const char *sqlUp = atingiuLimite
-            ? "UPDATE usuarios SET tentativas_invalidas = ?, "
-              "bloqueado_ate = datetime('now', ?) WHERE id = ?;"
-            : "UPDATE usuarios SET tentativas_invalidas = ? WHERE id = ?;";
+                                ? "UPDATE usuarios SET tentativas_invalidas = ?, "
+                                  "bloqueado_ate = datetime('now', ?) WHERE id = ?;"
+                                : "UPDATE usuarios SET tentativas_invalidas = ? WHERE id = ?;";
 
         if (sqlite3_prepare_v2(db, sqlUp, -1, &up, NULL) == SQLITE_OK)
         {
@@ -273,7 +278,8 @@ int usuario_repo_autenticar_com_bloqueio(const char *login, const char *senha,
             sqlite3_finalize(up);
         }
 
-        if (atingiuLimite && bloqueado != NULL) *bloqueado = 1;
+        if (atingiuLimite && bloqueado != NULL)
+            *bloqueado = 1;
     }
 
     db_fechar(db);
@@ -529,8 +535,8 @@ int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
 
     /* Carrega salt + hash atuais para conferir a senha vigente. */
     if (sqlite3_prepare_v2(db,
-            "SELECT salt, senha_hash FROM usuarios WHERE id = ? AND ativo = 1;",
-            -1, &stmt, NULL) != SQLITE_OK)
+                           "SELECT salt, senha_hash FROM usuarios WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) != SQLITE_OK)
     {
         db_fechar(db);
         return 0;
@@ -566,8 +572,9 @@ int usuario_repo_trocar_senha(int usuario_id, const char *senha_atual,
     }
 
     if (sqlite3_prepare_v2(db,
-            "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 0 "
-            "WHERE id = ?;", -1, &stmt, NULL) == SQLITE_OK)
+                           "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 0 "
+                           "WHERE id = ?;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_text(stmt, 1, novoHash, -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, novoSalt, -1, SQLITE_STATIC);
@@ -606,9 +613,10 @@ int usuario_repo_resetar_senha(int usuario_id, const char *senha_nova)
 
     /* Define a senha temporaria e exige troca no proximo acesso. */
     if (sqlite3_prepare_v2(db,
-            "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 1, "
-            "tentativas_invalidas = 0, bloqueado_ate = '' "
-            "WHERE id = ? AND ativo = 1;", -1, &stmt, NULL) == SQLITE_OK)
+                           "UPDATE usuarios SET senha_hash = ?, salt = ?, trocar_senha = 1, "
+                           "tentativas_invalidas = 0, bloqueado_ate = '' "
+                           "WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, salt, -1, SQLITE_STATIC);
@@ -633,8 +641,8 @@ int usuario_repo_precisa_trocar_senha(int usuario_id)
     }
 
     if (sqlite3_prepare_v2(db,
-            "SELECT trocar_senha FROM usuarios WHERE id = ? AND ativo = 1;",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "SELECT trocar_senha FROM usuarios WHERE id = ? AND ativo = 1;",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int(stmt, 1, usuario_id);
         if (sqlite3_step(stmt) == SQLITE_ROW)

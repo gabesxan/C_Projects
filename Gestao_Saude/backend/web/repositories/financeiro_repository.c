@@ -231,8 +231,8 @@ int cobranca_criar(int paciente_id, int convenio_id, const char *forma,
         sqlite3_stmt *q = NULL;
         int pct = -1;
         if (sqlite3_prepare_v2(db,
-                "SELECT cobertura_pct FROM convenios WHERE id = ? AND ativo = 1;",
-                -1, &q, NULL) == SQLITE_OK)
+                               "SELECT cobertura_pct FROM convenios WHERE id = ? AND ativo = 1;",
+                               -1, &q, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int(q, 1, convenio_id);
             if (sqlite3_step(q) == SQLITE_ROW)
@@ -558,10 +558,10 @@ int cobranca_demonstrativo_json(char *buffer, int tamanho)
 
     /* Total em aberto cujo vencimento ja passou. */
     if (sqlite3_prepare_v2(db,
-            "SELECT COALESCE(SUM(valor_centavos),0) FROM cobrancas "
-            "WHERE vencimento <> '' AND vencimento < date('now') "
-            "AND status IN ('PENDENTE','AUTORIZADA');",
-            -1, &stmt, NULL) == SQLITE_OK)
+                           "SELECT COALESCE(SUM(valor_centavos),0) FROM cobrancas "
+                           "WHERE vencimento <> '' AND vencimento < date('now') "
+                           "AND status IN ('PENDENTE','AUTORIZADA');",
+                           -1, &stmt, NULL) == SQLITE_OK)
     {
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {

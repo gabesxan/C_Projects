@@ -54,26 +54,26 @@ int main(void)
     assert(checkin_repo_chamar(999) == 0);
 
     /* Rechamada: so vale para quem esta EM_ATENDIMENTO. */
-    assert(checkin_repo_chamar(2) == 1);           /* T002 -> EM_ATENDIMENTO */
+    assert(checkin_repo_chamar(2) == 1); /* T002 -> EM_ATENDIMENTO */
     assert(checkin_repo_rechamar(2) == 1);
     assert(checkin_repo_rechamar(2) == 1);
     assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
     assert(strstr(json, "\"rechamadas\":2") != NULL);
-    assert(checkin_repo_rechamar(3) == 0);         /* C001 ainda AGUARDANDO */
+    assert(checkin_repo_rechamar(3) == 0); /* C001 ainda AGUARDANDO */
 
     /* Falta e retorno a fila. */
     assert(checkin_repo_faltar(2) == 1);           /* EM_ATENDIMENTO -> FALTOU */
     assert(checkin_repo_contar_aguardando() == 1); /* so C001 aguardando */
     assert(checkin_repo_retornar(2) == 1);         /* FALTOU -> AGUARDANDO */
     assert(checkin_repo_contar_aguardando() == 2);
-    assert(checkin_repo_retornar(2) == 0);         /* nao esta mais como falta */
+    assert(checkin_repo_retornar(2) == 0); /* nao esta mais como falta */
 
     /* Cancelamento exige motivo e tira da fila. */
     assert(checkin_repo_cancelar(3, "") == 0);
     assert(checkin_repo_cancelar(3, "paciente desistiu") == 1);
     assert(checkin_repo_contar_aguardando() == 1);
     assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
-    assert(strstr(json, "C001") == NULL);          /* cancelado saiu da fila */
+    assert(strstr(json, "C001") == NULL);             /* cancelado saiu da fila */
     assert(checkin_repo_cancelar(3, "de novo") == 0); /* ja cancelado */
 
     /* SLA por risco (Manchester): mapeamento dos tempos-alvo. */
@@ -87,13 +87,13 @@ int main(void)
 
     /* Estouro de SLA: paciente classificado Vermelho aguardando ha muito tempo. */
     assert(db_executar(
-        "INSERT INTO triagens (paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
-        "VALUES (1, 3, 9, 'Vermelho', 1);") == 1);
+               "INSERT INTO triagens (paciente_id, tipo_triagem, pontuacao, classificacao, ativo) "
+               "VALUES (1, 3, 9, 'Vermelho', 1);") == 1);
     assert(checkin_repo_criar(1, "CONSULTA", senha, sizeof(senha)) == 1); /* AGUARDANDO */
     /* Recua a chegada para forcar a espera alem do limite. */
     assert(db_executar(
-        "UPDATE checkins SET criado_em = '2000-01-01 00:00:00' "
-        "WHERE senha = 'C002';") == 1);
+               "UPDATE checkins SET criado_em = '2000-01-01 00:00:00' "
+               "WHERE senha = 'C002';") == 1);
     assert(checkin_repo_listar_json(json, sizeof(json)) == 1);
     assert(strstr(json, "\"esperaMinutos\"") != NULL);
     assert(strstr(json, "\"classificacao\":\"Vermelho\"") != NULL);
