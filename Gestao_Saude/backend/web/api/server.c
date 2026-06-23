@@ -17,10 +17,12 @@
 #include "lote_repository.h"
 #include "analito_repository.h"
 #include "medicamento_repository.h"
+#include "estoque_repository.h"
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
+#include "farmacia_service.h"
 #include "credencial_util.h"
 
 #include <stdio.h>
@@ -1025,14 +1027,17 @@ static void rotaCriarMedicamento(int cliente, const char *consulta, const Sessao
     char apresentacao[128];
     char unidade[48];
     char minimoStr[16];
+    char precoStr[16];
     int ok;
 
     extrairParam(consulta, "nome", nome, sizeof(nome));
     extrairParam(consulta, "apresentacao", apresentacao, sizeof(apresentacao));
     extrairParam(consulta, "unidade", unidade, sizeof(unidade));
     extrairParam(consulta, "estoque_minimo", minimoStr, sizeof(minimoStr));
+    extrairParam(consulta, "preco_centavos", precoStr, sizeof(precoStr));
 
-    ok = medicamento_criar(nome, apresentacao, unidade, atoi(minimoStr)) == 1;
+    ok = medicamento_criar(nome, apresentacao, unidade, atoi(minimoStr),
+                           atoi(precoStr)) == 1;
     if (ok)
     {
         auditar(s, "CRIAR", "medicamento", 0, nome);
@@ -1051,6 +1056,134 @@ static void rotaDesativarMedicamento(int cliente, int id, const Sessao *s)
     }
     responderRemocao(cliente, ok,
                      "{\"erro\":\"medicamento nao encontrado ou ja inativo\"}");
+}
+
+/* POST /estoque: entrada de lote (ENTRADA). */
+static void rotaEstoqueEntrada(int cliente, const char *consulta, const Sessao *s)
+{
+    char medStr[16];
+    char lote[64];
+    char validade[16];
+    char qtdStr[16];
+    char local[96];
+    int medicamentoId;
+    int ok;
+
+    extrairParam(consulta, "medicamento_id", medStr, sizeof(medStr));
+    extrairParam(consulta, "lote", lote, sizeof(lote));
+    extrairParam(consulta, "validade", validade, sizeof(validade));
+    extrairParam(consulta, "quantidade", qtdStr, sizeof(qtdStr));
+    extrairParam(consulta, "localizacao", local, sizeof(local));
+
+    medicamentoId = atoi(medStr);
+    ok = estoque_entrada(medicamentoId, lote, validade, atoi(qtdStr), local,
+                         s->usuario_id, s->login) == 1;
+    if (ok)
+    {
+        auditar(s, "ENTRADA", "estoque", medicamentoId, lote);
+    }
+    responderCriacao(cliente, ok,
+                     "{\"erro\":\"entrada de estoque invalida\"}");
+}
+
+/* POST /movimentacoes: saida ou ajuste de estoque (debita FIFO). A dispensacao
+ * a paciente, com cobranca, vai por POST /medicamentos/{id}/dispensar. */
+static void rotaMovimentacaoCriar(int cliente, const char *consulta, const Sessao *s)
+{
+    char medStr[16];
+    char tipo[16];
+    char qtdStr[16];
+    char motivo[200];
+    int medicamentoId;
+    int ok;
+
+    extrairParam(consulta, "medicamento_id", medStr, sizeof(medStr));
+    extrairParam(consulta, "tipo", tipo, sizeof(tipo));
+    extrairParam(consulta, "quantidade", qtdStr, sizeof(qtdStr));
+    extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+
+    if (strcmp(tipo, "SAIDA") != 0 && strcmp(tipo, "AJUSTE") != 0)
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"tipo invalido (SAIDA ou AJUSTE)\"}");
+        return;
+    }
+
+    medicamentoId = atoi(medStr);
+    ok = estoque_baixar(medicamentoId, atoi(qtdStr), tipo, motivo,
+                        s->usuario_id, s->login) == 1;
+    if (ok)
+    {
+        auditar(s, tipo, "estoque", medicamentoId, motivo);
+    }
+    responderCriacao(cliente, ok,
+                     "{\"erro\":\"movimentacao invalida ou saldo insuficiente\"}");
+}
+
+static void rotaEstoqueItens(int cliente, int medicamento_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && estoque_itens_listar_json(medicamento_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar estoque\"}");
+    }
+    free(json);
+}
+
+static void rotaMovimentacaoListar(int cliente, int medicamento_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL && movimentacao_listar_json(medicamento_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar movimentacoes\"}");
+    }
+    free(json);
+}
+
+/* POST /medicamentos/{id}/dispensar: debita o estoque e gera a cobranca
+ * PARTICULAR (vinculo com o financeiro), via farmacia_service. */
+static void rotaMedicamentoDispensar(int cliente, int medicamento_id,
+                                     const char *consulta, const Sessao *s)
+{
+    char pacStr[16];
+    char qtdStr[16];
+    char motivo[200];
+    char *json = malloc(TAM_JSON);
+    int ok;
+
+    if (json == NULL)
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"sem memoria\"}");
+        return;
+    }
+
+    extrairParam(consulta, "paciente_id", pacStr, sizeof(pacStr));
+    extrairParam(consulta, "quantidade", qtdStr, sizeof(qtdStr));
+    extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+
+    ok = farmacia_service_dispensar(medicamento_id, atoi(pacStr), atoi(qtdStr),
+                                    motivo, s->usuario_id, s->login,
+                                    json, TAM_JSON) == 1;
+    if (ok)
+    {
+        auditar(s, "DISPENSAR", "medicamento", medicamento_id, pacStr);
+    }
+    /* O service ja escreve o detalhe (sucesso ou erro especifico) no corpo. */
+    responder(cliente, ok ? "200 OK" : "400 Bad Request", json);
+    free(json);
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -2721,6 +2854,8 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/analitos") || comecaCom(caminho, "/paineis") ||
            comecaCom(caminho, "/solicitacoes-paciente") ||
            comecaCom(caminho, "/medicamentos") ||
+           comecaCom(caminho, "/estoque") ||
+           comecaCom(caminho, "/movimentacoes") ||
            comecaCom(caminho, "/me");
 }
 
@@ -2919,9 +3054,35 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaCriarMedicamento(cliente, consulta, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/medicamentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "estoque") == 0)
+    {
+        rotaEstoqueItens(cliente, id);
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/medicamentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "movimentacoes") == 0)
+    {
+        rotaMovimentacaoListar(cliente, id);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/medicamentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "dispensar") == 0)
+    {
+        rotaMedicamentoDispensar(cliente, id, consulta, &s);
+    }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/medicamentos/%d", &id) == 1)
     {
         rotaDesativarMedicamento(cliente, id, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/estoque") == 0)
+    {
+        rotaEstoqueEntrada(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/movimentacoes") == 0)
+    {
+        rotaMovimentacaoCriar(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
     {

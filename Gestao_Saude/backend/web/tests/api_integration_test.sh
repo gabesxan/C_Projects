@@ -221,7 +221,33 @@ expect 200 "cobranca paga (baixa)"
 api GET /cobrancas/demonstrativo
 expect 200 "demonstrativo financeiro"; body_has '"recebidoCentavos":20000' "demonstrativo reflete a baixa"
 
-echo "--- Fluxo 5: validacoes de entrada invalida (400) ---"
+echo "--- Fluxo 5: farmacia -> dispensacao debita estoque e gera cobranca ---"
+api POST /medicamentos '{"nome":"Dipirona","apresentacao":"500mg comprimido","unidade":"comprimido","estoque_minimo":"5","preco_centavos":"150"}'
+expect 201 "medicamento criado"
+api POST /estoque '{"medicamento_id":"1","lote":"L1","validade":"2026-12-31","quantidade":"50","localizacao":"Prateleira A"}'
+expect 201 "entrada de estoque (50)"
+api GET /medicamentos/1/estoque
+expect 200 "estoque do medicamento"; body_has '"quantidade":50' "saldo apos entrada"
+# Dispensa 3 ao paciente 1: debita o estoque (50 -> 47) e gera cobranca
+# PARTICULAR de 3 x 150 = 450 centavos (vinculo com o financeiro).
+api POST /medicamentos/1/dispensar '{"paciente_id":"1","quantidade":"3","motivo":"pos-consulta"}'
+expect 200 "dispensacao ao paciente"
+body_has '"cobrancaGerada":true' "dispensacao gera cobranca"
+body_has '"valorCentavos":450' "valor da dispensacao (3 x 150)"
+body_has '"saldo":47' "estoque debitado pela dispensacao"
+# A cobranca da farmacia aparece no financeiro.
+api GET /cobrancas
+expect 200 "cobrancas listadas"; body_has '"origem":"farmacia"' "cobranca de farmacia lancada"
+# Saldo insuficiente nao dispensa nem altera o estoque.
+api POST /medicamentos/1/dispensar '{"paciente_id":"1","quantidade":"9999","motivo":"x"}'
+expect 400 "dispensacao sem saldo"; body_has 'estoque insuficiente' "erro de saldo insuficiente"
+api GET /medicamentos/1/estoque
+expect 200 "estoque inalterado apos falha"; body_has '"quantidade":47' "saldo preservado"
+# Paciente inexistente e recusado.
+api POST /medicamentos/1/dispensar '{"paciente_id":"9999","quantidade":"1"}'
+expect 400 "dispensacao paciente invalido"; body_has 'paciente inexistente' "erro de paciente"
+
+echo "--- Fluxo 6: validacoes de entrada invalida (400) ---"
 # POST /sessao sem credenciais (cai antes da autenticacao; nao conta como falha
 # de login para o rate-limit por IP).
 api POST /sessao '{}'

@@ -527,6 +527,7 @@ CREATE TABLE medicamentos (
     apresentacao TEXT NOT NULL DEFAULT '',
     unidade TEXT NOT NULL DEFAULT '',
     estoque_minimo INTEGER NOT NULL DEFAULT 0,
+    preco_centavos INTEGER NOT NULL DEFAULT 0,
     ativo INTEGER NOT NULL DEFAULT 1,
     criado_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -568,4 +569,4 @@ CREATE INDEX idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);
 
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 10;
+PRAGMA user_version = 11;

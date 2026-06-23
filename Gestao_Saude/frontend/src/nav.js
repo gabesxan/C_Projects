@@ -56,6 +56,7 @@ const NAV = [
   // Farmacia. Catalogo de medicamentos via recurso generico (/r/medicamentos);
   // estoque/movimentacoes/alertas chegam nas sub-etapas 5b/5c.
   { to: '/r/medicamentos', label: 'Medicamentos', icon: 'prescription', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Farmacia' },
+  { to: '/farmacia', label: 'Estoque', icon: 'hospital', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Farmacia' },
 
   // Financeiro.
   { to: '/financeiro', label: 'Financeiro', icon: 'finance', roles: ['ADMIN', 'CADASTRO'], section: 'Financeiro' },

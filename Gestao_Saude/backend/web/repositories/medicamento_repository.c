@@ -6,14 +6,16 @@
 #include <string.h>
 
 int medicamento_criar(const char *nome, const char *apresentacao,
-                      const char *unidade, int estoque_minimo)
+                      const char *unidade, int estoque_minimo,
+                      int preco_centavos)
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     int ok = 0;
     const char *sql =
-        "INSERT INTO medicamentos (nome, apresentacao, unidade, estoque_minimo, ativo) "
-        "VALUES (?, ?, ?, ?, 1);";
+        "INSERT INTO medicamentos "
+        "(nome, apresentacao, unidade, estoque_minimo, preco_centavos, ativo) "
+        "VALUES (?, ?, ?, ?, ?, 1);";
 
     if (nome == NULL || nome[0] == '\0' || db_abrir(&db) == 0)
     {
@@ -24,6 +26,10 @@ int medicamento_criar(const char *nome, const char *apresentacao,
     {
         estoque_minimo = 0;
     }
+    if (preco_centavos < 0)
+    {
+        preco_centavos = 0;
+    }
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK)
     {
@@ -31,6 +37,7 @@ int medicamento_criar(const char *nome, const char *apresentacao,
         sqlite3_bind_text(stmt, 2, apresentacao != NULL ? apresentacao : "", -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 3, unidade != NULL ? unidade : "", -1, SQLITE_STATIC);
         sqlite3_bind_int(stmt, 4, estoque_minimo);
+        sqlite3_bind_int(stmt, 5, preco_centavos);
         ok = sqlite3_step(stmt) == SQLITE_DONE;
         sqlite3_finalize(stmt);
     }
@@ -44,7 +51,7 @@ int medicamento_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, nome, apresentacao, unidade, estoque_minimo "
+        "SELECT id, nome, apresentacao, unidade, estoque_minimo, preco_centavos "
         "FROM medicamentos WHERE ativo = 1 ORDER BY nome;";
     int usado = 0;
     int primeiro = 1;
@@ -76,6 +83,7 @@ int medicamento_listar_json(char *buffer, int tamanho)
         char objeto[700];
         int id = sqlite3_column_int(stmt, 0);
         int estoqueMinimo = sqlite3_column_int(stmt, 4);
+        int precoCentavos = sqlite3_column_int(stmt, 5);
         int escrito;
 
         if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 1)) == 0 ||
@@ -89,9 +97,9 @@ int medicamento_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
             "%s{\"id\":%d,\"nome\":%s,\"apresentacao\":%s,\"unidade\":%s,"
-            "\"estoqueMinimo\":%d}",
+            "\"estoqueMinimo\":%d,\"precoCentavos\":%d}",
             primeiro ? "" : ",",
-            id, nomeJson, apresentacaoJson, unidadeJson, estoqueMinimo);
+            id, nomeJson, apresentacaoJson, unidadeJson, estoqueMinimo, precoCentavos);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
             repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
@@ -181,4 +189,31 @@ int medicamento_ativo(int id)
 
     db_fechar(db);
     return ativo;
+}
+
+int medicamento_preco_centavos(int id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int preco = -1;
+
+    if (id <= 0 || db_abrir(&db) == 0)
+    {
+        return -1;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT preco_centavos FROM medicamentos WHERE id = ? AND ativo = 1;",
+            -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, id);
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            preco = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    db_fechar(db);
+    return preco;
 }

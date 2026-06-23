@@ -8,10 +8,11 @@
  * movimentacoes ficam em repositories proprios (sub-etapas 5b/5c).
  */
 
-/* Cadastra um medicamento ativo. 'nome' e obrigatorio; 'estoque_minimo' < 0 e
- * tratado como 0. Retorna 1 em sucesso, 0 em falha. */
+/* Cadastra um medicamento ativo. 'nome' e obrigatorio; 'estoque_minimo' e
+ * 'preco_centavos' < 0 sao tratados como 0. Retorna 1 em sucesso, 0 em falha. */
 int medicamento_criar(const char *nome, const char *apresentacao,
-                      const char *unidade, int estoque_minimo);
+                      const char *unidade, int estoque_minimo,
+                      int preco_centavos);
 
 /* Lista (JSON) os medicamentos ativos, ordenados por nome. 1 = ok, 0 = erro. */
 int medicamento_listar_json(char *buffer, int tamanho);
@@ -24,5 +25,8 @@ int medicamento_contar_ativos(void);
 
 /* 1 se existe um medicamento ativo com o id informado; 0 caso contrario. */
 int medicamento_ativo(int id);
+
+/* Preco unitario (centavos) do medicamento ativo; -1 se inexistente/inativo. */
+int medicamento_preco_centavos(int id);
 
 #endif

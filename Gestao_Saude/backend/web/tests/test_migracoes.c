@@ -115,7 +115,7 @@ int main(void)
 
     /* Schema completo: nasce ja na ultima versao, com indices e colunas novos. */
     assert(db_resetar_com_schema(SCHEMA) == 1);
-    assert(versao() == 10);
+    assert(versao() == 11);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
@@ -148,8 +148,9 @@ int main(void)
     assert(indice_existe("idx_estoque_itens_medicamento") == 1);
     assert(indice_existe("idx_estoque_itens_validade") == 1);
     assert(indice_existe("idx_movimentacoes_medicamento") == 1);
+    assert(coluna_existe("medicamentos", "preco_centavos") == 1);
 
-    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos v2..v10. */
+    /* Simula um banco ANTIGO: volta para a v1, removendo artefatos v2..v11. */
     assert(db_executar("DROP INDEX IF EXISTS idx_cobrancas_paciente;") == 1);
     assert(db_executar("DROP INDEX IF EXISTS idx_sessoes_expira;") == 1);
     assert(db_executar("ALTER TABLE checkins DROP COLUMN rechamadas;") == 1);
@@ -211,9 +212,9 @@ int main(void)
     assert(coluna_existe("triagens", "profissional_id") == 0);
     assert(versao() == 1);
 
-    /* Migra: aplica v2..v10, sobe para a v10 e mantem os dados. */
+    /* Migra: aplica v2..v11, sobe para a v11 e mantem os dados. */
     assert(db_migrar() == 1);
-    assert(versao() == 10);
+    assert(versao() == 11);
     assert(indice_existe("idx_cobrancas_paciente") == 1);
     assert(indice_existe("idx_sessoes_expira") == 1);
     assert(coluna_existe("checkins", "rechamadas") == 1);
@@ -245,12 +246,13 @@ int main(void)
     assert(tabela_existe("movimentacoes") == 1);
     assert(indice_existe("idx_estoque_itens_medicamento") == 1);
     assert(indice_existe("idx_movimentacoes_medicamento") == 1);
+    assert(coluna_existe("medicamentos", "preco_centavos") == 1);
     assert(contar("SELECT COUNT(*) FROM especialidades_clinicas WHERE ativo = 1;") >= 7);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     /* Idempotente: rodar de novo num banco ja atualizado nao muda nada. */
     assert(db_migrar() == 1);
-    assert(versao() == 10);
+    assert(versao() == 11);
     assert(contar("SELECT COUNT(*) FROM convenios WHERE nome='Antigo';") == 1);
 
     printf("test_migracoes: OK\n");

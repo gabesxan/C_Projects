@@ -19,12 +19,12 @@ int main(void)
     assert(medicamento_contar_ativos() == 0);
 
     /* Nome obrigatorio. */
-    assert(medicamento_criar("", "500mg comprimido", "comprimido", 10) == 0);
-    assert(medicamento_criar(NULL, "x", "x", 1) == 0);
+    assert(medicamento_criar("", "500mg comprimido", "comprimido", 10, 150) == 0);
+    assert(medicamento_criar(NULL, "x", "x", 1, 1) == 0);
 
-    /* Cadastros validos (estoque_minimo negativo vira 0). */
-    assert(medicamento_criar("Dipirona", "500mg comprimido", "comprimido", 20) == 1);
-    assert(medicamento_criar("Amoxicilina", "250mg/5ml suspensao", "ml", -5) == 1);
+    /* Cadastros validos (estoque_minimo e preco negativos viram 0). */
+    assert(medicamento_criar("Dipirona", "500mg comprimido", "comprimido", 20, 150) == 1);
+    assert(medicamento_criar("Amoxicilina", "250mg/5ml suspensao", "ml", -5, -10) == 1);
     assert(medicamento_contar_ativos() == 2);
 
     /* Listagem ordenada por nome, com os campos esperados. */
@@ -34,13 +34,17 @@ int main(void)
     assert(strstr(json, "\"apresentacao\":\"500mg comprimido\"") != NULL);
     assert(strstr(json, "\"estoqueMinimo\":20") != NULL);
     assert(strstr(json, "\"estoqueMinimo\":0") != NULL); /* negativo normalizado */
+    assert(strstr(json, "\"precoCentavos\":150") != NULL);
+    assert(strstr(json, "\"precoCentavos\":0") != NULL); /* preco negativo normalizado */
     /* Amoxicilina (A) vem antes de Dipirona (D). */
     assert(strstr(json, "Amoxicilina") < strstr(json, "Dipirona"));
 
-    /* Vigencia por id. */
+    /* Vigencia e preco por id (id 1 = Dipirona). */
     assert(medicamento_ativo(1) == 1);
     assert(medicamento_ativo(999) == 0);
     assert(medicamento_ativo(0) == 0);
+    assert(medicamento_preco_centavos(1) == 150);
+    assert(medicamento_preco_centavos(999) == -1);
 
     /* Desativacao (soft delete): some da listagem e da contagem. */
     assert(medicamento_desativar(1) == 1);

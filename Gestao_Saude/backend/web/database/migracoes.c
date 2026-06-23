@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 10
+#define LATEST_VERSION 11
 
 typedef struct
 {
@@ -208,6 +208,8 @@ static const Migracao MIGRACOES[] = {
      "CREATE INDEX IF NOT EXISTS idx_estoque_itens_medicamento ON estoque_itens(medicamento_id);"
      "CREATE INDEX IF NOT EXISTS idx_estoque_itens_validade ON estoque_itens(validade);"
      "CREATE INDEX IF NOT EXISTS idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);"},
+    {11, "farmacia: preco unitario do medicamento (vinculo com o financeiro)",
+     "ALTER TABLE medicamentos ADD COLUMN preco_centavos INTEGER NOT NULL DEFAULT 0;"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */
