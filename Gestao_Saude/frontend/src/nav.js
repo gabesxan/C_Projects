@@ -14,6 +14,7 @@ export const SECTIONS = [
   'Clinico',
   'Internacao',
   'Farmacia',
+  'Vacinacao',
   'Financeiro',
   'Administracao',
   'Conta',
@@ -57,6 +58,9 @@ const NAV = [
   // estoque/movimentacoes/alertas chegam nas sub-etapas 5b/5c.
   { to: '/r/medicamentos', label: 'Medicamentos', icon: 'prescription', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Farmacia' },
   { to: '/farmacia', label: 'Estoque', icon: 'hospital', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Farmacia' },
+
+  // Vacinacao. O prefixo SPA /vacinacao nao colide com a API /vacinas.
+  { to: '/vacinacao', label: 'Vacinação', icon: 'vaccine', roles: ['ADMIN', 'ENFERMAGEM'], section: 'Vacinacao' },
 
   // Financeiro.
   { to: '/financeiro', label: 'Financeiro', icon: 'finance', roles: ['ADMIN', 'CADASTRO'], section: 'Financeiro' },

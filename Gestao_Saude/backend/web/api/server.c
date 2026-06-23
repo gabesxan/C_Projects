@@ -18,6 +18,7 @@
 #include "analito_repository.h"
 #include "medicamento_repository.h"
 #include "estoque_repository.h"
+#include "vacina_repository.h"
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
@@ -570,6 +571,13 @@ static int ehFarmacia(const char *caminho)
            comecaCom(caminho, "/movimentacoes");
 }
 
+/* Vacinacao: catalogo de vacinas nesta sub-etapa. Aplicacoes e carteira entram
+ * nas proximas sub-etapas do modulo. */
+static int ehVacinacao(const char *caminho)
+{
+    return comecaCom(caminho, "/vacinas");
+}
+
 static int ehClinico(const char *caminho)
 {
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
@@ -627,6 +635,11 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
     {
         /* Farmacia/estoque: enfermagem gerencia catalogo, lotes e dispensacao. */
         if (ehFarmacia(caminho))
+        {
+            return 1;
+        }
+
+        if (ehVacinacao(caminho))
         {
             return 1;
         }
@@ -1200,6 +1213,60 @@ static void rotaMedicamentoDispensar(int cliente, int medicamento_id,
     /* O service ja escreve o detalhe (sucesso ou erro especifico) no corpo. */
     responder(cliente, ok ? "200 OK" : "400 Bad Request", json);
     free(json);
+}
+
+/* ----------------------------------------------------------------------- */
+/* Vacinacao: catalogo de vacinas (sub-etapa 6a)                            */
+/* ----------------------------------------------------------------------- */
+
+static void rotaListarVacinas(int cliente)
+{
+    responderLista(cliente, vacina_listar_json,
+                   "{\"erro\":\"falha ao listar vacinas\"}");
+}
+
+static void rotaContarVacinas(int cliente)
+{
+    responderContagem(cliente, vacina_contar_ativas);
+}
+
+static void rotaCriarVacina(int cliente, const char *consulta, const Sessao *s)
+{
+    char nome[128];
+    char fabricante[96];
+    char doencas[160];
+    char dosesStr[16];
+    char intervaloStr[16];
+    char reforcoStr[16];
+    int ok;
+
+    extrairParam(consulta, "nome", nome, sizeof(nome));
+    extrairParam(consulta, "fabricante", fabricante, sizeof(fabricante));
+    extrairParam(consulta, "doencas_alvo", doencas, sizeof(doencas));
+    extrairParam(consulta, "doses_previstas", dosesStr, sizeof(dosesStr));
+    extrairParam(consulta, "intervalo_dias", intervaloStr, sizeof(intervaloStr));
+    extrairParam(consulta, "reforco_dias", reforcoStr, sizeof(reforcoStr));
+
+    ok = vacina_criar(nome, fabricante, doencas, atoi(dosesStr),
+                      atoi(intervaloStr), atoi(reforcoStr)) == 1;
+    if (ok)
+    {
+        auditar(s, "CRIAR", "vacina", 0, nome);
+    }
+    responderCriacao(cliente, ok,
+                     "{\"erro\":\"dados invalidos para vacina\"}");
+}
+
+static void rotaDesativarVacina(int cliente, int id, const Sessao *s)
+{
+    int ok = vacina_desativar(id) == 1;
+
+    if (ok)
+    {
+        auditar(s, "DESATIVAR", "vacina", id, "");
+    }
+    responderRemocao(cliente, ok,
+                     "{\"erro\":\"vacina nao encontrada ou ja inativa\"}");
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -2872,6 +2939,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/medicamentos") ||
            comecaCom(caminho, "/estoque") ||
            comecaCom(caminho, "/movimentacoes") ||
+           comecaCom(caminho, "/vacinas") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3103,6 +3171,22 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/movimentacoes") == 0)
     {
         rotaMovimentacaoCriar(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/vacinas") == 0)
+    {
+        rotaListarVacinas(cliente);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/vacinas/contar") == 0)
+    {
+        rotaContarVacinas(cliente);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/vacinas") == 0)
+    {
+        rotaCriarVacina(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/vacinas/%d", &id) == 1)
+    {
+        rotaDesativarVacina(cliente, id, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
     {

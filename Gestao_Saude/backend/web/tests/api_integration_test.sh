@@ -249,7 +249,15 @@ expect 200 "estoque inalterado apos falha"; body_has '"quantidade":47' "saldo pr
 api POST /medicamentos/1/dispensar '{"paciente_id":"9999","quantidade":"1"}'
 expect 400 "dispensacao paciente invalido"; body_has 'paciente inexistente' "erro de paciente"
 
-echo "--- Fluxo 6: validacoes de entrada invalida (400) ---"
+echo "--- Fluxo 6: vacinacao -> catalogo de vacinas ---"
+api POST /vacinas '{"nome":"Influenza","fabricante":"Butantan","doencas_alvo":"Gripe","doses_previstas":"1","intervalo_dias":"0","reforco_dias":"365"}'
+expect 201 "vacina criada"
+api GET /vacinas
+expect 200 "vacinas listadas"; body_has '"nome":"Influenza"' "catalogo de vacinas"
+api GET /vacinas/contar
+expect 200 "vacinas contadas"; body_has '"ativos":1' "contagem de vacinas"
+
+echo "--- Fluxo 7: validacoes de entrada invalida (400) ---"
 # POST /sessao sem credenciais (cai antes da autenticacao; nao conta como falha
 # de login para o rate-limit por IP).
 api POST /sessao '{}'

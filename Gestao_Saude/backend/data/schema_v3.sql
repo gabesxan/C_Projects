@@ -567,6 +567,21 @@ CREATE INDEX idx_estoque_itens_medicamento ON estoque_itens(medicamento_id);
 CREATE INDEX idx_estoque_itens_validade ON estoque_itens(validade);
 CREATE INDEX idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);
 
+-- Vacinacao (v12): catalogo de vacinas e esquema basico de doses.
+CREATE TABLE vacinas (
+    id INTEGER PRIMARY KEY,
+    nome TEXT NOT NULL,
+    fabricante TEXT NOT NULL DEFAULT '',
+    doencas_alvo TEXT NOT NULL DEFAULT '',
+    doses_previstas INTEGER NOT NULL DEFAULT 1,
+    intervalo_dias INTEGER NOT NULL DEFAULT 0,
+    reforco_dias INTEGER NOT NULL DEFAULT 0,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX idx_vacinas_nome_ativo ON vacinas(nome) WHERE ativo = 1;
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 11;
+PRAGMA user_version = 12;

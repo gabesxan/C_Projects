@@ -13,6 +13,7 @@ import Relatorios from './pages/Relatorios'
 import Financeiro from './pages/Financeiro'
 import Laboratorio from './pages/Laboratorio'
 import Farmacia from './pages/Farmacia'
+import Vacinacao from './pages/Vacinacao'
 import TrocarSenha from './pages/TrocarSenha'
 import TrocarSenhaObrigatoria from './pages/TrocarSenhaObrigatoria'
 import MinhaSaude from './pages/MinhaSaude'
@@ -117,6 +118,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'ENFERMAGEM']}>
               <Farmacia />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/vacinacao"
+          element={
+            <RequireRole roles={['ADMIN', 'ENFERMAGEM']}>
+              <Vacinacao />
             </RequireRole>
           }
         />

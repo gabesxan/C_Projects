@@ -561,6 +561,18 @@ request_and_assert "/medicamentos" "403" "/medicamentos bloqueado para PACIENTE"
 request_and_assert "/medicamentos/1/estoque" "403" "/estoque bloqueado para MEDICO" "${MED_TOKEN}"
 request_and_assert "/estoque/alertas" "403" "/estoque/alertas bloqueado para MEDICO" "${MED_TOKEN}"
 
+# Vacinacao (6a): catalogo de vacinas (ADMIN/ENFERMAGEM).
+echo "--- Vacinacao: catalogo de vacinas ---"
+request_json_and_assert "POST" "/vacinas" \
+    '{"nome":"COVID-19 bivalente","fabricante":"Fiocruz","doencas_alvo":"COVID-19","doses_previstas":"2","intervalo_dias":"28","reforco_dias":"180"}' \
+    "201" "/vacinas POST (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"criado"'
+request_and_assert "/vacinas" "200" "/vacinas (ADMIN)" "${ADMIN_TOKEN}" contains '"nome":"COVID-19 bivalente"'
+request_and_assert "/vacinas/contar" "200" "/vacinas/contar (ADMIN)" "${ADMIN_TOKEN}" contains '"ativos":1'
+request_json_and_assert "DELETE" "/vacinas/1" '{}' \
+    "200" "/vacinas/1 DELETE (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_and_assert "/vacinas" "403" "/vacinas bloqueado para MEDICO" "${MED_TOKEN}"
+request_and_assert "/vacinas" "403" "/vacinas bloqueado para PACIENTE" "${PAC_TOKEN}"
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.
