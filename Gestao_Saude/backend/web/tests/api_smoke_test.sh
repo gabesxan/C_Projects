@@ -363,6 +363,8 @@ ADMIN_TOKEN="$(obter_token admin secreta)"
 request_and_assert "/health" "200" "/health" "" contains '"status"'
 # Testa a rota de sessao autenticada e exige o papel ADMIN no JSON.
 request_and_assert "/me" "200" "/me" "${ADMIN_TOKEN}" contains '"papel":"ADMIN"'
+# /me renova a sessao (TTL deslizante) e expoe a nova expiracao.
+request_and_assert "/me" "200" "/me renova sessao (expiraEm)" "${ADMIN_TOKEN}" contains '"expiraEm":"20'
 # Testa a listagem de pacientes e exige um JSON em formato de array.
 request_and_assert "/pacientes" "200" "/pacientes" "${ADMIN_TOKEN}" matches '^\[[^[:cntrl:]]*\]$'
 # Testa a listagem de medicos e exige um JSON em formato de array.
@@ -529,6 +531,30 @@ request_and_assert "/me/agendamentos" "200" "/me/agendamentos com nome do medico
 request_and_assert "/triagens" "403" "/triagens bloqueado para PACIENTE" "${PAC_TOKEN}"
 request_json_and_assert "POST" "/triagens" '{"paciente_id":"1","tipo":"3","itens":"dor_toracica"}' \
     "403" "/triagens POST bloqueado para PACIENTE" "${PAC_TOKEN}"
+
+# Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
+# mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
+# DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.
+echo "--- Rate-limit de login por IP (ultimo teste) ---"
+for i in $(seq 1 10); do
+    rm -f "${RESP_FILE}"
+    # Login inexistente: cada falha conta para o IP sem bloquear nenhum usuario.
+    code="$(curl -sS -o "${RESP_FILE}" -w "%{http_code}" -X POST "http://localhost:8080/sessao" \
+        -H 'Content-Type: application/json' \
+        -d '{"login":"naoexiste_ip","senha":"x"}' || true)"
+    if [[ "${code}" != "401" ]]; then
+        fail "rate-limit IP: tentativa ${i} retornou HTTP ${code}, esperado 401"
+    fi
+done
+rm -f "${RESP_FILE}"
+code="$(curl -sS -o "${RESP_FILE}" -w "%{http_code}" -X POST "http://localhost:8080/sessao" \
+    -H 'Content-Type: application/json' \
+    -d '{"login":"naoexiste_ip","senha":"x"}' || true)"
+if [[ "${code}" != "429" ]]; then
+    fail "rate-limit IP: apos 10 falhas esperava HTTP 429, obteve ${code}"
+fi
+assert_contains "muitas tentativas" "rate-limit de login por IP (429 apos limite)"
+echo "[OK] rate-limit de login por IP (429 apos limite)"
 
 # Informa sucesso final quando todas as rotas passaram.
 echo "[OK] Smoke test da API concluido com sucesso"

@@ -22,6 +22,14 @@ int sessao_repo_validar(const char *token,
                         int *paciente_id, int *medico_id, int *usuario_id,
                         char *login_out, int login_tam);
 
+/* Renova (TTL deslizante) a sessao do token: estende expira_em para
+ * 'now + validade_horas'. So renova sessoes ainda vigentes (token expirado nao
+ * "ressuscita"). Em sucesso, escreve a nova expiracao (UTC) em expira_out
+ * (pode ser NULL; precisa de >= 20 bytes p/ 'YYYY-MM-DD HH:MM:SS'). Retorna 1
+ * se renovou, 0 caso contrario. */
+int sessao_repo_renovar(const char *token, int validade_horas,
+                        char *expira_out, int expira_tam);
+
 /* Encerra (remove) a sessao do token informado. Retorna 1 se removeu. */
 int sessao_repo_remover(const char *token);
 

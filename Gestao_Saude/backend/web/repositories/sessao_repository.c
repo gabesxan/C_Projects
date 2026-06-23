@@ -138,6 +138,63 @@ int sessao_repo_validar(const char *token,
     return ok;
 }
 
+int sessao_repo_renovar(const char *token, int validade_horas,
+                        char *expira_out, int expira_tam)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char janela[32];
+    int renovou = 0;
+
+    if (token == NULL || token[0] == '\0' || validade_horas <= 0 ||
+        db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    snprintf(janela, sizeof(janela), "+%d hours", validade_horas);
+
+    /* So renova sessoes ainda vigentes: um token expirado nao volta a valer. */
+    if (sqlite3_prepare_v2(db,
+                           "UPDATE sessoes SET expira_em = datetime('now', ?) "
+                           "WHERE token = ? AND expira_em > datetime('now');",
+                           -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_bind_text(stmt, 1, janela, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, token, -1, SQLITE_STATIC);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    renovou = sqlite3_changes(db) > 0;
+
+    if (renovou && expira_out != NULL && expira_tam > 0)
+    {
+        expira_out[0] = '\0';
+        if (sqlite3_prepare_v2(db,
+                               "SELECT expira_em FROM sessoes WHERE token = ?;",
+                               -1, &stmt, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_text(stmt, 1, token, -1, SQLITE_STATIC);
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                const char *exp = (const char *)sqlite3_column_text(stmt, 0);
+                if (exp != NULL)
+                {
+                    strncpy(expira_out, exp, (size_t)expira_tam - 1);
+                    expira_out[expira_tam - 1] = '\0';
+                }
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    db_fechar(db);
+    return renovou ? 1 : 0;
+}
+
 int sessao_repo_remover(const char *token)
 {
     sqlite3 *db = NULL;

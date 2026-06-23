@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -58,8 +59,18 @@
 #define NUM_WORKERS 8
 #define FILA_CAP 128
 
-/* Validade de uma sessao (token Bearer) em horas. */
+/* Validade de uma sessao (token Bearer) em horas. Cada GET /me renova esse
+ * prazo (TTL deslizante): quem esta ativo nao e deslogado no meio do uso. */
 #define SESSAO_VALIDADE_HORAS 8
+
+/* Rate-limit de login por IP no POST /sessao (complementa o bloqueio por login
+ * do usuario_repository). Apos LOGIN_IP_MAX_FALHAS falhas dentro da janela, o
+ * IP fica bloqueado por LOGIN_IP_BLOQUEIO_SEG. Mantido em memoria (sem schema):
+ * reinicia junto com o servidor, o que e aceitavel para esta defesa. */
+#define LOGIN_IP_MAX_FALHAS 10
+#define LOGIN_IP_JANELA_SEG 900
+#define LOGIN_IP_BLOQUEIO_SEG 900
+#define LOGIN_IP_CAP 256
 
 /* Tamanho de um token de sessao (hex) + NUL. */
 #define TAM_TOKEN 65
@@ -2058,15 +2069,26 @@ static void rotaCriarUsuario(int cliente, const char *consulta, const Sessao *s)
     responderCriacao(cliente, ok, "{\"erro\":\"dados invalidos para usuario\"}");
 }
 
-static void rotaMe(int cliente, const char *papel, int paciente_id, int medico_id,
-                   int usuario_id)
+static void rotaMe(int cliente, const char *requisicao, const char *papel,
+                   int paciente_id, int medico_id, int usuario_id)
 {
-    char corpo[200];
+    char corpo[256];
+    char token[TAM_TOKEN];
+    char expira[24] = "";
+
+    /* TTL deslizante: cada /me renova a sessao corrente, mantendo logado quem
+     * esta ativo. 'expiraEm' informa ao cliente quando o token vence. */
+    if (extrairTokenBearer(requisicao, token, sizeof(token)) == 1)
+    {
+        sessao_repo_renovar(token, SESSAO_VALIDADE_HORAS, expira, sizeof(expira));
+    }
 
     snprintf(corpo, sizeof(corpo),
-             "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d,\"trocarSenha\":%s}",
+             "{\"papel\":\"%s\",\"pacienteId\":%d,\"medicoId\":%d,"
+             "\"trocarSenha\":%s,\"expiraEm\":\"%s\"}",
              papel, paciente_id, medico_id,
-             usuario_repo_precisa_trocar_senha(usuario_id) ? "true" : "false");
+             usuario_repo_precisa_trocar_senha(usuario_id) ? "true" : "false",
+             expira);
     responder(cliente, "200 OK", corpo);
 }
 
@@ -2094,8 +2116,156 @@ static void rotaTrocarSenha(int cliente, const char *consulta, const Sessao *s)
     }
 }
 
+/* Tabela em memoria de tentativas de login por IP, protegida por mutex (o
+ * servidor atende em pool de threads). Janela deslizante simples por IP. */
+typedef struct
+{
+    char ip[INET_ADDRSTRLEN];
+    int falhas;             /* falhas dentro da janela corrente */
+    time_t janela_inicio;   /* inicio da janela de contagem */
+    time_t bloqueado_ate;   /* 0 = sem bloqueio */
+} LoginIp;
+
+static LoginIp loginIps[LOGIN_IP_CAP];
+static pthread_mutex_t loginIpMutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Descobre o IP do peer da conexao. Retorna 1 e preenche 'out' em sucesso. */
+static int obterIpCliente(int cliente, char *out, size_t tam)
+{
+    struct sockaddr_in addr;
+    socklen_t len = sizeof(addr);
+
+    if (out == NULL || tam == 0)
+    {
+        return 0;
+    }
+    out[0] = '\0';
+    if (getpeername(cliente, (struct sockaddr *)&addr, &len) != 0)
+    {
+        return 0;
+    }
+    if (inet_ntop(AF_INET, &addr.sin_addr, out, (socklen_t)tam) == NULL)
+    {
+        out[0] = '\0';
+        return 0;
+    }
+    return 1;
+}
+
+/* Localiza a entrada do IP ou reaproveita um slot livre/expirado. Chamar com o
+ * mutex ja travado. Pode devolver NULL se a tabela estiver cheia (fail-open). */
+static LoginIp *loginIpSlot(const char *ip, time_t agora)
+{
+    int i;
+    LoginIp *livre = NULL;
+
+    for (i = 0; i < LOGIN_IP_CAP; i++)
+    {
+        if (loginIps[i].ip[0] != '\0' && strcmp(loginIps[i].ip, ip) == 0)
+        {
+            return &loginIps[i];
+        }
+        if (livre == NULL &&
+            (loginIps[i].ip[0] == '\0' ||
+             (loginIps[i].bloqueado_ate == 0 &&
+              agora - loginIps[i].janela_inicio > LOGIN_IP_JANELA_SEG)))
+        {
+            livre = &loginIps[i];
+        }
+    }
+    if (livre != NULL)
+    {
+        snprintf(livre->ip, sizeof(livre->ip), "%s", ip);
+        livre->falhas = 0;
+        livre->janela_inicio = agora;
+        livre->bloqueado_ate = 0;
+    }
+    return livre;
+}
+
+/* 1 se o IP esta atualmente bloqueado por excesso de falhas de login. */
+static int loginIpBloqueado(const char *ip)
+{
+    time_t agora = time(NULL);
+    int bloqueado = 0;
+    int i;
+
+    if (ip == NULL || ip[0] == '\0')
+    {
+        return 0;
+    }
+    pthread_mutex_lock(&loginIpMutex);
+    for (i = 0; i < LOGIN_IP_CAP; i++)
+    {
+        if (loginIps[i].ip[0] != '\0' && strcmp(loginIps[i].ip, ip) == 0)
+        {
+            if (loginIps[i].bloqueado_ate > agora)
+            {
+                bloqueado = 1;
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock(&loginIpMutex);
+    return bloqueado;
+}
+
+/* Contabiliza uma falha de login do IP; ao atingir o limite, agenda bloqueio. */
+static void loginIpRegistrarFalha(const char *ip)
+{
+    time_t agora = time(NULL);
+    LoginIp *e;
+
+    if (ip == NULL || ip[0] == '\0')
+    {
+        return;
+    }
+    pthread_mutex_lock(&loginIpMutex);
+    e = loginIpSlot(ip, agora);
+    if (e != NULL)
+    {
+        /* Janela expirada (sem bloqueio vigente): reinicia a contagem. */
+        if (e->bloqueado_ate == 0 && agora - e->janela_inicio > LOGIN_IP_JANELA_SEG)
+        {
+            e->falhas = 0;
+            e->janela_inicio = agora;
+        }
+        e->falhas++;
+        if (e->falhas >= LOGIN_IP_MAX_FALHAS)
+        {
+            e->bloqueado_ate = agora + LOGIN_IP_BLOQUEIO_SEG;
+        }
+    }
+    pthread_mutex_unlock(&loginIpMutex);
+}
+
+/* Login bem-sucedido: zera o contador do IP. */
+static void loginIpRegistrarSucesso(const char *ip)
+{
+    int i;
+
+    if (ip == NULL || ip[0] == '\0')
+    {
+        return;
+    }
+    pthread_mutex_lock(&loginIpMutex);
+    for (i = 0; i < LOGIN_IP_CAP; i++)
+    {
+        if (loginIps[i].ip[0] != '\0' && strcmp(loginIps[i].ip, ip) == 0)
+        {
+            loginIps[i].ip[0] = '\0';
+            loginIps[i].falhas = 0;
+            loginIps[i].janela_inicio = 0;
+            loginIps[i].bloqueado_ate = 0;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&loginIpMutex);
+}
+
 /* POST /sessao (publica): le {login, senha} do CORPO (a senha nao vai na URL),
- * aplica o bloqueio por tentativas e, em sucesso, cria um token de sessao. */
+ * aplica o rate-limit por IP e o bloqueio por login e, em sucesso, cria um
+ * token de sessao. */
 static void rotaSessaoCriar(int cliente, const char *requisicao)
 {
     const char *corpo = corpoRequisicao(requisicao);
@@ -2108,6 +2278,20 @@ static void rotaSessaoCriar(int cliente, const char *requisicao)
     int medicoId = 0;
     int usuarioId = 0;
     int bloqueado = 0;
+    char ip[INET_ADDRSTRLEN] = "";
+
+    obterIpCliente(cliente, ip, sizeof(ip));
+
+    /* Rate-limit por IP: barra o ataque distribuido contra varios logins antes
+     * mesmo de tocar no banco. Registrado em auditoria (usuario_id=0). */
+    if (loginIpBloqueado(ip))
+    {
+        auditoria_registrar(0, ip, "LOGIN_BLOQUEIO_IP", "sessao", 0,
+                            "ip bloqueado por excesso de tentativas");
+        responder(cliente, "429 Too Many Requests",
+                  "{\"erro\":\"muitas tentativas; tente novamente mais tarde\"}");
+        return;
+    }
 
     if (extrairCampoJson(corpo, "login", login, sizeof(login)) == 0 ||
         extrairCampoJson(corpo, "senha", senha, sizeof(senha)) == 0 ||
@@ -2122,8 +2306,11 @@ static void rotaSessaoCriar(int cliente, const char *requisicao)
                                              &pacienteId, &medicoId, &usuarioId,
                                              &bloqueado) == 0)
     {
+        loginIpRegistrarFalha(ip);
         if (bloqueado)
         {
+            auditoria_registrar(0, login, "LOGIN_BLOQUEIO_USUARIO", "usuario", 0,
+                                "login bloqueado por tentativas invalidas");
             responder(cliente, "429 Too Many Requests",
                       "{\"erro\":\"login temporariamente bloqueado por tentativas invalidas\"}");
         }
@@ -2134,6 +2321,8 @@ static void rotaSessaoCriar(int cliente, const char *requisicao)
         }
         return;
     }
+
+    loginIpRegistrarSucesso(ip);
 
     if (sessao_repo_criar(usuarioId, SESSAO_VALIDADE_HORAS, token, sizeof(token)) == 0)
     {
@@ -3066,7 +3255,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me") == 0)
     {
-        rotaMe(cliente, papel, authPacienteId, authMedicoId, s.usuario_id);
+        rotaMe(cliente, requisicao, papel, authPacienteId, authMedicoId, s.usuario_id);
     }
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/senha") == 0)
     {

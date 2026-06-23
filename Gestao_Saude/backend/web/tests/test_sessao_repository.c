@@ -52,12 +52,26 @@ int main(void)
     assert(sessao_repo_validar("naoexiste", papel, sizeof(papel), NULL, NULL, NULL,
                                NULL, 0) == 0);
 
+    /* Renovacao (TTL deslizante): estende a validade e devolve a nova expiracao;
+     * a sessao continua valendo. Token inexistente nao renova. */
+    {
+        char expira[24] = "";
+        assert(sessao_repo_renovar(token, 8, expira, sizeof(expira)) == 1);
+        assert(strlen(expira) >= 19); /* 'YYYY-MM-DD HH:MM:SS' */
+        assert(sessao_repo_validar(token, NULL, 0, NULL, NULL, NULL, NULL, 0) == 1);
+        assert(sessao_repo_renovar("naoexiste", 8, NULL, 0) == 0);
+        /* Validade invalida nao renova. */
+        assert(sessao_repo_renovar(token, 0, NULL, 0) == 0);
+    }
+
     /* Logout: remove a sessao e o token deixa de valer. */
     assert(sessao_repo_remover(token) == 1);
     assert(sessao_repo_validar(token, papel, sizeof(papel), NULL, NULL, NULL,
                                NULL, 0) == 0);
     /* Remover de novo nao altera nada. */
     assert(sessao_repo_remover(token) == 0);
+    /* Sessao ja encerrada nao renova. */
+    assert(sessao_repo_renovar(token, 8, NULL, 0) == 0);
 
     /* Bloqueio por tentativas: 4 erros nao bloqueiam; o 5o bloqueia. */
     assert(usuario_repo_criar("Bob", "bob", "certa", "ENFERMAGEM", 0, 0) == 1);
