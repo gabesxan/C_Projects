@@ -4,7 +4,7 @@
  * para o sistema ser usavel: um usuario por papel (com senha com hash) e alguns
  * cadastros de exemplo. Reaproveita os repositories reais do backend.
  *
- * Uso (a partir de backend/web/):
+ * Uso (a partir de src/backend/web/):
  *   ./build/seed [caminho_schema] [caminho_banco]
  * Padroes: ../data/schema_v3.sql e ../data/sigeh_v3.db (caminho default do db).
  */

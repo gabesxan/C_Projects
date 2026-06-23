@@ -4,7 +4,7 @@
 /*
  * Repository de anexos (SIGEH-DF): documentos vinculados a uma entidade
  * (ex.: exame, paciente) pelo par (entidade, entidade_id). O binario fica no
- * filesystem (backend/data/anexos/); aqui guardamos apenas os metadados e o
+ * filesystem (src/backend/data/anexos/); aqui guardamos apenas os metadados e o
  * caminho relativo. Registros sao imutaveis: criar e remover, nunca editar.
  */
 

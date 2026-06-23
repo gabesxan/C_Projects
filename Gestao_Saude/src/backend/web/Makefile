@@ -139,7 +139,7 @@ frontend:
 	rm -rf public
 	cp -r ../../frontend/dist public
 
-# Sobe o servidor (precisa rodar de dentro de backend/web/ para achar ../data/).
+# Sobe o servidor (precisa rodar de dentro de src/backend/web/ para achar ../data/).
 run: api
 	./$(BUILD)/sigeh_api
 

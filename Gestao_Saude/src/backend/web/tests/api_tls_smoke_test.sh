@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 if [[ ! -f "${BACKEND_DIR}/Makefile" || ! -f "${BACKEND_DIR}/api/server.c" ]]; then
-    echo "[ERRO] diretorio backend/ nao localizado."; exit 1
+    echo "[ERRO] diretorio src/backend/ nao localizado."; exit 1
 fi
 [[ "${PWD}" != "${BACKEND_DIR}" ]] && cd "${BACKEND_DIR}"
 

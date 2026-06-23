@@ -27,15 +27,15 @@ jobs:
           sudo apt-get install -y build-essential libsqlite3-dev libssl-dev curl
 
       - name: Unit tests (make test)
-        working-directory: backend/web
+        working-directory: src/backend/web
         run: make test
 
       - name: API smoke test
-        working-directory: backend/web
+        working-directory: src/backend/web
         run: make api-smoke-test
 
       - name: API integration test
-        working-directory: backend/web
+        working-directory: src/backend/web
         run: make api-integration-test
 
   frontend:
@@ -49,20 +49,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend
+        working-directory: src/frontend
         run: npm ci
 
       - name: Unit tests (Vitest)
-        working-directory: frontend
+        working-directory: src/frontend
         run: npm run test
 
       - name: Build
-        working-directory: frontend
+        working-directory: src/frontend
         run: npm run build
 
       - name: Lint
-        working-directory: frontend
+        working-directory: src/frontend
         run: npm run lint

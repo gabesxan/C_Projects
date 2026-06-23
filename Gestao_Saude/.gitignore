@@ -11,11 +11,15 @@
 *.exe
 
 # Backend web: saida de build (binarios + bancos de teste) e banco gerado
-backend/web/build/
-backend/web/public/
-backend/data/*.db
+src/backend/web/build/
+src/backend/web/public/
+src/backend/data/*.db
 # Binarios de anexos enviados em runtime (metadados ficam no banco).
-backend/data/anexos/
+src/backend/data/anexos/
 # Certificados TLS de desenvolvimento (gerados por `make cert`).
-backend/web/certs/
+src/backend/web/certs/
+
+# Distribuicao gerada por `make release`.
+executavel/bin/
+executavel/frontend/
 .claude/

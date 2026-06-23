@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Caminhos relativos ao diretorio backend/ (cwd quando o make roda o teste). */
+/* Caminhos relativos ao diretorio src/backend/ (cwd quando o make roda o teste). */
 static const char *BANCO_TESTE = "build/test_sigeh_repository.db";
 static const char *SCHEMA = "../data/schema_v3.sql";
 

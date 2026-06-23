@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-/* Diretorios (relativos ao cwd do servidor, backend/web). O caminho guardado no
+/* Diretorios (relativos ao cwd do servidor, src/backend/web). O caminho guardado no
  * banco e relativo a DATA_DIR (ex.: "anexos/12_laudo.pdf"); o arquivo fisico
  * fica em DATA_DIR/anexos/. */
 #define DATA_DIR ".."  "/data"

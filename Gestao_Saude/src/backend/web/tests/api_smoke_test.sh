@@ -5,18 +5,18 @@ set -euo pipefail
 
 # Descobre o diretorio absoluto onde este script esta salvo.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Sobe um nivel para chegar na pasta backend/.
+# Sobe um nivel para chegar na pasta src/backend/.
 BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Verifica se a pasta encontrada realmente parece ser o backend esperado.
 if [[ ! -f "${BACKEND_DIR}/Makefile" || ! -f "${BACKEND_DIR}/api/server.c" ]]; then
     # Informa claramente que o backend nao foi localizado.
-    echo "[ERRO] Nao foi possivel localizar o diretorio backend/ do projeto."
+    echo "[ERRO] Nao foi possivel localizar o diretorio src/backend/ do projeto."
     # Encerra com falha para evitar executar no lugar errado.
     exit 1
 fi
 
-# Se o usuario chamou o script fora de backend/, entra automaticamente no diretorio correto.
+# Se o usuario chamou o script fora de src/backend/, entra automaticamente no diretorio correto.
 if [[ "${PWD}" != "${BACKEND_DIR}" ]]; then
     # Mostra qual diretorio sera usado durante o teste.
     echo "[INFO] Entrando em ${BACKEND_DIR}"
@@ -32,7 +32,7 @@ TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sigeh_api_smoke.XXXXXX")"
 RESP_FILE="${TMP_DIR}/response.json"
 # Define o arquivo temporario que recebera o log do servidor.
 SERVER_LOG="${TMP_DIR}/api.log"
-# Aponta para o banco padrao usado pela API dentro de backend/.
+# Aponta para o banco padrao usado pela API dentro de src/backend/.
 DB_FILE="../data/sigeh_v3.db"
 # Guarda o caminho do backup do banco, caso ele exista antes do teste.
 DB_BACKUP=""

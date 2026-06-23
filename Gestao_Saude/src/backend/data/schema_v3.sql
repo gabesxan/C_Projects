@@ -506,7 +506,7 @@ CREATE UNIQUE INDEX idx_pacientes_cpf_ativo
     WHERE ativo = 1 AND tipo_documento = 'CPF';
 
 -- Indices das features mais recentes (financeiro e sessoes). Tambem aplicados
--- a bancos antigos pela migracao v2 (ver backend/web/database/migracoes.c).
+-- a bancos antigos pela migracao v2 (ver src/backend/web/database/migracoes.c).
 CREATE INDEX idx_cobrancas_paciente ON cobrancas(paciente_id);
 CREATE INDEX idx_cobrancas_lote ON cobrancas(lote_id);
 CREATE INDEX idx_sessoes_expira ON sessoes(expira_em);
@@ -608,7 +608,7 @@ CREATE INDEX idx_aplicacoes_vacinas_data ON aplicacoes_vacinas(aplicada_em);
 
 -- Anexos (v15): documentos vinculados a uma entidade (exame, paciente, ...)
 -- pelo par (entidade, entidade_id). O binario fica no filesystem
--- (backend/data/anexos/); o banco guarda so os metadados e o caminho relativo.
+-- (src/backend/data/anexos/); o banco guarda so os metadados e o caminho relativo.
 -- Registros imutaveis: criar e remover, nunca editar.
 CREATE TABLE anexos (
     id INTEGER PRIMARY KEY,

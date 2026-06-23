@@ -5,7 +5,7 @@
 #include <string.h>
 #include <errno.h>
 
-/* Caminho padrao relativo ao diretorio backend/web/ (sobrescrito nos testes). */
+/* Caminho padrao relativo ao diretorio src/backend/web/ (sobrescrito nos testes). */
 static char caminhoBanco[256] = "../data/sigeh_v3.db";
 
 int db_definir_caminho(const char *caminho)

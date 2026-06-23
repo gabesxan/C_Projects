@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 if [[ ! -f "${BACKEND_DIR}/Makefile" || ! -f "${BACKEND_DIR}/api/server.c" ]]; then
-    echo "[ERRO] Nao foi possivel localizar o diretorio backend/ do projeto."
+    echo "[ERRO] Nao foi possivel localizar o diretorio src/backend/ do projeto."
     exit 1
 fi
 if [[ "${PWD}" != "${BACKEND_DIR}" ]]; then
