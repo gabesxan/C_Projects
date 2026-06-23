@@ -22,6 +22,12 @@ int estoque_entrada(int medicamento_id, const char *lote, const char *validade,
 int estoque_baixar(int medicamento_id, int quantidade, const char *tipo,
                    const char *motivo, int usuario_id, const char *usuario_login);
 
+/* Baixa uma quantidade de um lote especifico (medicamento/lote/validade).
+ * Usado pela vacinacao para manter rastreabilidade do imunizante aplicado. */
+int estoque_baixar_lote(int medicamento_id, const char *lote, const char *validade,
+                        int quantidade, const char *tipo, const char *motivo,
+                        int usuario_id, const char *usuario_login);
+
 /* Saldo total (soma das quantidades dos lotes) do medicamento; -1 em erro. */
 int estoque_saldo(int medicamento_id);
 

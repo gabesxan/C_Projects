@@ -52,18 +52,28 @@ int main(void)
     assert(estoque_baixar(1, 200, "SAIDA", "demais", 1, "admin") == 0);
     assert(estoque_saldo(1) == 100);
 
-    /* Baixa FIFO de 40: consome L2 (30) e depois L1 (10) -> saldo 60. */
-    assert(estoque_baixar(1, 40, "SAIDA", "teste", 1, "admin") == 1);
-    assert(estoque_saldo(1) == 60);
+    /* Baixa por lote especifico preserva a rastreabilidade do item fisico. */
+    assert(estoque_baixar_lote(1, "L1", "2026-01-01", 5,
+                               "SAIDA", "aplicacao", 1, "admin") == 1);
+    assert(estoque_saldo(1) == 95);
+    assert(estoque_baixar_lote(1, "L1", "2026-01-01", 999,
+                               "SAIDA", "excesso", 1, "admin") == 0);
+    assert(estoque_baixar_lote(1, "X", "2026-01-01", 1,
+                               "SAIDA", "lote inexistente", 1, "admin") == 0);
+    assert(estoque_saldo(1) == 95);
 
-    /* L2 zerou e sai da listagem; L1 fica com 60. */
+    /* Baixa FIFO de 40: consome L2 (30) e depois L1 (10) -> saldo 55. */
+    assert(estoque_baixar(1, 40, "SAIDA", "teste", 1, "admin") == 1);
+    assert(estoque_saldo(1) == 55);
+
+    /* L2 zerou e sai da listagem; L1 fica com 55. */
     assert(estoque_itens_listar_json(1, json, sizeof(json)) == 1);
     assert(strstr(json, "\"lote\":\"L2\"") == NULL);
-    assert(strstr(json, "\"quantidade\":60") != NULL);
+    assert(strstr(json, "\"quantidade\":55") != NULL);
 
     /* AJUSTE tambem debita (ex.: perda de inventario). */
     assert(estoque_baixar(1, 10, "AJUSTE", "perda", 1, "admin") == 1);
-    assert(estoque_saldo(1) == 50);
+    assert(estoque_saldo(1) == 45);
 
     /* Trilha de movimentacoes: entradas, saida e ajuste registrados. */
     assert(movimentacao_listar_json(1, json, sizeof(json)) == 1);
@@ -79,7 +89,7 @@ int main(void)
     assert(strstr(json, "\"estoqueBaixo\"") != NULL);
     assert(strstr(json, "\"validadeProxima\"") != NULL);
     assert(strstr(json, "\"nome\":\"Dipirona\"") != NULL);
-    assert(strstr(json, "\"saldo\":50") != NULL);
+    assert(strstr(json, "\"saldo\":45") != NULL);
     assert(strstr(json, "\"nome\":\"Amoxicilina\"") != NULL);
     assert(strstr(json, "\"saldo\":10") != NULL);
     assert(strstr(json, "\"estoqueMinimo\":30") != NULL);

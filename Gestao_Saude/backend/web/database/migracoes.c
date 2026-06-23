@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 13
+#define LATEST_VERSION 14
 
 typedef struct
 {
@@ -227,6 +227,26 @@ static const Migracao MIGRACOES[] = {
      "UPDATE agendamentos SET especialidade = ("
      "  SELECT COALESCE(m.especialidade, '') FROM medicos m WHERE m.id = agendamentos.medico_id"
      ") WHERE especialidade = '';"},
+    {14, "vacinacao: aplicacoes e vinculo com estoque",
+     "ALTER TABLE vacinas ADD COLUMN medicamento_id INTEGER;"
+     "CREATE TABLE IF NOT EXISTS aplicacoes_vacinas ("
+     "  id INTEGER PRIMARY KEY,"
+     "  paciente_id INTEGER NOT NULL,"
+     "  vacina_id INTEGER NOT NULL,"
+     "  medicamento_id INTEGER NOT NULL,"
+     "  dose_numero INTEGER NOT NULL DEFAULT 1,"
+     "  lote TEXT NOT NULL DEFAULT '',"
+     "  validade TEXT NOT NULL DEFAULT '',"
+     "  aplicador_usuario_id INTEGER NOT NULL DEFAULT 0,"
+     "  aplicador_login TEXT NOT NULL DEFAULT '',"
+     "  observacao TEXT NOT NULL DEFAULT '',"
+     "  aplicada_em TEXT NOT NULL DEFAULT (datetime('now')),"
+     "  FOREIGN KEY (paciente_id) REFERENCES pacientes(id),"
+     "  FOREIGN KEY (vacina_id) REFERENCES vacinas(id),"
+     "  FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id));"
+     "CREATE INDEX IF NOT EXISTS idx_aplicacoes_vacinas_paciente ON aplicacoes_vacinas(paciente_id);"
+     "CREATE INDEX IF NOT EXISTS idx_aplicacoes_vacinas_vacina ON aplicacoes_vacinas(vacina_id);"
+     "CREATE INDEX IF NOT EXISTS idx_aplicacoes_vacinas_data ON aplicacoes_vacinas(aplicada_em);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

@@ -571,11 +571,11 @@ static int ehFarmacia(const char *caminho)
            comecaCom(caminho, "/movimentacoes");
 }
 
-/* Vacinacao: catalogo de vacinas nesta sub-etapa. Aplicacoes e carteira entram
- * nas proximas sub-etapas do modulo. */
+/* Vacinacao: catalogo de vacinas e aplicacoes pela enfermagem. */
 static int ehVacinacao(const char *caminho)
 {
-    return comecaCom(caminho, "/vacinas");
+    return comecaCom(caminho, "/vacinas") ||
+           comecaCom(caminho, "/aplicacoes-vacinas");
 }
 
 static int ehClinico(const char *caminho)
@@ -1225,7 +1225,7 @@ static void rotaMedicamentoDispensar(int cliente, int medicamento_id,
 }
 
 /* ----------------------------------------------------------------------- */
-/* Vacinacao: catalogo de vacinas (sub-etapa 6a)                            */
+/* Vacinacao: catalogo de vacinas e aplicacoes                              */
 /* ----------------------------------------------------------------------- */
 
 static void rotaListarVacinas(int cliente)
@@ -1247,6 +1247,7 @@ static void rotaCriarVacina(int cliente, const char *consulta, const Sessao *s)
     char dosesStr[16];
     char intervaloStr[16];
     char reforcoStr[16];
+    char medicamentoStr[16];
     int ok;
 
     extrairParam(consulta, "nome", nome, sizeof(nome));
@@ -1255,9 +1256,11 @@ static void rotaCriarVacina(int cliente, const char *consulta, const Sessao *s)
     extrairParam(consulta, "doses_previstas", dosesStr, sizeof(dosesStr));
     extrairParam(consulta, "intervalo_dias", intervaloStr, sizeof(intervaloStr));
     extrairParam(consulta, "reforco_dias", reforcoStr, sizeof(reforcoStr));
+    extrairParam(consulta, "medicamento_id", medicamentoStr, sizeof(medicamentoStr));
 
     ok = vacina_criar(nome, fabricante, doencas, atoi(dosesStr),
-                      atoi(intervaloStr), atoi(reforcoStr)) == 1;
+                      atoi(intervaloStr), atoi(reforcoStr),
+                      atoi(medicamentoStr)) == 1;
     if (ok)
     {
         auditar(s, "CRIAR", "vacina", 0, nome);
@@ -1276,6 +1279,48 @@ static void rotaDesativarVacina(int cliente, int id, const Sessao *s)
     }
     responderRemocao(cliente, ok,
                      "{\"erro\":\"vacina nao encontrada ou ja inativa\"}");
+}
+
+static void rotaListarAplicacoesVacinas(int cliente)
+{
+    responderLista(cliente, vacina_aplicacoes_listar_json,
+                   "{\"erro\":\"falha ao listar aplicacoes de vacinas\"}");
+}
+
+static void rotaAplicarVacina(int cliente, const char *consulta, const Sessao *s)
+{
+    char pacienteStr[16];
+    char vacinaStr[16];
+    char doseStr[16];
+    char lote[80];
+    char validade[32];
+    char observacao[200];
+    int aplicacaoId = 0;
+    int ok;
+    char resposta[96];
+
+    extrairParam(consulta, "paciente_id", pacienteStr, sizeof(pacienteStr));
+    extrairParam(consulta, "vacina_id", vacinaStr, sizeof(vacinaStr));
+    extrairParam(consulta, "dose_numero", doseStr, sizeof(doseStr));
+    extrairParam(consulta, "lote", lote, sizeof(lote));
+    extrairParam(consulta, "validade", validade, sizeof(validade));
+    extrairParam(consulta, "observacao", observacao, sizeof(observacao));
+
+    ok = vacina_aplicar(atoi(pacienteStr), atoi(vacinaStr), atoi(doseStr),
+                        lote, validade, s->usuario_id, s->login,
+                        observacao, &aplicacaoId) == 1;
+    if (ok)
+    {
+        auditar(s, "APLICAR", "vacina", atoi(vacinaStr), lote);
+        snprintf(resposta, sizeof(resposta),
+                 "{\"status\":\"aplicada\",\"id\":%d}", aplicacaoId);
+        responder(cliente, "201 Created", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"dados invalidos, vacina sem estoque vinculado ou lote indisponivel\"}");
+    }
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -3062,6 +3107,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/estoque") ||
            comecaCom(caminho, "/movimentacoes") ||
            comecaCom(caminho, "/vacinas") ||
+           comecaCom(caminho, "/aplicacoes-vacinas") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3298,6 +3344,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     {
         rotaListarVacinas(cliente);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/aplicacoes-vacinas") == 0)
+    {
+        rotaListarAplicacoesVacinas(cliente);
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/vacinas/contar") == 0)
     {
         rotaContarVacinas(cliente);
@@ -3305,6 +3355,10 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/vacinas") == 0)
     {
         rotaCriarVacina(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/aplicacoes-vacinas") == 0)
+    {
+        rotaAplicarVacina(cliente, consulta, &s);
     }
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/vacinas/%d", &id) == 1)
     {

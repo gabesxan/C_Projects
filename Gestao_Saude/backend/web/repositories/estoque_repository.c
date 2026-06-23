@@ -243,6 +243,88 @@ int estoque_baixar(int medicamento_id, int quantidade, const char *tipo,
     return 1;
 }
 
+int estoque_baixar_lote(int medicamento_id, const char *lote, const char *validade,
+                        int quantidade, const char *tipo, const char *motivo,
+                        int usuario_id, const char *usuario_login)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int item_id = 0;
+    int saldo = 0;
+
+    if (medicamento_id <= 0 || quantidade <= 0 || tipo == NULL ||
+        lote == NULL || lote[0] == '\0' || validade == NULL ||
+        validade[0] == '\0' || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_exec(db, "BEGIN;", NULL, NULL, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "SELECT id, quantidade FROM estoque_itens "
+            "WHERE medicamento_id = ? AND lote = ? AND validade = ? AND quantidade >= ? "
+            "ORDER BY id LIMIT 1;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, medicamento_id);
+    sqlite3_bind_text(stmt, 2, lote, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, validade, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 4, quantidade);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        item_id = sqlite3_column_int(stmt, 0);
+        saldo = sqlite3_column_int(stmt, 1);
+    }
+    sqlite3_finalize(stmt);
+
+    if (item_id <= 0 || saldo < quantidade)
+    {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "UPDATE estoque_itens SET quantidade = quantidade - ? WHERE id = ?;",
+            -1, &stmt, NULL) != SQLITE_OK)
+    {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, quantidade);
+    sqlite3_bind_int(stmt, 2, item_id);
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+
+    if (registrar_movimentacao(db, medicamento_id, item_id, tipo, quantidade,
+                               motivo, usuario_id, usuario_login) == 0)
+    {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
+        db_fechar(db);
+        return 0;
+    }
+
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+    db_fechar(db);
+    return 1;
+}
+
 int estoque_saldo(int medicamento_id)
 {
     sqlite3 *db = NULL;

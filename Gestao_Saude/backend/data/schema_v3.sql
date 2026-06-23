@@ -568,7 +568,7 @@ CREATE INDEX idx_estoque_itens_medicamento ON estoque_itens(medicamento_id);
 CREATE INDEX idx_estoque_itens_validade ON estoque_itens(validade);
 CREATE INDEX idx_movimentacoes_medicamento ON movimentacoes(medicamento_id);
 
--- Vacinacao (v12): catalogo de vacinas e esquema basico de doses.
+-- Vacinacao (v12/v14): catalogo de vacinas, vinculo com estoque e aplicacoes.
 CREATE TABLE vacinas (
     id INTEGER PRIMARY KEY,
     nome TEXT NOT NULL,
@@ -577,12 +577,35 @@ CREATE TABLE vacinas (
     doses_previstas INTEGER NOT NULL DEFAULT 1,
     intervalo_dias INTEGER NOT NULL DEFAULT 0,
     reforco_dias INTEGER NOT NULL DEFAULT 0,
+    medicamento_id INTEGER,
     ativo INTEGER NOT NULL DEFAULT 1,
-    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id)
 );
 
 CREATE UNIQUE INDEX idx_vacinas_nome_ativo ON vacinas(nome) WHERE ativo = 1;
 
+CREATE TABLE aplicacoes_vacinas (
+    id INTEGER PRIMARY KEY,
+    paciente_id INTEGER NOT NULL,
+    vacina_id INTEGER NOT NULL,
+    medicamento_id INTEGER NOT NULL,
+    dose_numero INTEGER NOT NULL DEFAULT 1,
+    lote TEXT NOT NULL DEFAULT '',
+    validade TEXT NOT NULL DEFAULT '',
+    aplicador_usuario_id INTEGER NOT NULL DEFAULT 0,
+    aplicador_login TEXT NOT NULL DEFAULT '',
+    observacao TEXT NOT NULL DEFAULT '',
+    aplicada_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+    FOREIGN KEY (vacina_id) REFERENCES vacinas(id),
+    FOREIGN KEY (medicamento_id) REFERENCES medicamentos(id)
+);
+
+CREATE INDEX idx_aplicacoes_vacinas_paciente ON aplicacoes_vacinas(paciente_id);
+CREATE INDEX idx_aplicacoes_vacinas_vacina ON aplicacoes_vacinas(vacina_id);
+CREATE INDEX idx_aplicacoes_vacinas_data ON aplicacoes_vacinas(aplicada_em);
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 13;
+PRAGMA user_version = 14;

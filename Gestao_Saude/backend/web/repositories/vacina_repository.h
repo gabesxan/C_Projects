@@ -2,14 +2,13 @@
 #define VACINA_REPOSITORY_H
 
 /*
- * Repository do catalogo de vacinas (SIGEH-DF).
- * Sub-etapa 6a: somente catalogo e esquema basico de doses. Aplicacoes e
- * carteira do paciente ficam nas proximas sub-etapas.
+ * Repository de vacinacao (SIGEH-DF): catalogo de vacinas e aplicacoes com
+ * rastreabilidade por paciente, lote e estoque.
  */
 
 int vacina_criar(const char *nome, const char *fabricante,
                  const char *doencas_alvo, int doses_previstas,
-                 int intervalo_dias, int reforco_dias);
+                 int intervalo_dias, int reforco_dias, int medicamento_id);
 
 int vacina_listar_json(char *buffer, int tamanho);
 
@@ -18,5 +17,12 @@ int vacina_desativar(int id);
 int vacina_contar_ativas(void);
 
 int vacina_ativa(int id);
+
+int vacina_aplicar(int paciente_id, int vacina_id, int dose_numero,
+                   const char *lote, const char *validade,
+                   int aplicador_usuario_id, const char *aplicador_login,
+                   const char *observacao, int *aplicacao_id);
+
+int vacina_aplicacoes_listar_json(char *buffer, int tamanho);
 
 #endif

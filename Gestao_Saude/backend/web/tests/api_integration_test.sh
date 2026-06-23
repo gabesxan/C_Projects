@@ -249,13 +249,19 @@ expect 200 "estoque inalterado apos falha"; body_has '"quantidade":47' "saldo pr
 api POST /medicamentos/1/dispensar '{"paciente_id":"9999","quantidade":"1"}'
 expect 400 "dispensacao paciente invalido"; body_has 'paciente inexistente' "erro de paciente"
 
-echo "--- Fluxo 6: vacinacao -> catalogo de vacinas ---"
-api POST /vacinas '{"nome":"Influenza","fabricante":"Butantan","doencas_alvo":"Gripe","doses_previstas":"1","intervalo_dias":"0","reforco_dias":"365"}'
+echo "--- Fluxo 6: vacinacao -> aplica vacina e baixa estoque ---"
+api POST /vacinas '{"nome":"Influenza","fabricante":"Butantan","doencas_alvo":"Gripe","doses_previstas":"1","intervalo_dias":"0","reforco_dias":"365","medicamento_id":"1"}'
 expect 201 "vacina criada"
 api GET /vacinas
-expect 200 "vacinas listadas"; body_has '"nome":"Influenza"' "catalogo de vacinas"
+expect 200 "vacinas listadas"; body_has '"nome":"Influenza"' "catalogo de vacinas"; body_has '"medicamentoId":1' "vacina vinculada ao estoque"
 api GET /vacinas/contar
 expect 200 "vacinas contadas"; body_has '"ativos":1' "contagem de vacinas"
+api POST /aplicacoes-vacinas '{"paciente_id":"1","vacina_id":"1","dose_numero":"1","lote":"L1","validade":"2026-12-31","observacao":"campanha"}'
+expect 201 "vacina aplicada"
+api GET /aplicacoes-vacinas
+expect 200 "aplicacoes listadas"; body_has '"vacinaNome":"Influenza"' "historico da aplicacao"; body_has '"pacienteId":1' "aplicacao vinculada ao paciente"
+api GET /medicamentos/1/estoque
+expect 200 "estoque apos vacina"; body_has '"quantidade":46' "vacina debitou uma dose do lote"
 
 echo "--- Fluxo 7: paciente -> escolhe especialidade/data -> recepcao ve agenda ---"
 api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'

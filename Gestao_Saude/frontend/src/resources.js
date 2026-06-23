@@ -140,6 +140,7 @@ export const RESOURCES = [
       { key: 'dosesPrevistas', label: 'Doses' },
       { key: 'intervaloDias', label: 'Intervalo dias' },
       { key: 'reforcoDias', label: 'Reforco dias' },
+      { key: 'medicamentoId', label: 'Medicamento estoque' },
     ],
     createFields: [
       { name: 'nome', label: 'Nome', type: 'text' },
@@ -148,6 +149,15 @@ export const RESOURCES = [
       { name: 'doses_previstas', label: 'Doses previstas', type: 'number' },
       { name: 'intervalo_dias', label: 'Intervalo entre doses (dias)', type: 'number' },
       { name: 'reforco_dias', label: 'Reforco apos (dias)', type: 'number' },
+      {
+        name: 'medicamento_id',
+        label: 'Item de estoque',
+        type: 'ref',
+        path: '/medicamentos',
+        allowEmpty: true,
+        emptyLabel: 'Sem vinculo',
+        optionLabel: (m) => `${m.nome}${m.apresentacao ? ` - ${m.apresentacao}` : ''}`,
+      },
     ],
   },
   {

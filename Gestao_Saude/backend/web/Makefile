@@ -87,7 +87,7 @@ TEST_PRESC = tests/test_prescricao_repository.c $(PRESC_SRC) $(PAC_SRC) $(MED_SR
 TEST_SOLIC = tests/test_solicitacao_repository.c $(SOLIC_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_MEDICAMENTO = tests/test_medicamento_repository.c $(MEDICAMENTO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_ESTOQUE = tests/test_estoque_repository.c $(ESTOQUE_SRC) $(MEDICAMENTO_SRC) $(JSON_SRC) $(DB_SRC)
-TEST_VACINA = tests/test_vacina_repository.c $(VACINA_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_VACINA = tests/test_vacina_repository.c $(VACINA_SRC) $(ESTOQUE_SRC) $(MEDICAMENTO_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
 all: $(BUILD)/database.o api
