@@ -129,7 +129,7 @@ static int listar_filtrado_json(const char *filtroCol, int filtroVal,
 {
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
-    char sql[256];
+    char sql[512];
     int usado = 0;
     int primeiro = 1;
 
@@ -141,17 +141,23 @@ static int listar_filtrado_json(const char *filtroCol, int filtroVal,
     if (filtroCol != NULL)
     {
         snprintf(sql, sizeof(sql),
-                 "SELECT id, paciente_id, medico_id, medicamento, dosagem, "
-                 "frequencia, observacoes, via, duracao FROM prescricoes "
-                 "WHERE ativo = 1 AND %s = ? ORDER BY id;",
+                 "SELECT pr.id, pr.paciente_id, pr.medico_id, pr.medicamento, pr.dosagem, "
+                 "pr.frequencia, pr.observacoes, pr.via, pr.duracao, "
+                 "COALESCE(p.nome, ''), COALESCE(m.nome, '') FROM prescricoes pr "
+                 "LEFT JOIN pacientes p ON p.id = pr.paciente_id "
+                 "LEFT JOIN medicos m ON m.id = pr.medico_id "
+                 "WHERE pr.ativo = 1 AND pr.%s = ? ORDER BY pr.id;",
                  filtroCol);
     }
     else
     {
         snprintf(sql, sizeof(sql),
-                 "SELECT id, paciente_id, medico_id, medicamento, dosagem, "
-                 "frequencia, observacoes, via, duracao FROM prescricoes "
-                 "WHERE ativo = 1 ORDER BY id;");
+                 "SELECT pr.id, pr.paciente_id, pr.medico_id, pr.medicamento, pr.dosagem, "
+                 "pr.frequencia, pr.observacoes, pr.via, pr.duracao, "
+                 "COALESCE(p.nome, ''), COALESCE(m.nome, '') FROM prescricoes pr "
+                 "LEFT JOIN pacientes p ON p.id = pr.paciente_id "
+                 "LEFT JOIN medicos m ON m.id = pr.medico_id "
+                 "WHERE pr.ativo = 1 ORDER BY pr.id;");
     }
 
     if (db_abrir(&db) == 0)
@@ -187,7 +193,9 @@ static int listar_filtrado_json(const char *filtroCol, int filtroVal,
         char observacoesJson[640];
         char viaJson[96];
         char duracaoJson[96];
-        char objeto[1440];
+        char pacienteNomeJson[256];
+        char medicoNomeJson[256];
+        char objeto[2000];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
@@ -204,7 +212,9 @@ static int listar_filtrado_json(const char *filtroCol, int filtroVal,
             repo_json_escapar(frequenciaJson, sizeof(frequenciaJson), frequencia) == 0 ||
             repo_json_escapar(observacoesJson, sizeof(observacoesJson), observacoes) == 0 ||
             repo_json_escapar(viaJson, sizeof(viaJson), via) == 0 ||
-            repo_json_escapar(duracaoJson, sizeof(duracaoJson), duracao) == 0)
+            repo_json_escapar(duracaoJson, sizeof(duracaoJson), duracao) == 0 ||
+            repo_json_escapar(pacienteNomeJson, sizeof(pacienteNomeJson), (const char *)sqlite3_column_text(stmt, 9)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 10)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -212,11 +222,13 @@ static int listar_filtrado_json(const char *filtroCol, int filtroVal,
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"medicamento\":%s,"
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"pacienteNome\":%s,\"medicoNome\":%s,\"medicamento\":%s,"
                            "\"dosagem\":%s,\"frequencia\":%s,\"via\":%s,\"duracao\":%s,"
                            "\"observacoes\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, medicamentoJson, dosagemJson,
+                           id, pacienteId, medicoId, pacienteNomeJson, medicoNomeJson,
+                           medicamentoJson, dosagemJson,
                            frequenciaJson, viaJson, duracaoJson, observacoesJson);
 
         if (escrito < 0 || escrito >= (int)sizeof(objeto))

@@ -237,9 +237,13 @@ int exame_repo_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
-        "data_solicitacao, data_resultado, resultado, status, urgente "
-        "FROM exames WHERE ativo = 1 AND vigente = 1 ORDER BY id;";
+        "SELECT e.id, e.paciente_id, e.medico_id, e.prontuario_id, e.tipo_exame, "
+        "e.data_solicitacao, e.data_resultado, e.resultado, e.status, e.urgente, "
+        "COALESCE(p.nome, ''), COALESCE(m.nome, '') "
+        "FROM exames e "
+        "LEFT JOIN pacientes p ON p.id = e.paciente_id "
+        "LEFT JOIN medicos m ON m.id = e.medico_id "
+        "WHERE e.ativo = 1 AND e.vigente = 1 ORDER BY e.id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -274,7 +278,9 @@ int exame_repo_listar_json(char *buffer, int tamanho)
         char dataResultadoJson[32];
         char resultadoJson[640];
         char statusJson[48];
-        char objeto[1024];
+        char pacienteNomeJson[256];
+        char medicoNomeJson[256];
+        char objeto[1600];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
@@ -290,7 +296,9 @@ int exame_repo_listar_json(char *buffer, int tamanho)
         if (repo_json_escapar(dataSolicitacaoJson, sizeof(dataSolicitacaoJson), dataSolic) == 0 ||
             repo_json_escapar(dataResultadoJson, sizeof(dataResultadoJson), dataResul) == 0 ||
             repo_json_escapar(resultadoJson, sizeof(resultadoJson), resultado) == 0 ||
-            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0 ||
+            repo_json_escapar(pacienteNomeJson, sizeof(pacienteNomeJson), (const char *)sqlite3_column_text(stmt, 10)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 11)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -299,10 +307,12 @@ int exame_repo_listar_json(char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+                           "\"pacienteNome\":%s,\"medicoNome\":%s,"
                            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
                            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, prontuarioId, tipoExame,
+                           id, pacienteId, medicoId, prontuarioId,
+                           pacienteNomeJson, medicoNomeJson, tipoExame,
                            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
                            urgente);
 
@@ -339,9 +349,13 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, prontuario_id, tipo_exame, "
-        "data_solicitacao, data_resultado, resultado, status, urgente "
-        "FROM exames WHERE medico_id = ? AND ativo = 1 AND vigente = 1 ORDER BY id;";
+        "SELECT e.id, e.paciente_id, e.medico_id, e.prontuario_id, e.tipo_exame, "
+        "e.data_solicitacao, e.data_resultado, e.resultado, e.status, e.urgente, "
+        "COALESCE(p.nome, ''), COALESCE(m.nome, '') "
+        "FROM exames e "
+        "LEFT JOIN pacientes p ON p.id = e.paciente_id "
+        "LEFT JOIN medicos m ON m.id = e.medico_id "
+        "WHERE e.medico_id = ? AND e.ativo = 1 AND e.vigente = 1 ORDER BY e.id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -378,7 +392,9 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
         char dataResultadoJson[32];
         char resultadoJson[640];
         char statusJson[48];
-        char objeto[1024];
+        char pacienteNomeJson[256];
+        char medicoNomeJson[256];
+        char objeto[1600];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
@@ -394,7 +410,9 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
         if (repo_json_escapar(dataSolicitacaoJson, sizeof(dataSolicitacaoJson), dataSolic) == 0 ||
             repo_json_escapar(dataResultadoJson, sizeof(dataResultadoJson), dataResul) == 0 ||
             repo_json_escapar(resultadoJson, sizeof(resultadoJson), resultado) == 0 ||
-            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0)
+            repo_json_escapar(statusJson, sizeof(statusJson), status) == 0 ||
+            repo_json_escapar(pacienteNomeJson, sizeof(pacienteNomeJson), (const char *)sqlite3_column_text(stmt, 10)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 11)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -403,10 +421,12 @@ int exame_repo_listar_por_medico_json(int medico_id, char *buffer, int tamanho)
 
         escrito = snprintf(objeto, sizeof(objeto),
                            "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"prontuarioId\":%d,"
+                           "\"pacienteNome\":%s,\"medicoNome\":%s,"
                            "\"tipoExame\":%d,\"dataSolicitacao\":%s,\"dataResultado\":%s,"
                            "\"resultado\":%s,\"status\":%s,\"urgente\":%d}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, prontuarioId, tipoExame,
+                           id, pacienteId, medicoId, prontuarioId,
+                           pacienteNomeJson, medicoNomeJson, tipoExame,
                            dataSolicitacaoJson, dataResultadoJson, resultadoJson, statusJson,
                            urgente);
 

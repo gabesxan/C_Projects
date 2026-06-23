@@ -170,9 +170,13 @@ int prontuario_repo_listar_json(char *buffer, int tamanho)
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, data, observacoes, diagnostico, "
-        "conduta, alerta_importante, versao, vigente, justificativa "
-        "FROM prontuarios WHERE vigente = 1 ORDER BY id;";
+        "SELECT pr.id, pr.paciente_id, pr.medico_id, pr.data, pr.observacoes, "
+        "pr.diagnostico, pr.conduta, pr.alerta_importante, pr.versao, pr.vigente, "
+        "pr.justificativa, COALESCE(p.nome, ''), COALESCE(m.nome, '') "
+        "FROM prontuarios pr "
+        "LEFT JOIN pacientes p ON p.id = pr.paciente_id "
+        "LEFT JOIN medicos m ON m.id = pr.medico_id "
+        "WHERE pr.vigente = 1 ORDER BY pr.id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -208,7 +212,9 @@ int prontuario_repo_listar_json(char *buffer, int tamanho)
         char diagnosticoJson[448];
         char condutaJson[448];
         char justificativaJson[448];
-        char objeto[2304];
+        char pacienteNomeJson[256];
+        char medicoNomeJson[256];
+        char objeto[2900];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
@@ -226,7 +232,9 @@ int prontuario_repo_listar_json(char *buffer, int tamanho)
             repo_json_escapar(observacoesJson, sizeof(observacoesJson), observacoes) == 0 ||
             repo_json_escapar(diagnosticoJson, sizeof(diagnosticoJson), diagnostico) == 0 ||
             repo_json_escapar(condutaJson, sizeof(condutaJson), conduta) == 0 ||
-            repo_json_escapar(justificativaJson, sizeof(justificativaJson), justificativa) == 0)
+            repo_json_escapar(justificativaJson, sizeof(justificativaJson), justificativa) == 0 ||
+            repo_json_escapar(pacienteNomeJson, sizeof(pacienteNomeJson), (const char *)sqlite3_column_text(stmt, 11)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 12)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -234,12 +242,14 @@ int prontuario_repo_listar_json(char *buffer, int tamanho)
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"pacienteNome\":%s,\"medicoNome\":%s,\"data\":%s,"
                            "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
                            "\"alertaImportante\":%d,\"versao\":%d,\"vigente\":%d,"
                            "\"justificativa\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, dataJson, observacoesJson,
+                           id, pacienteId, medicoId, pacienteNomeJson, medicoNomeJson,
+                           dataJson, observacoesJson,
                            diagnosticoJson, condutaJson, alerta, versao, vigente,
                            justificativaJson);
 
@@ -276,9 +286,13 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
     sqlite3 *db = NULL;
     sqlite3_stmt *stmt = NULL;
     const char *sql =
-        "SELECT id, paciente_id, medico_id, data, observacoes, diagnostico, "
-        "conduta, alerta_importante, versao, vigente, justificativa "
-        "FROM prontuarios WHERE medico_id = ? AND vigente = 1 ORDER BY id;";
+        "SELECT pr.id, pr.paciente_id, pr.medico_id, pr.data, pr.observacoes, "
+        "pr.diagnostico, pr.conduta, pr.alerta_importante, pr.versao, pr.vigente, "
+        "pr.justificativa, COALESCE(p.nome, ''), COALESCE(m.nome, '') "
+        "FROM prontuarios pr "
+        "LEFT JOIN pacientes p ON p.id = pr.paciente_id "
+        "LEFT JOIN medicos m ON m.id = pr.medico_id "
+        "WHERE pr.medico_id = ? AND pr.vigente = 1 ORDER BY pr.id;";
     int usado = 0;
     int primeiro = 1;
 
@@ -316,7 +330,9 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
         char diagnosticoJson[448];
         char condutaJson[448];
         char justificativaJson[448];
-        char objeto[2304];
+        char pacienteNomeJson[256];
+        char medicoNomeJson[256];
+        char objeto[2900];
         int id = sqlite3_column_int(stmt, 0);
         int pacienteId = sqlite3_column_int(stmt, 1);
         int medicoId = sqlite3_column_int(stmt, 2);
@@ -334,7 +350,9 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
             repo_json_escapar(observacoesJson, sizeof(observacoesJson), observacoes) == 0 ||
             repo_json_escapar(diagnosticoJson, sizeof(diagnosticoJson), diagnostico) == 0 ||
             repo_json_escapar(condutaJson, sizeof(condutaJson), conduta) == 0 ||
-            repo_json_escapar(justificativaJson, sizeof(justificativaJson), justificativa) == 0)
+            repo_json_escapar(justificativaJson, sizeof(justificativaJson), justificativa) == 0 ||
+            repo_json_escapar(pacienteNomeJson, sizeof(pacienteNomeJson), (const char *)sqlite3_column_text(stmt, 11)) == 0 ||
+            repo_json_escapar(medicoNomeJson, sizeof(medicoNomeJson), (const char *)sqlite3_column_text(stmt, 12)) == 0)
         {
             sqlite3_finalize(stmt);
             db_fechar(db);
@@ -342,12 +360,14 @@ int prontuario_repo_listar_por_medico_json(int medico_id, char *buffer, int tama
         }
 
         escrito = snprintf(objeto, sizeof(objeto),
-                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,\"data\":%s,"
+                           "%s{\"id\":%d,\"pacienteId\":%d,\"medicoId\":%d,"
+                           "\"pacienteNome\":%s,\"medicoNome\":%s,\"data\":%s,"
                            "\"observacoes\":%s,\"diagnostico\":%s,\"conduta\":%s,"
                            "\"alertaImportante\":%d,\"versao\":%d,\"vigente\":%d,"
                            "\"justificativa\":%s}",
                            primeiro ? "" : ",",
-                           id, pacienteId, medicoId, dataJson, observacoesJson,
+                           id, pacienteId, medicoId, pacienteNomeJson, medicoNomeJson,
+                           dataJson, observacoesJson,
                            diagnosticoJson, condutaJson, alerta, versao, vigente,
                            justificativaJson);
 
