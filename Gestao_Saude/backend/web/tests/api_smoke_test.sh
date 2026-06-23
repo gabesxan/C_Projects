@@ -606,6 +606,34 @@ request_json_and_assert "DELETE" "/anexos/1" '{"motivo":"enviado por engano"}' \
 request_and_assert "/anexos/1/conteudo" "404" "/anexos download apos remocao" "${ADMIN_TOKEN}"
 request_and_assert "/anexos/exame/1" "403" "/anexos bloqueado para PACIENTE" "${PAC_TOKEN}"
 
+# Consentimentos LGPD (8c): cadastro/leitura administrativa, revogacao com
+# motivo e escopo do paciente (so ve os proprios via /me/consentimentos).
+echo "--- Consentimentos LGPD: cadastro, escopo e revogacao ---"
+# ADMIN cria um consentimento para o paciente 1.
+request_json_and_assert "POST" "/consentimentos" \
+    '{"paciente_id":1,"finalidade":"COMPARTILHAMENTO_DADOS","versao_termo":"v1.0"}' \
+    "201" "/consentimentos POST (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"CONCEDIDO"'
+# PACIENTE ve apenas os proprios consentimentos via /me.
+request_and_assert "/me/consentimentos" "200" "/me/consentimentos (PACIENTE)" "${PAC_TOKEN}" contains '"finalidade":"COMPARTILHAMENTO_DADOS"'
+# PACIENTE nao acessa a rota administrativa (nem o consentimento de outro).
+request_and_assert "/consentimentos/paciente/2" "403" "/consentimentos de outro paciente bloqueado (PACIENTE)" "${PAC_TOKEN}"
+# Equipe clinica le quando relevante (somente GET).
+request_and_assert "/consentimentos/paciente/1" "200" "/consentimentos (MEDICO le)" "${MED_TOKEN}" contains '"finalidade":"COMPARTILHAMENTO_DADOS"'
+request_and_assert "/consentimentos/paciente/1" "200" "/consentimentos (ENFERMAGEM le)" "${ENF_TOKEN}" contains '"finalidade":"COMPARTILHAMENTO_DADOS"'
+# MEDICO nao cria consentimento (papel de leitura): 403.
+request_json_and_assert "POST" "/consentimentos" \
+    '{"paciente_id":1,"finalidade":"PESQUISA","versao_termo":"v1.0"}' \
+    "403" "/consentimentos POST bloqueado para MEDICO" "${MED_TOKEN}"
+# Revogacao exige motivo: sem motivo -> 400.
+request_json_and_assert "POST" "/consentimentos/1/revogar" '{}' \
+    "400" "/consentimentos revogar sem motivo" "${ADMIN_TOKEN}" contains 'motivo'
+# Revogacao com motivo registra a transicao para REVOGADO.
+request_json_and_assert "POST" "/consentimentos/1/revogar" \
+    '{"motivo":"Paciente revogou consentimento"}' \
+    "200" "/consentimentos revogar (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"REVOGADO"'
+# O historico imutavel mostra o consentimento como revogado.
+request_and_assert "/me/consentimentos" "200" "/me/consentimentos revogado (PACIENTE)" "${PAC_TOKEN}" contains '"status":"REVOGADO"'
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.

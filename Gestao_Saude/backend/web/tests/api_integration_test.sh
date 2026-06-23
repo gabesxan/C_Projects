@@ -280,11 +280,37 @@ expect 200 "anexo removido"; body_has '"status":"removido"' "remocao confirmada"
 api GET /anexos/1/conteudo
 expect 404 "anexo some apos remocao"
 
+echo "--- Fluxo 6c: consentimentos LGPD -> cadastro, escopo e revogacao ---"
+# ADMIN registra o consentimento administrativo do paciente 1.
+api POST /consentimentos '{"paciente_id":1,"finalidade":"COMPARTILHAMENTO_DADOS","versao_termo":"v1.0"}'
+expect 201 "consentimento registrado"; body_has '"status":"CONCEDIDO"' "consentimento concedido"
+# A leitura administrativa lista o historico do paciente.
+api GET /consentimentos/paciente/1
+expect 200 "consentimentos do paciente listados"; body_has '"finalidade":"COMPARTILHAMENTO_DADOS"' "finalidade registrada"
+# Revogar exige motivo.
+api POST /consentimentos/1/revogar '{}'
+expect 400 "revogacao sem motivo"; body_has "motivo" "revogacao exige motivo"
+# Revogar com motivo muda o estado para REVOGADO (historico imutavel).
+api POST /consentimentos/1/revogar '{"motivo":"Paciente revogou consentimento"}'
+expect 200 "consentimento revogado"; body_has '"status":"REVOGADO"' "revogacao confirmada"
+api GET /consentimentos/paciente/1
+expect 200 "historico de consentimentos preservado"; body_has '"status":"REVOGADO"' "consentimento aparece como revogado"
+body_has '"motivoRevogacao":"Paciente revogou consentimento"' "motivo da revogacao gravado"
+# Revogar de novo nao reabre o estado (transicao invalida).
+api POST /consentimentos/1/revogar '{"motivo":"tentativa duplicada"}'
+expect 400 "revogacao duplicada recusada"; body_has "ja revogado" "consentimento ja revogado"
+
 echo "--- Fluxo 7: paciente -> escolhe especialidade/data -> recepcao ve agenda ---"
 api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
 expect 201 "usuario paciente criado"
 TOKEN="$(obter_token pacportal pac123)"
 [[ -n "${TOKEN}" ]] || fail "nao obteve token do paciente"
+# O paciente ve apenas os proprios consentimentos via /me.
+api GET /me/consentimentos
+expect 200 "paciente ve os proprios consentimentos"; body_has '"finalidade":"COMPARTILHAMENTO_DADOS"' "consentimento do paciente"
+# O paciente nao acessa a rota administrativa de outro paciente.
+api GET /consentimentos/paciente/2
+expect 403 "paciente nao acessa consentimento de outro"
 api GET /me/vacinas
 expect 200 "paciente ve carteira vacinal"; body_has '"vacinaNome":"Influenza"' "vacina aplicada aparece na carteira"
 api GET '/me/agendamentos/especialidades'

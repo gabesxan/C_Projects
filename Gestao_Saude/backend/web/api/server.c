@@ -22,10 +22,12 @@
 #include "anexo_repository.h"
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
+#include "consentimento_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 #include "farmacia_service.h"
 #include "anexo_service.h"
+#include "consentimento_service.h"
 #include "credencial_util.h"
 
 #include <stdio.h>
@@ -590,6 +592,14 @@ static int ehAnexo(const char *caminho)
     return comecaCom(caminho, "/anexos");
 }
 
+/* Consentimentos LGPD: registro administrativo do consentimento do paciente.
+ * Geridos pelo cadastro (criar/ler) e pelo ADMIN; equipe clinica le quando
+ * relevante. O paciente acessa apenas os proprios via /me/consentimentos. */
+static int ehConsentimento(const char *caminho)
+{
+    return comecaCom(caminho, "/consentimentos");
+}
+
 static int ehClinico(const char *caminho)
 {
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
@@ -629,6 +639,17 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         {
             return 1;
         }
+        /* Consentimentos: cadastra (POST /consentimentos) e consulta (GET). A
+         * revogacao e acao sensivel reservada ao ADMIN. */
+        if (ehConsentimento(caminho))
+        {
+            if (strcmp(metodo, "GET") == 0)
+            {
+                return 1;
+            }
+            return strcmp(metodo, "POST") == 0 &&
+                   strcmp(caminho, "/consentimentos") == 0;
+        }
         if (comecaCom(caminho, "/agendamentos"))
         {
             return strcmp(metodo, "GET") == 0;
@@ -641,6 +662,11 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         if (ehAnexo(caminho))
         {
             return 1;
+        }
+        /* Consentimentos: leitura quando clinicamente relevante. */
+        if (ehConsentimento(caminho))
+        {
+            return strcmp(metodo, "GET") == 0;
         }
         if (strcmp(metodo, "GET") == 0 && ehCadastro(caminho))
         {
@@ -661,6 +687,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
         if (ehAnexo(caminho))
         {
             return 1;
+        }
+
+        /* Consentimentos: leitura quando clinicamente relevante. */
+        if (ehConsentimento(caminho))
+        {
+            return strcmp(metodo, "GET") == 0;
         }
 
         /* Farmacia/estoque: enfermagem gerencia catalogo, lotes e dispensacao. */
@@ -1518,6 +1550,82 @@ static void rotaRemoverAnexo(int cliente, int id, const char *consulta, const Se
         auditar(s, "REMOVER", "anexo", id, motivo);
     }
     responderRemocao(cliente, ok, "{\"erro\":\"anexo nao encontrado\"}");
+}
+
+/* GET /consentimentos/paciente/{pacienteId}: historico completo (concedidos e
+ * revogados) de um paciente. Tambem serve GET /me/consentimentos, passando o
+ * paciente da sessao para garantir que o paciente so ve os proprios. */
+static void rotaListarConsentimentosPaciente(int cliente, int paciente_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        consentimento_listar_por_paciente_json(paciente_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar consentimentos\"}");
+    }
+    free(json);
+}
+
+/* POST /consentimentos: registra um consentimento (corpo JSON convertido em
+ * query). Valida paciente/finalidade/versao no service e audita a criacao. */
+static void rotaCriarConsentimento(int cliente, const char *consulta,
+                                   const Sessao *s)
+{
+    char pacienteStr[16];
+    char finalidade[128];
+    char versao[64];
+    char resposta[160];
+    int pacienteId;
+    int novoId = 0;
+
+    extrairParam(consulta, "paciente_id", pacienteStr, sizeof(pacienteStr));
+    extrairParam(consulta, "finalidade", finalidade, sizeof(finalidade));
+    extrairParam(consulta, "versao_termo", versao, sizeof(versao));
+    pacienteId = atoi(pacienteStr);
+
+    if (consentimento_service_criar(pacienteId, finalidade, versao,
+                                    resposta, sizeof(resposta), &novoId) == 1)
+    {
+        auditar(s, "CRIAR", "consentimento", novoId, finalidade);
+        responder(cliente, "201 Created", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request", resposta);
+    }
+}
+
+/* POST /consentimentos/{id}/revogar: revoga exigindo motivo (acao sensivel).
+ * 404 quando o id nao existe; 400 em motivo ausente ou ja revogado. */
+static void rotaRevogarConsentimento(int cliente, int id, const char *consulta,
+                                     const Sessao *s)
+{
+    char motivo[256];
+    char resposta[160];
+    int naoEncontrado = 0;
+
+    extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+
+    if (consentimento_service_revogar(id, motivo, resposta, sizeof(resposta),
+                                      &naoEncontrado) == 1)
+    {
+        auditar(s, "REVOGAR", "consentimento", id, motivo);
+        responder(cliente, "200 OK", resposta);
+    }
+    else if (naoEncontrado)
+    {
+        responder(cliente, "404 Not Found", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request", resposta);
+    }
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -3332,6 +3440,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/vacinas") ||
            comecaCom(caminho, "/aplicacoes-vacinas") ||
            comecaCom(caminho, "/anexos") ||
+           comecaCom(caminho, "/consentimentos") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3611,6 +3720,21 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/anexos/%d", &id) == 1)
     {
         rotaRemoverAnexo(cliente, id, consulta, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/consentimentos/paciente/%d", &id) == 1)
+    {
+        rotaListarConsentimentosPaciente(cliente, id);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/consentimentos") == 0)
+    {
+        rotaCriarConsentimento(cliente, consulta, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/consentimentos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "revogar") == 0)
+    {
+        rotaRevogarConsentimento(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
     {
@@ -4065,6 +4189,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/vacinas") == 0)
     {
         rotaMeVacinas(cliente, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/consentimentos") == 0)
+    {
+        /* Escopo por identidade: o paciente so ve os proprios consentimentos. */
+        rotaListarConsentimentosPaciente(cliente, authPacienteId);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
     {
