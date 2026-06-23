@@ -606,6 +606,25 @@ CREATE INDEX idx_aplicacoes_vacinas_paciente ON aplicacoes_vacinas(paciente_id);
 CREATE INDEX idx_aplicacoes_vacinas_vacina ON aplicacoes_vacinas(vacina_id);
 CREATE INDEX idx_aplicacoes_vacinas_data ON aplicacoes_vacinas(aplicada_em);
 
+-- Anexos (v15): documentos vinculados a uma entidade (exame, paciente, ...)
+-- pelo par (entidade, entidade_id). O binario fica no filesystem
+-- (backend/data/anexos/); o banco guarda so os metadados e o caminho relativo.
+-- Registros imutaveis: criar e remover, nunca editar.
+CREATE TABLE anexos (
+    id INTEGER PRIMARY KEY,
+    entidade TEXT NOT NULL,
+    entidade_id INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    tamanho INTEGER NOT NULL DEFAULT 0,
+    caminho TEXT NOT NULL,
+    autor_id INTEGER NOT NULL DEFAULT 0,
+    autor_login TEXT NOT NULL DEFAULT '',
+    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_anexos_entidade ON anexos(entidade, entidade_id);
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 14;
+PRAGMA user_version = 15;
