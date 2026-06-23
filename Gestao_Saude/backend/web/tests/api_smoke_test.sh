@@ -588,6 +588,24 @@ request_and_assert "/vacinas" "403" "/vacinas bloqueado para PACIENTE" "${PAC_TO
 request_and_assert "/aplicacoes-vacinas" "403" "/aplicacoes-vacinas bloqueado para MEDICO" "${MED_TOKEN}"
 request_and_assert "/me/vacinas" "403" "/me/vacinas bloqueado para MEDICO" "${MED_TOKEN}"
 
+# Anexos (7): upload base64 -> filesystem, listagem, download e remocao.
+echo "--- Anexos: upload, listagem, download e remocao ---"
+# conteudoB64 = base64("hello") -> "aGVsbG8="; o service valida mime/tamanho.
+request_json_and_assert "POST" "/anexos" \
+    '{"entidade":"exame","entidadeId":"1","nome":"laudo.pdf","mime":"application/pdf","conteudoB64":"aGVsbG8="}' \
+    "201" "/anexos POST (ADMIN)" "${ADMIN_TOKEN}" contains '"id":1'
+request_json_and_assert "POST" "/anexos" \
+    '{"entidade":"exame","entidadeId":"1","nome":"virus.exe","mime":"application/x-msdownload","conteudoB64":"aGVsbG8="}' \
+    "400" "/anexos POST tipo nao permitido" "${ADMIN_TOKEN}" contains 'tipo nao permitido'
+request_and_assert "/anexos/exame/1" "200" "/anexos lista por entidade" "${ADMIN_TOKEN}" contains '"nome":"laudo.pdf"'
+request_and_assert "/anexos/1/conteudo" "200" "/anexos download (conteudo)" "${ADMIN_TOKEN}" contains 'hello'
+request_json_and_assert "DELETE" "/anexos/1" '{}' \
+    "400" "/anexos DELETE sem motivo" "${ADMIN_TOKEN}" contains 'motivo'
+request_json_and_assert "DELETE" "/anexos/1" '{"motivo":"enviado por engano"}' \
+    "200" "/anexos DELETE com motivo (ADMIN)" "${ADMIN_TOKEN}" contains '"status":"removido"'
+request_and_assert "/anexos/1/conteudo" "404" "/anexos download apos remocao" "${ADMIN_TOKEN}"
+request_and_assert "/anexos/exame/1" "403" "/anexos bloqueado para PACIENTE" "${PAC_TOKEN}"
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.

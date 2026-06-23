@@ -54,6 +54,32 @@ int anexo_criar(const char *entidade, int entidade_id, const char *nome,
     return ok ? 1 : 0;
 }
 
+int anexo_definir_caminho(int id, const char *caminho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    int alteradas = 0;
+
+    if (id <= 0 || caminho == NULL || caminho[0] == '\0' || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    if (sqlite3_prepare_v2(db,
+            "UPDATE anexos SET caminho = ? WHERE id = ?;",
+            -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, caminho, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, id);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        alteradas = sqlite3_changes(db);
+    }
+
+    db_fechar(db);
+    return alteradas > 0 ? 1 : 0;
+}
+
 int anexo_listar_por_entidade_json(const char *entidade, int entidade_id,
                                    char *buffer, int tamanho)
 {

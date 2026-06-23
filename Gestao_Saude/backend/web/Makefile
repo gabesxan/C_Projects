@@ -55,6 +55,7 @@ PRESC_SRC = repositories/prescricao_repository.c
 TRIAGEM_SVC_SRC = services/triagem_service.c
 RELAT_SVC_SRC = services/relatorio_service.c
 FARMACIA_SVC_SRC = services/farmacia_service.c
+ANEXO_SVC_SRC = services/anexo_service.c
 
 API_SRC = api/server.c
 SEED_SRC = tools/seed.c
@@ -106,7 +107,7 @@ API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
 	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
 	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) $(SOLIC_SRC) $(MEDICAMENTO_SRC) \
-	$(ESTOQUE_SRC) $(VACINA_SRC) $(FARMACIA_SVC_SRC) \
+	$(ESTOQUE_SRC) $(VACINA_SRC) $(ANEXO_SRC) $(FARMACIA_SVC_SRC) $(ANEXO_SVC_SRC) \
 	$(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
 
 api: $(API_DEPS) | $(BUILD)

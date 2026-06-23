@@ -263,6 +263,23 @@ expect 200 "aplicacoes listadas"; body_has '"vacinaNome":"Influenza"' "historico
 api GET /medicamentos/1/estoque
 expect 200 "estoque apos vacina"; body_has '"quantidade":46' "vacina debitou uma dose do lote"
 
+echo "--- Fluxo 6b: anexos -> upload, listagem, download e remocao ---"
+# conteudoB64 = base64("hello"). O service decodifica, valida e grava em disco.
+api POST /anexos '{"entidade":"exame","entidadeId":"1","nome":"laudo.pdf","mime":"application/pdf","conteudoB64":"aGVsbG8="}'
+expect 201 "anexo enviado"; body_has '"id":1' "anexo recebe id"
+api POST /anexos '{"entidade":"exame","entidadeId":"1","nome":"x.bin","mime":"application/octet-stream","conteudoB64":"aGVsbG8="}'
+expect 400 "anexo de tipo nao permitido"; body_has "tipo nao permitido" "mime rejeitado"
+api GET /anexos/exame/1
+expect 200 "anexos listados"; body_has '"nome":"laudo.pdf"' "metadado do anexo"
+api GET /anexos/1/conteudo
+expect 200 "anexo baixado"; body_has 'hello' "conteudo do anexo"
+api DELETE /anexos/1 '{}'
+expect 400 "remocao sem motivo"; body_has "motivo" "remocao exige motivo"
+api DELETE /anexos/1 '{"motivo":"duplicado"}'
+expect 200 "anexo removido"; body_has '"status":"removido"' "remocao confirmada"
+api GET /anexos/1/conteudo
+expect 404 "anexo some apos remocao"
+
 echo "--- Fluxo 7: paciente -> escolhe especialidade/data -> recepcao ve agenda ---"
 api POST /usuarios '{"nome":"Paciente Portal","login":"pacportal","senha":"pac123","papel":"PACIENTE","paciente_id":"1"}'
 expect 201 "usuario paciente criado"

@@ -14,6 +14,10 @@ int anexo_criar(const char *entidade, int entidade_id, const char *nome,
                 const char *mime, long tamanho, const char *caminho,
                 int autor_id, const char *autor_login, int *novo_id);
 
+/* Finaliza o caminho de armazenamento de um anexo recem-criado (o caminho so e
+ * conhecido depois do insert, pois inclui o id gerado). Retorna 1 se atualizou. */
+int anexo_definir_caminho(int id, const char *caminho);
+
 /* Lista (JSON) os anexos de uma entidade, sem expor o caminho interno. */
 int anexo_listar_por_entidade_json(const char *entidade, int entidade_id,
                                    char *buffer, int tamanho);

@@ -19,11 +19,13 @@
 #include "medicamento_repository.h"
 #include "estoque_repository.h"
 #include "vacina_repository.h"
+#include "anexo_repository.h"
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 #include "farmacia_service.h"
+#include "anexo_service.h"
 #include "credencial_util.h"
 
 #include <stdio.h>
@@ -57,6 +59,9 @@
 #define PORTA_PADRAO 8080
 #define TAM_REQUISICAO 2048
 #define TAM_JSON 65536
+/* Corpo maximo aceito no upload de anexo (base64 + envelope JSON). Acomoda um
+ * arquivo de 5 MB (ANEXO_MAX_BYTES), cujo base64 fica em ~6,8 MB. */
+#define MAX_CORPO_ANEXO (8 * 1024 * 1024)
 
 /* Concorrencia: pool fixo de threads consumindo uma fila limitada de conexoes
  * aceitas. Mantem o uso de recursos previsivel sob varios usuarios simultaneos. */
@@ -578,6 +583,13 @@ static int ehVacinacao(const char *caminho)
            comecaCom(caminho, "/aplicacoes-vacinas");
 }
 
+/* Anexos/documentos: vinculados a entidades clinicas/cadastrais. Geridos pela
+ * equipe clinica (medico/enfermagem) e pelo cadastro; ADMIN sempre pode. */
+static int ehAnexo(const char *caminho)
+{
+    return comecaCom(caminho, "/anexos");
+}
+
 static int ehClinico(const char *caminho)
 {
     return comecaCom(caminho, "/triagens") || comecaCom(caminho, "/agendamentos") ||
@@ -613,6 +625,10 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "CADASTRO") == 0)
     {
+        if (ehAnexo(caminho))
+        {
+            return 1;
+        }
         if (comecaCom(caminho, "/agendamentos"))
         {
             return strcmp(metodo, "GET") == 0;
@@ -622,6 +638,10 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "MEDICO") == 0)
     {
+        if (ehAnexo(caminho))
+        {
+            return 1;
+        }
         if (strcmp(metodo, "GET") == 0 && ehCadastro(caminho))
         {
             return 1;
@@ -637,6 +657,12 @@ static int autorizado(const char *metodo, const char *caminho, const char *papel
 
     if (strcmp(papel, "ENFERMAGEM") == 0)
     {
+        /* Anexos: enfermagem anexa/baixa documentos clinicos (ex.: resultados). */
+        if (ehAnexo(caminho))
+        {
+            return 1;
+        }
+
         /* Farmacia/estoque: enfermagem gerencia catalogo, lotes e dispensacao. */
         if (ehFarmacia(caminho))
         {
@@ -1321,6 +1347,177 @@ static void rotaAplicarVacina(int cliente, const char *consulta, const Sessao *s
         responder(cliente, "400 Bad Request",
                   "{\"erro\":\"dados invalidos, vacina sem estoque vinculado ou lote indisponivel\"}");
     }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Anexos / documentos                                                        */
+/* -------------------------------------------------------------------------- */
+
+/* POST /anexos: upload de documento. Le o corpo cru da requisicao (o base64 e
+ * grande demais para o formato de query string) e delega ao service, que valida
+ * tamanho/tipo, grava no filesystem e registra o metadado. */
+static void rotaCriarAnexo(int cliente, const char *requisicao, const Sessao *s)
+{
+    const char *corpo = corpoRequisicao(requisicao);
+    char entidade[32];
+    char entidadeIdStr[16];
+    char nome[256];
+    char mime[80];
+    char *conteudo;
+    char resposta[160];
+    int entidadeId;
+    int novoId = 0;
+    int ok;
+
+    if (corpo == NULL)
+    {
+        responder(cliente, "400 Bad Request", "{\"erro\":\"corpo ausente\"}");
+        return;
+    }
+
+    extrairCampoJson(corpo, "entidade", entidade, sizeof(entidade));
+    extrairCampoJson(corpo, "entidadeId", entidadeIdStr, sizeof(entidadeIdStr));
+    extrairCampoJson(corpo, "nome", nome, sizeof(nome));
+    extrairCampoJson(corpo, "mime", mime, sizeof(mime));
+    entidadeId = atoi(entidadeIdStr);
+
+    conteudo = malloc(MAX_CORPO_ANEXO);
+    if (conteudo == NULL)
+    {
+        responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha interna\"}");
+        return;
+    }
+    if (extrairCampoJson(corpo, "conteudoB64", conteudo, MAX_CORPO_ANEXO) == 0)
+    {
+        free(conteudo);
+        responder(cliente, "400 Bad Request", "{\"erro\":\"conteudo ausente\"}");
+        return;
+    }
+
+    ok = anexo_service_criar(entidade, entidadeId, nome, mime, conteudo,
+                             s->usuario_id, s->login, resposta, sizeof(resposta),
+                             &novoId) == 1;
+    free(conteudo);
+
+    if (ok)
+    {
+        auditar(s, "CRIAR", "anexo", novoId, nome);
+        responder(cliente, "201 Created", resposta);
+    }
+    else
+    {
+        responder(cliente, "400 Bad Request", resposta);
+    }
+}
+
+/* GET /anexos/{entidade}/{entidade_id}: lista os metadados de uma entidade. */
+static void rotaListarAnexos(int cliente, const char *entidade, int entidade_id)
+{
+    char *json = malloc(TAM_JSON);
+
+    if (json != NULL &&
+        anexo_listar_por_entidade_json(entidade, entidade_id, json, TAM_JSON) == 1)
+    {
+        responder(cliente, "200 OK", json);
+    }
+    else
+    {
+        responder(cliente, "500 Internal Server Error",
+                  "{\"erro\":\"falha ao listar anexos\"}");
+    }
+    free(json);
+}
+
+/* GET /anexos/{id}/conteudo: baixa o binario com o mime e o nome originais. */
+static void rotaBaixarAnexo(int cliente, int id)
+{
+    char nome[256];
+    char mime[80];
+    char rel[256];
+    char fisico[600];
+    char cabecalho[512];
+    FILE *f;
+    long tam;
+    char *conteudo;
+    int n;
+
+    if (anexo_buscar(id, nome, sizeof(nome), mime, sizeof(mime),
+                     rel, sizeof(rel)) == 0)
+    {
+        responder(cliente, "404 Not Found", "{\"erro\":\"anexo nao encontrado\"}");
+        return;
+    }
+
+    /* Defesa em profundidade: o caminho e gerado pelo servidor, mas recusamos
+     * qualquer travessia caso o banco tenha sido adulterado. */
+    if (strstr(rel, "..") != NULL ||
+        snprintf(fisico, sizeof(fisico), "../data/%s", rel) >= (int)sizeof(fisico))
+    {
+        responder(cliente, "400 Bad Request", "{\"erro\":\"caminho invalido\"}");
+        return;
+    }
+
+    f = fopen(fisico, "rb");
+    if (f == NULL)
+    {
+        responder(cliente, "404 Not Found", "{\"erro\":\"arquivo indisponivel\"}");
+        return;
+    }
+    if (fseek(f, 0, SEEK_END) != 0 || (tam = ftell(f)) < 0 ||
+        fseek(f, 0, SEEK_SET) != 0)
+    {
+        fclose(f);
+        responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao ler arquivo\"}");
+        return;
+    }
+    conteudo = malloc((size_t)tam > 0 ? (size_t)tam : 1);
+    if (conteudo == NULL || fread(conteudo, 1, (size_t)tam, f) != (size_t)tam)
+    {
+        fclose(f);
+        free(conteudo);
+        responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao ler arquivo\"}");
+        return;
+    }
+    fclose(f);
+
+    n = snprintf(cabecalho, sizeof(cabecalho),
+                 "HTTP/1.1 200 OK\r\n"
+                 "Content-Type: %s\r\n"
+                 "Content-Length: %ld\r\n"
+                 "Content-Disposition: attachment; filename=\"%s\"\r\n"
+                 "Connection: close\r\n"
+                 "\r\n",
+                 mime, tam, nome);
+    if (n > 0 && n < (int)sizeof(cabecalho))
+    {
+        conn_write_all(cliente, cabecalho, (size_t)n);
+        conn_write_all(cliente, conteudo, (size_t)tam);
+    }
+    free(conteudo);
+}
+
+/* DELETE /anexos/{id}: remove o anexo (acao destrutiva: exige motivo). */
+static void rotaRemoverAnexo(int cliente, int id, const char *consulta, const Sessao *s)
+{
+    char motivo[200];
+    char caminho[256];
+    int ok;
+
+    extrairParam(consulta, "motivo", motivo, sizeof(motivo));
+    if (motivo[0] == '\0')
+    {
+        responder(cliente, "400 Bad Request",
+                  "{\"erro\":\"motivo obrigatorio para remover anexo\"}");
+        return;
+    }
+
+    ok = anexo_remover(id, caminho, sizeof(caminho)) == 1;
+    if (ok)
+    {
+        anexo_service_apagar_arquivo(caminho);
+        auditar(s, "REMOVER", "anexo", id, motivo);
+    }
+    responderRemocao(cliente, ok, "{\"erro\":\"anexo nao encontrado\"}");
 }
 
 static void rotaTriagemAvaliacao(int cliente, int paciente_id)
@@ -3134,6 +3331,7 @@ static int ehRotaApi(const char *caminho)
            comecaCom(caminho, "/movimentacoes") ||
            comecaCom(caminho, "/vacinas") ||
            comecaCom(caminho, "/aplicacoes-vacinas") ||
+           comecaCom(caminho, "/anexos") ||
            comecaCom(caminho, "/me");
 }
 
@@ -3147,6 +3345,7 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     char *consulta = strchr(caminho, '?');
     char corpoQuery[TAM_REQUISICAO];
     char acao[32];
+    char entAnexo[32];
     Sessao s;
     char *papel = s.papel;
     int authPacienteId;
@@ -3208,7 +3407,11 @@ static void rotear(int cliente, const char *metodo, char *caminho,
      * para o formato de query string e seguimos usando os handlers atuais
      * (que leem por extrairParam). Sem corpo, mantem a query da URL (GETs e
      * acoes sem parametros, como /checkins/{id}/chamar). */
-    if (strcmp(metodo, "POST") == 0 || strcmp(metodo, "DELETE") == 0)
+    /* O upload de anexo (POST /anexos) traz um corpo grande (base64) que nao
+     * cabe no formato de query string e e lido direto do corpo pelo handler;
+     * pulamos a conversao para nao varrer megabytes a toa. */
+    if ((strcmp(metodo, "POST") == 0 || strcmp(metodo, "DELETE") == 0) &&
+        !(strcmp(metodo, "POST") == 0 && strcmp(caminho, "/anexos") == 0))
     {
         const char *corpo = corpoRequisicao(requisicao);
         if (corpo != NULL &&
@@ -3389,6 +3592,25 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/vacinas/%d", &id) == 1)
     {
         rotaDesativarVacina(cliente, id, &s);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/anexos") == 0)
+    {
+        rotaCriarAnexo(cliente, requisicao, &s);
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/anexos/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "conteudo") == 0)
+    {
+        rotaBaixarAnexo(cliente, id);
+    }
+    else if (strcmp(metodo, "GET") == 0 &&
+             sscanf(caminho, "/anexos/%31[^/]/%d", entAnexo, &alvo) == 2)
+    {
+        rotaListarAnexos(cliente, entAnexo, alvo);
+    }
+    else if (strcmp(metodo, "DELETE") == 0 && sscanf(caminho, "/anexos/%d", &id) == 1)
+    {
+        rotaRemoverAnexo(cliente, id, consulta, &s);
     }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/especialidades") == 0)
     {
@@ -4242,24 +4464,37 @@ static void rotear(int cliente, const char *metodo, char *caminho,
 /* Servidor                                                                 */
 /* ----------------------------------------------------------------------- */
 
-/* Le a requisicao inteira (cabecalhos + corpo). Ao achar o fim dos cabecalhos,
- * usa Content-Length para saber se ainda falta corpo e continua lendo ate
- * completar (sem bloquear em requisicoes sem corpo). Retorna o total lido. */
-static ssize_t lerRequisicao(int cliente, char *buf, size_t cap)
+/* Le a requisicao inteira (cabecalhos + corpo). Comeca no buffer de pilha
+ * 'pilha' (cap 'cap') e, ao achar o fim dos cabecalhos, usa Content-Length para
+ * saber se ainda falta corpo. No upload de anexo (POST /anexos) cujo corpo nao
+ * cabe na pilha, migra para um buffer de heap ate MAX_CORPO_ANEXO (as demais
+ * rotas mantem o limite da pilha). Escreve o total lido em *total e devolve o
+ * buffer efetivo: == 'pilha' (nao liberar) ou heap (o chamador libera). Em
+ * corpo de upload acima do limite, devolve NULL e marca *excedido = 1; em falha
+ * de alocacao, devolve NULL com *excedido = 0. */
+static char *lerRequisicao(int cliente, char *pilha, size_t cap,
+                           ssize_t *total, int *excedido)
 {
-    ssize_t total = 0;
+    char *buf = pilha;
+    size_t capAtual = cap;
+    int heap = 0;
+    ssize_t tot = 0;
     long contentLength = -1;
     size_t cabLen = 0;
+    int ehUpload = 0;
 
-    while (total < (ssize_t)cap - 1)
+    *total = 0;
+    *excedido = 0;
+
+    while ((size_t)tot < capAtual - 1)
     {
-        ssize_t n = conn_read(cliente, buf + total, cap - 1 - (size_t)total);
+        ssize_t n = conn_read(cliente, buf + tot, capAtual - 1 - (size_t)tot);
         if (n <= 0)
         {
             break;
         }
-        total += n;
-        buf[total] = '\0';
+        tot += n;
+        buf[tot] = '\0';
 
         if (cabLen == 0)
         {
@@ -4269,19 +4504,47 @@ static ssize_t lerRequisicao(int cliente, char *buf, size_t cap)
                 const char *cl = aposCabecalho(buf, "Content-Length: ");
                 cabLen = (size_t)(fimCab - buf) + 4;
                 contentLength = cl != NULL ? atol(cl) : 0;
+                /* Apenas o upload de anexo (corpo grande) cresce para heap. */
+                ehUpload = (strncmp(buf, "POST /anexos ", 13) == 0);
+
+                if (ehUpload && contentLength > 0)
+                {
+                    size_t precisa = cabLen + (size_t)contentLength + 1;
+
+                    if (contentLength > (long)MAX_CORPO_ANEXO)
+                    {
+                        *excedido = 1;
+                        if (heap) free(buf);
+                        return NULL;
+                    }
+                    if (precisa > capAtual)
+                    {
+                        char *novo = malloc(precisa);
+                        if (novo == NULL)
+                        {
+                            if (heap) free(buf);
+                            return NULL;
+                        }
+                        memcpy(novo, buf, (size_t)tot + 1);
+                        buf = novo;
+                        capAtual = precisa;
+                        heap = 1;
+                    }
+                }
             }
         }
 
         /* Cabecalhos completos e (sem corpo OU corpo ja inteiro): pode parar. */
         if (cabLen > 0 &&
             (contentLength <= 0 ||
-             total >= (ssize_t)(cabLen + (size_t)contentLength)))
+             tot >= (ssize_t)(cabLen + (size_t)contentLength)))
         {
             break;
         }
     }
 
-    return total;
+    *total = tot;
+    return buf;
 }
 
 /* Trata uma conexao ja aceita: le a requisicao, roteia e fecha o socket.
@@ -4292,7 +4555,9 @@ static void tratarCliente(int cliente)
     char requisicao[TAM_REQUISICAO];
     char metodo[8];
     char caminho[256];
-    ssize_t lidos;
+    char *req;
+    ssize_t lidos = 0;
+    int excedido = 0;
 
     /* Com TLS habilitado, faz o handshake antes de qualquer leitura. */
     if (g_ssl_ctx != NULL)
@@ -4307,19 +4572,29 @@ static void tratarCliente(int cliente)
         }
     }
 
-    lidos = lerRequisicao(cliente, requisicao, sizeof(requisicao));
-    if (lidos > 0)
+    req = lerRequisicao(cliente, requisicao, sizeof(requisicao), &lidos, &excedido);
+    if (excedido)
     {
-        requisicao[lidos] = '\0';
-        if (sscanf(requisicao, "%7s %255s", metodo, caminho) == 2)
+        responder(cliente, "413 Payload Too Large",
+                  "{\"erro\":\"arquivo acima do limite de 5 MB\"}");
+    }
+    else if (req != NULL && lidos > 0)
+    {
+        req[lidos] = '\0';
+        if (sscanf(req, "%7s %255s", metodo, caminho) == 2)
         {
-            rotear(cliente, metodo, caminho, requisicao);
+            rotear(cliente, metodo, caminho, req);
         }
         else
         {
             responder(cliente, "400 Bad Request",
                       "{\"erro\":\"requisicao invalida\"}");
         }
+    }
+
+    if (req != NULL && req != requisicao)
+    {
+        free(req);
     }
 
     if (t_ssl != NULL)

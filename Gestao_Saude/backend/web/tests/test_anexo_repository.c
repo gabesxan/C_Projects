@@ -56,12 +56,17 @@ int main(void)
     /* Ordem decrescente por id: raio-x (id2) antes de laudo (id1). */
     assert(strstr(json, "raio-x.png") < strstr(json, "laudo.pdf"));
 
+    /* Finalizacao do caminho (passo pos-insert que usa o id gerado). */
+    assert(anexo_definir_caminho(id1, "anexos/1_laudo-final.pdf") == 1);
+    assert(anexo_definir_caminho(999, "anexos/x") == 0);
+    assert(anexo_definir_caminho(id1, "") == 0);
+
     /* Busca por id: devolve nome, mime e caminho interno para o download. */
     assert(anexo_buscar(id1, nome, sizeof(nome), mime, sizeof(mime),
                         caminho, sizeof(caminho)) == 1);
     assert(strcmp(nome, "laudo.pdf") == 0);
     assert(strcmp(mime, "application/pdf") == 0);
-    assert(strcmp(caminho, "anexos/1_laudo.pdf") == 0);
+    assert(strcmp(caminho, "anexos/1_laudo-final.pdf") == 0);
     assert(anexo_buscar(999, nome, sizeof(nome), mime, sizeof(mime),
                         caminho, sizeof(caminho)) == 0);
     assert(anexo_buscar(0, nome, sizeof(nome), mime, sizeof(mime),
@@ -70,7 +75,7 @@ int main(void)
     /* Remocao: devolve o caminho para o chamador apagar o arquivo. */
     caminho[0] = '\0';
     assert(anexo_remover(id1, caminho, sizeof(caminho)) == 1);
-    assert(strcmp(caminho, "anexos/1_laudo.pdf") == 0);
+    assert(strcmp(caminho, "anexos/1_laudo-final.pdf") == 0);
     assert(anexo_remover(id1, caminho, sizeof(caminho)) == 0); /* ja removido */
     assert(anexo_remover(0, caminho, sizeof(caminho)) == 0);
     assert(anexo_buscar(id1, nome, sizeof(nome), mime, sizeof(mime),
