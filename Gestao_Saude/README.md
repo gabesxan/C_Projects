@@ -12,7 +12,7 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Testes C](https://img.shields.io/badge/testes%20C-28%2F28-brightgreen)
-![Testes Frontend](https://img.shields.io/badge/testes%20frontend-29%2F29-brightgreen)
+![Testes Frontend](https://img.shields.io/badge/testes%20frontend-34%2F34-brightgreen)
 ![Warnings](https://img.shields.io/badge/warnings-0-brightgreen)
 ![Licença](https://img.shields.io/badge/uso-acadêmico-blue)
 
@@ -24,6 +24,7 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 
 - [Visão geral](#-visão-geral)
 - [Destaques](#-destaques)
+- [Fluxograma do projeto](#-fluxograma-do-projeto)
 - [Arquitetura](#-arquitetura)
   - [Ciclo de vida de uma requisição](#ciclo-de-vida-de-uma-requisição)
   - [Convenções de projeto](#convenções-de-projeto)
@@ -70,7 +71,7 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 - 👥 **Login por papéis** criado pelo administrador: `ADMIN`, `CADASTRO`, `MEDICO`, `ENFERMAGEM`, `PACIENTE`.
 - 🔑 **Sessão por token** (Bearer): credenciais só no corpo do login, bloqueio por tentativas e troca de senha (obrigatória no 1º acesso).
 - 🌐 **API REST** em C puro com sockets POSIX (sem framework), **servidor concorrente** (pool de threads) e escritas via **corpo JSON**.
-- ✅ **28 suítes de teste C** automatizadas com `assert.h`, **29 testes frontend** com Vitest, além de smoke HTTP, integração e smoke TLS.
+- ✅ **28 suítes de teste C** automatizadas com `assert.h`, **34 testes frontend** (7 arquivos) com Vitest, além de smoke HTTP, integração e smoke TLS.
 - ♻️ **Banco reconstruível e versionado**: o schema é a fonte da verdade, o `.db` é descartável e **migrações** atualizam bancos antigos sem perder dados.
 
 ---
@@ -80,6 +81,86 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 O SIGEH-DF nasceu como uma aplicação de **terminal** (CLI em C, dados em memória) e evoluiu para o **backend web em camadas** ([`src/backend/web/`](src/backend/web/)) que é o foco atual. A versão de terminal cumpriu seu papel como protótipo e foi descontinuada — seu histórico permanece preservado no repositório git, mas o código não faz mais parte da árvore do projeto.
 
 A persistência ficou desde o início em **SQLite**, com o schema versionado em [`src/backend/data/schema_v3.sql`](src/backend/data/schema_v3.sql) como fonte única da verdade.
+
+---
+
+## 🗺️ Fluxograma do projeto
+
+Visão de ponta a ponta: do papel que acessa o sistema, passando pelo frontend e
+pela rede, até as camadas do backend e o banco. Cada papel só enxerga o que sua
+política de acesso permite; toda escrita trafega como **corpo JSON** e toda
+leitura/escrita no banco usa **prepared statements**.
+
+![Fluxograma do SIGEH-DF](imagens/fluxograma.png)
+
+<details>
+<summary>📐 Ver o mesmo diagrama em Mermaid (renderiza no GitHub)</summary>
+
+```mermaid
+flowchart TB
+    subgraph Atores["👥 Papéis de acesso"]
+        direction LR
+        ADM["🟣 ADMIN"]
+        CAD["🔵 CADASTRO"]
+        MED["🟢 MÉDICO"]
+        ENF["🟩 ENFERMAGEM"]
+        PAC["🟠 PACIENTE"]
+    end
+
+    subgraph FE["🌐 Frontend — React + Vite + Tailwind"]
+        direction TB
+        SPA["SPA · react-router · guardas por papel"]
+        TELAS["Telas: Dashboard · Recepção · Triagem · Leitos/Internações ·<br/>Laboratório · Farmácia · Vacinação · Financeiro · Relatórios ·<br/>Usuários · Auditoria · Portal do paciente (Minha Saúde + Privacidade)"]
+        CLIENT["api/client.js · injeta token Bearer · trata erros"]
+        SPA --> TELAS --> CLIENT
+    end
+
+    NET{{"🔗 HTTP / HTTPS<br/>/api (proxy do Vite em dev)"}}
+
+    subgraph BE["⚙️ Backend em C — servidor concorrente (pool de threads)"]
+        direction TB
+        API["api/ server.c · roteamento · serialização JSON"]
+        GATE["🔑 Autenticação por sessão (Bearer)<br/>🛡️ Autorização por papel"]
+        subgraph SVC["services/ · regras de negócio"]
+            direction LR
+            S1["triagem<br/>inteligente"]
+            S2["relatórios"]
+            S3["farmácia /<br/>dispensação"]
+            S4["anexos"]
+            S5["consentimentos"]
+            S6["LGPD /<br/>relatório de acessos"]
+        end
+        subgraph REPO["repositories/ · SQL parametrizado (1 por entidade)"]
+            direction TB
+            R1["pacientes · médicos · usuários · sessões · auditoria"]
+            R2["triagens · agendamentos · prontuários · prescrições · exames · analitos"]
+            R3["alas · leitos · internações · check-ins · enfermagem"]
+            R4["medicamentos · estoque · lotes · vacinas"]
+            R5["financeiro · solicitações · anexos · consentimentos"]
+        end
+        UTIL["util/ · repo_json · senha_util (PBKDF2-HMAC-SHA256)"]
+        DBL["database/ · abrir/fechar · migrações<br/>PRAGMA foreign_keys = ON"]
+        API --> GATE
+        GATE -->|"regra de negócio"| SVC
+        GATE -->|"leitura simples"| REPO
+        SVC --> REPO
+        SVC -.-> UTIL
+        REPO --> DBL
+    end
+
+    SQLite[("🗄️ SQLite · src/backend/data/sigeh_v3.db<br/>schema_v3.sql = fonte única da verdade")]
+
+    Atores --> SPA
+    CLIENT --> NET --> API
+    DBL --> SQLite
+```
+
+</details>
+
+> [!NOTE]
+> O caminho `Atores → Frontend → /api → API` passa **obrigatoriamente** pelo
+> portão de autenticação e autorização: falha de credencial responde `401` e
+> falta de permissão responde `403` — **antes** de qualquer service ou banco.
 
 ---
 
@@ -274,12 +355,12 @@ O servidor entrega `public/index.html` e os assets para qualquer rota que **não
 cd src/frontend
 npm install
 npm run dev      # Vite com proxy /api para localhost:8080
-npm test         # 29 testes com Vitest
+npm test         # 34 testes (7 arquivos) com Vitest
 npm run lint     # ESLint
 npm run build    # gera dist/
 ```
 
-O frontend possui navegação e guardas por papel, além das telas de recepção, triagem, internações/leitos, laboratório, farmácia/estoque, vacinação, financeiro, relatórios, usuários, auditoria e portal do paciente. A autorização efetiva continua no backend; ocultar uma opção na interface não substitui a resposta `403`.
+O frontend possui navegação e guardas por papel, além das telas de recepção, triagem, internações/leitos, laboratório, farmácia/estoque, vacinação, financeiro, relatórios, usuários, auditoria e portal do paciente (incluindo a aba **Privacidade**: carteira de consentimentos LGPD com revogação e relatório de quem acessou os próprios dados). A autorização efetiva continua no backend; ocultar uma opção na interface não substitui a resposta `403`.
 
 ---
 
@@ -979,7 +1060,7 @@ Próximos passos (fora do escopo atual):
 - O backend web demonstra, em C básico, conceitos de **arquitetura em camadas, acesso a dados, regras de negócio, API HTTP e autenticação** — sem frameworks.
 - A primeira versão era um app de **terminal** (CLI, dados em memória); a triagem já alimentava o agendamento por especialidade, região e disponibilidade — a semente da triagem inteligente que a V2 expandiu para a web. Esse protótipo foi descontinuado e seu histórico está preservado no git.
 - Artefatos gerados (binários, `*.db`, `*.o`) ficam **fora** do versionamento; o **schema** é a fonte da verdade e o banco é sempre reconstruível a partir dele — com **migrações versionadas** que atualizam bancos existentes sem perder dados.
-- Todo o código C compila com `-Wall -Wextra -pedantic` **sem warnings**. O projeto possui 28 suítes C, 29 testes frontend, smoke HTTP, integração ponta a ponta e smoke TLS.
+- Todo o código C compila com `-Wall -Wextra -pedantic` **sem warnings**. O projeto possui 28 suítes C, 34 testes frontend (7 arquivos), smoke HTTP, integração ponta a ponta e smoke TLS.
 
 ### 🔑 Credenciais de exemplo (apos `make seed`)
 

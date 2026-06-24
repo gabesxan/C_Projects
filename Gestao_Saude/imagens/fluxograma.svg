@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 1260" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="8" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1,1 L9,6 L1,11 Z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1120" height="1260" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="560" y="46" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">SIGEH-DF — Fluxograma do projeto</text>
+
+  <!-- Papeis -->
+  <text x="560" y="82" text-anchor="middle" font-size="14" font-weight="700" fill="#475569" letter-spacing="1">PAPEIS DE ACESSO</text>
+  <g font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">
+    <rect x="68"  y="96" width="184" height="46" rx="23" fill="#7c3aed"/><text x="160" y="125">ADMIN</text>
+    <rect x="268" y="96" width="184" height="46" rx="23" fill="#0284c7"/><text x="360" y="125">CADASTRO</text>
+    <rect x="468" y="96" width="184" height="46" rx="23" fill="#0d9488"/><text x="560" y="125">MEDICO</text>
+    <rect x="668" y="96" width="184" height="46" rx="23" fill="#059669"/><text x="760" y="125">ENFERMAGEM</text>
+    <rect x="868" y="96" width="184" height="46" rx="23" fill="#d97706"/><text x="960" y="125">PACIENTE</text>
+  </g>
+
+  <line x1="560" y1="142" x2="560" y2="174" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Frontend -->
+  <rect x="110" y="176" width="900" height="150" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="130" y="202" font-size="17" font-weight="700" fill="#1e3a8a">Frontend · React + Vite + Tailwind</text>
+  <text x="130" y="228" font-size="14" fill="#1e293b">SPA · react-router · guardas por papel</text>
+  <text x="130" y="256" font-size="13" fill="#334155">Telas: Dashboard · Recepção · Triagem · Leitos/Internações · Laboratório · Farmácia ·</text>
+  <text x="130" y="276" font-size="13" fill="#334155">Vacinação · Financeiro · Relatórios · Usuários · Auditoria · Portal do paciente (Privacidade)</text>
+  <text x="130" y="306" font-size="14" fill="#1e293b" font-weight="600">api/client.js · injeta token Bearer · trata erros · envia escritas como JSON</text>
+
+  <line x1="560" y1="326" x2="560" y2="338" stroke="#475569" stroke-width="2"/>
+  <rect x="410" y="338" width="300" height="32" rx="16" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="560" y="359" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">/api · HTTP / HTTPS</text>
+  <line x1="560" y1="370" x2="560" y2="392" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Backend -->
+  <rect x="80" y="392" width="960" height="722" rx="16" fill="#f0fdfa" stroke="#0d9488" stroke-width="2.5"/>
+  <text x="100" y="420" font-size="17" font-weight="700" fill="#0b7285">Backend em C · servidor concorrente (pool de threads)</text>
+
+  <!-- API bar -->
+  <rect x="300" y="436" width="520" height="44" rx="10" fill="#ffffff" stroke="#0d9488" stroke-width="1.6"/>
+  <text x="560" y="463" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">api/server.c · roteamento · serialização JSON</text>
+  <line x1="560" y1="480" x2="560" y2="504" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Auth gate -->
+  <rect x="250" y="504" width="620" height="66" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.8"/>
+  <text x="560" y="529" text-anchor="middle" font-size="15" font-weight="700" fill="#92400e">Autenticação por sessão (Bearer) · Autorização por papel</text>
+  <text x="560" y="552" text-anchor="middle" font-size="13" fill="#b45309">401 sem credencial · 403 sem permissão — antes de qualquer service ou banco</text>
+  <line x1="560" y1="570" x2="560" y2="598" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Services -->
+  <rect x="150" y="598" width="820" height="156" rx="12" fill="#ffffff" stroke="#0d9488" stroke-width="1.6"/>
+  <text x="170" y="622" font-size="15" font-weight="700" fill="#0b7285">services/ · regras de negócio</text>
+  <g font-size="13.5" font-weight="600" fill="#0f172a" text-anchor="middle">
+    <rect x="172" y="634" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="294" y="661">triagem inteligente</text>
+    <rect x="438" y="634" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="560" y="661">relatórios</text>
+    <rect x="704" y="634" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="826" y="661">farmácia / dispensação</text>
+    <rect x="172" y="692" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="294" y="719">anexos</text>
+    <rect x="438" y="692" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="560" y="719">consentimentos</text>
+    <rect x="704" y="692" width="244" height="44" rx="8" fill="#ccfbf1" stroke="#0d9488"/><text x="826" y="719">LGPD / relatório de acessos</text>
+  </g>
+  <line x1="560" y1="754" x2="560" y2="778" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Repositories -->
+  <rect x="150" y="778" width="820" height="168" rx="12" fill="#ffffff" stroke="#0d9488" stroke-width="1.6"/>
+  <text x="170" y="802" font-size="15" font-weight="700" fill="#0b7285">repositories/ · SQL parametrizado (1 por entidade)</text>
+  <g font-size="13.5" fill="#334155">
+    <text x="170" y="826">• pacientes · médicos · usuários · sessões · auditoria</text>
+    <text x="170" y="850">• triagens · agendamentos · prontuários · prescrições · exames · analitos</text>
+    <text x="170" y="874">• alas · leitos · internações · check-ins · enfermagem</text>
+    <text x="170" y="898">• medicamentos · estoque · lotes · vacinas</text>
+    <text x="170" y="922">• financeiro · solicitações · anexos · consentimentos</text>
+  </g>
+  <line x1="560" y1="946" x2="560" y2="970" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Database -->
+  <rect x="300" y="970" width="520" height="46" rx="10" fill="#ffffff" stroke="#0d9488" stroke-width="1.6"/>
+  <text x="560" y="998" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">database/ · migrações · PRAGMA foreign_keys = ON</text>
+
+  <text x="560" y="1052" text-anchor="middle" font-size="13" font-style="italic" fill="#64748b">util/ (transversal) · repo_json (JSON) · senha_util (PBKDF2-HMAC-SHA256 + salt)</text>
+
+  <line x1="560" y1="1114" x2="560" y2="1140" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- SQLite -->
+  <g>
+    <path d="M380,1156 a180,16 0 0 1 360,0 v54 a180,16 0 0 1 -360,0 Z" fill="#e2e8f0" stroke="#334155" stroke-width="1.8"/>
+    <ellipse cx="560" cy="1156" rx="180" ry="16" fill="#e2e8f0" stroke="#334155" stroke-width="1.8"/>
+    <text x="560" y="1186" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">SQLite · sigeh_v3.db</text>
+    <text x="560" y="1206" text-anchor="middle" font-size="12.5" fill="#475569">schema_v3.sql = fonte única da verdade</text>
+  </g>
+</svg>
