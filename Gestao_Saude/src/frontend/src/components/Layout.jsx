@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { navForRole, SECTIONS } from '../nav'
 import { Badge, papelLabel, PAPEL_INFO } from './ui'
 import { ICONS, Icon } from './icons'
+import NotificationBell from './NotificationBell'
 
 function linkClass({ isActive }) {
   return [
@@ -150,6 +151,7 @@ export default function Layout() {
               <p className="text-xs text-slate-400">Logado</p>
             </div>
             <Badge tone={tone}>{papelLabel(user.papel)}</Badge>
+            <NotificationBell />
             <button
               onClick={() => setTema((v) => (v === 'dark' ? 'light' : 'dark'))}
               className="rounded-xl border border-slate-300/80 bg-white/70 p-2 text-slate-700 shadow-sm hover:bg-white dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:bg-slate-800"

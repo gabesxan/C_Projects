@@ -4,8 +4,8 @@
 
 ### Como provar que o sistema está saudável — backend e frontend
 
-![Testes C](https://img.shields.io/badge/suítes%20C-28%2F28-brightgreen)
-![Testes Frontend](https://img.shields.io/badge/testes%20frontend-34%2F34-brightgreen)
+![Testes C](https://img.shields.io/badge/suítes%20C-29%2F29-brightgreen)
+![Testes Frontend](https://img.shields.io/badge/testes%20frontend-39%2F39-brightgreen)
 ![Warnings](https://img.shields.io/badge/warnings-0-brightgreen)
 ![Smoke](https://img.shields.io/badge/smoke-HTTP%20%2B%20HTTPS-0b7285)
 
@@ -28,11 +28,11 @@
 
 | Camada | Tipo | Quantidade | Ferramenta |
 |---|---|---|---|
-| Backend | Suítes unitárias C | **28** | `assert.h` |
+| Backend | Suítes unitárias C | **29** | `assert.h` |
 | Backend | Smoke HTTP | 1 | `curl` + shell |
 | Backend | Integração ponta a ponta | 1 | `curl` + shell |
 | Backend | Smoke HTTPS (TLS) | 1 | `curl` + OpenSSL |
-| Frontend | Testes de componente | **34** (7 arquivos) | Vitest + Testing Library |
+| Frontend | Testes de componente | **39** (8 arquivos) | Vitest + Testing Library |
 | Frontend | Lint | — | ESLint |
 | Frontend | Build | — | Vite |
 
@@ -49,7 +49,7 @@ A partir de [`src/backend/web`](../src/backend/web):
 cd src/backend/web
 
 make api                    # 🔨 compila o servidor (deve terminar sem warnings)
-make test                   # 🧪 roda as 28 suítes unitárias em C
+make test                   # 🧪 roda as 29 suítes unitárias em C
 make api-smoke-test         # 💨 smoke HTTP: liveness + escopo por papel
 make api-integration-test   # 🔗 fluxos ponta a ponta encadeados
 make api-tls-smoke-test     # 🔐 smoke HTTPS: TLS no ar, HTTP puro rejeitado
@@ -72,7 +72,7 @@ A partir de [`src/frontend`](../src/frontend):
 ```sh
 cd src/frontend
 
-npm test          # 🧪 34 testes (7 arquivos) com Vitest + Testing Library
+npm test          # 🧪 39 testes (8 arquivos) com Vitest + Testing Library
 npm run lint      # 🧹 ESLint (zero problemas)
 npm run build     # 📦 build de produção com Vite
 ```
@@ -82,7 +82,7 @@ npm run build     # 📦 build de produção com Vite
 ## 🔍 O que cada teste cobre
 
 <details>
-<summary><b>28 suítes unitárias em C</b> (clique para expandir)</summary>
+<summary><b>29 suítes unitárias em C</b> (clique para expandir)</summary>
 
 | # | Suíte | Foco |
 |---|---|---|
@@ -114,6 +114,7 @@ npm run build     # 📦 build de produção com Vite
 | 26 | `test_vacina_repository` | Vacinas e carteira |
 | 27 | `test_anexo_repository` | Anexos/documentos |
 | 28 | `test_consentimento_repository` | Consentimentos LGPD (histórico imutável) |
+| 29 | `test_notificacao_repository` | Notificações in-app (fan-out por papel, leitura) |
 
 </details>
 
@@ -128,6 +129,8 @@ Cobrem os componentes e fluxos críticos do portal, incluindo:
 - `ConsentimentoWallet` (carteira LGPD: consentimentos concedidos/revogados,
   revogação com motivo obrigatório, relatório de acessos, estados de
   carregamento/erro/vazio).
+- `NotificationBell` (sino in-app: contador de não lidas, abertura do painel,
+  marcar uma/todas como lidas, estado vazio).
 
 </details>
 
@@ -140,11 +143,11 @@ $ make test
 test_paciente_repository: OK
 test_medico_repository: OK
 ...
-test_consentimento_repository: OK        # 28 linhas "OK", nenhuma falha
+test_notificacao_repository: OK          # 29 linhas "OK", nenhuma falha
 
 $ npm test
- Test Files  7 passed (7)
-      Tests  34 passed (34)
+ Test Files  8 passed (8)
+      Tests  39 passed (39)
 ```
 
 > [!TIP]

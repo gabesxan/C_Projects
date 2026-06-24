@@ -23,6 +23,7 @@
 #include "solicitacao_repository.h"
 #include "prescricao_repository.h"
 #include "consentimento_repository.h"
+#include "notificacao_repository.h"
 #include "triagem_service.h"
 #include "relatorio_service.h"
 #include "farmacia_service.h"
@@ -616,7 +617,7 @@ static int ehAcaoFila(const char *caminho)
 {
     return terminaCom(caminho, "/chamar") || terminaCom(caminho, "/rechamar") ||
            terminaCom(caminho, "/faltar") || terminaCom(caminho, "/retornar") ||
-           terminaCom(caminho, "/encerrar");
+           terminaCom(caminho, "/encerrar") || terminaCom(caminho, "/assumir");
 }
 
 /* Politica central de acesso por papel. 1 = permitido, 0 = negado.
@@ -2470,7 +2471,15 @@ static void rotaCriarCheckin(int cliente, const char *consulta, const Sessao *s)
     if (checkin_repo_criar(atoi(pacienteId), destino, senha, sizeof(senha)) == 1)
     {
         char corpo[128];
+        char msg[96];
         auditar(s, "CHECKIN", "checkin", atoi(pacienteId), destino);
+        /* Notifica quem opera o destino: consulta -> medicos; triagem -> enfermagem. */
+        snprintf(msg, sizeof(msg), "Senha %s aguardando atendimento.", senha);
+        notificacao_criar_para_papel(
+            strcmp(destino, "CONSULTA") == 0 ? "MEDICO" : "ENFERMAGEM",
+            strcmp(destino, "CONSULTA") == 0 ? "Novo paciente na fila de consulta"
+                                             : "Novo paciente para triagem",
+            msg, "FILA", "checkin", 0);
         snprintf(corpo, sizeof(corpo),
                  "{\"status\":\"check-in\",\"senha\":\"%s\",\"destino\":\"%s\"}",
                  senha, destino);
@@ -4282,6 +4291,71 @@ static void rotear(int cliente, const char *metodo, char *caminho,
          * proprios dados (LGPD: direito de saber quem acessou o que). */
         rotaRelatorioAcessosPaciente(cliente, authPacienteId, &s);
     }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/fila") == 0)
+    {
+        /* Fila de consulta que o medico pode assumir (proximos a atender). So
+         * faz sentido para a equipe clinica; demais papeis recebem lista vazia
+         * para nao expor a fila de pacientes. */
+        if (strcmp(papel, "MEDICO") != 0 && strcmp(papel, "ADMIN") != 0)
+        {
+            responder(cliente, "200 OK", "[]");
+        }
+        else
+        {
+            char *json = malloc(TAM_JSON);
+            if (json != NULL && checkin_repo_fila_consulta_json(json, TAM_JSON) == 1)
+                responder(cliente, "200 OK", json);
+            else
+                responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar a fila\"}");
+            free(json);
+        }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/atendimentos") == 0)
+    {
+        /* Pacientes que o medico assumiu e deve atender agora. */
+        if (authMedicoId <= 0)
+        {
+            responder(cliente, "200 OK", "[]");
+        }
+        else
+        {
+            char *json = malloc(TAM_JSON);
+            if (json != NULL && checkin_repo_atendimentos_medico_json(authMedicoId, json, TAM_JSON) == 1)
+                responder(cliente, "200 OK", json);
+            else
+                responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar atendimentos\"}");
+            free(json);
+        }
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/notificacoes/contar") == 0)
+    {
+        char corpo[48];
+        int n = notificacao_contar_nao_lidas(s.usuario_id);
+        snprintf(corpo, sizeof(corpo), "{\"naoLidas\":%d}", n < 0 ? 0 : n);
+        responder(cliente, "200 OK", corpo);
+    }
+    else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/notificacoes") == 0)
+    {
+        char *json = malloc(TAM_JSON);
+        if (json != NULL && notificacao_listar_por_usuario_json(s.usuario_id, json, TAM_JSON) == 1)
+            responder(cliente, "200 OK", json);
+        else
+            responder(cliente, "500 Internal Server Error", "{\"erro\":\"falha ao listar notificacoes\"}");
+        free(json);
+    }
+    else if (strcmp(metodo, "POST") == 0 && strcmp(caminho, "/me/notificacoes/lidas") == 0)
+    {
+        int ok = notificacao_marcar_todas_lidas(s.usuario_id) == 1;
+        responder(cliente, ok ? "200 OK" : "500 Internal Server Error",
+                  ok ? "{\"status\":\"ok\"}" : "{\"erro\":\"falha ao marcar notificacoes\"}");
+    }
+    else if (strcmp(metodo, "POST") == 0 &&
+             sscanf(caminho, "/me/notificacoes/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "lida") == 0)
+    {
+        int ok = notificacao_marcar_lida(id, s.usuario_id) == 1;
+        responderRemocao(cliente, ok, "{\"erro\":\"notificacao nao encontrada\"}");
+    }
     else if (strcmp(metodo, "GET") == 0 && strcmp(caminho, "/me/solicitacoes") == 0)
     {
         rotaMeSolicitacoes(cliente, &s);
@@ -4431,6 +4505,25 @@ static void rotear(int cliente, const char *metodo, char *caminho,
         responderRemocao(cliente, ok, "{\"erro\":\"check-in nao encontrado ou ja chamado\"}");
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
+             strcmp(acao, "assumir") == 0)
+    {
+        /* O medico assume o proximo da fila: vincula o atendimento a ele. */
+        int ok = checkin_repo_assumir(id, s.medico_id) == 1;
+        if (ok)
+        {
+            auditar(&s, "ASSUMIR", "checkin", id, "");
+            notificacao_criar_para_papel("ENFERMAGEM", "Paciente assumido",
+                "Um medico assumiu um paciente da fila de consulta.",
+                "ATENDIMENTO", "checkin", id);
+            responder(cliente, "200 OK", "{\"status\":\"assumido\"}");
+        }
+        else
+        {
+            responder(cliente, "404 Not Found",
+                "{\"erro\":\"check-in indisponivel ou medico nao identificado\"}");
+        }
+    }
+    else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "encerrar") == 0)
     {
         int ok = checkin_repo_encerrar(id) == 1;
@@ -4440,9 +4533,24 @@ static void rotear(int cliente, const char *metodo, char *caminho,
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "rechamar") == 0)
     {
-        int ok = checkin_repo_rechamar(id) == 1;
-        if (ok) auditar(&s, "RECHAMAR", "checkin", id, "");
-        responderRemocao(cliente, ok, "{\"erro\":\"check-in nao esta em atendimento\"}");
+        int r = checkin_repo_rechamar(id);
+        if (r == 2)
+        {
+            /* Limite de rechamadas atingido: marcado FALTOU automaticamente. */
+            auditar(&s, "FALTOU", "checkin", id, "limite de rechamadas");
+            responder(cliente, "200 OK",
+                "{\"status\":\"faltou\",\"motivo\":\"limite de rechamadas atingido\"}");
+        }
+        else if (r == 1)
+        {
+            auditar(&s, "RECHAMAR", "checkin", id, "");
+            responder(cliente, "200 OK", "{\"status\":\"rechamado\"}");
+        }
+        else
+        {
+            responder(cliente, "404 Not Found",
+                "{\"erro\":\"check-in nao esta em atendimento\"}");
+        }
     }
     else if (strcmp(metodo, "POST") == 0 && sscanf(caminho, "/checkins/%d/%31s", &id, acao) == 2 &&
              strcmp(acao, "faltar") == 0)

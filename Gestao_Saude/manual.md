@@ -118,14 +118,14 @@ backend em `http://localhost:8080`.
 # Backend
 cd src/backend/web
 make api                    # compila sem warnings
-make test                   # 28 suítes unitárias C
+make test                   # 29 suítes unitárias C
 make api-smoke-test         # smoke HTTP
 make api-integration-test   # integração ponta a ponta
 make api-tls-smoke-test     # smoke HTTPS
 
 # Frontend
 cd ../../frontend
-npm test                    # 34 testes (7 arquivos) com Vitest
+npm test                    # 39 testes (8 arquivos) com Vitest
 npm run lint                # ESLint
 npm run build               # build de produção
 ```

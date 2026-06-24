@@ -7,6 +7,7 @@ import ResourceList from './pages/ResourceList'
 import PacienteDetalhe from './pages/PacienteDetalhe'
 import Triagem from './pages/Triagem'
 import Recepcao from './pages/Recepcao'
+import Atendimento from './pages/Atendimento'
 import Leitos from './pages/Leitos'
 import Internacoes from './pages/Internacoes'
 import Relatorios from './pages/Relatorios'
@@ -78,6 +79,14 @@ export default function App() {
           element={
             <RequireRole roles={['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM']}>
               <Recepcao />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/atendimento"
+          element={
+            <RequireRole roles={['ADMIN', 'MEDICO']}>
+              <Atendimento />
             </RequireRole>
           }
         />

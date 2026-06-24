@@ -219,6 +219,30 @@ int checkin_repo_chamar(int id)
     return mudar_status(id, "AGUARDANDO", "EM_ATENDIMENTO");
 }
 
+int checkin_repo_assumir(int id, int medico_id)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "UPDATE checkins SET status = 'EM_ATENDIMENTO', medico_id = ? "
+        "WHERE id = ? AND status = 'AGUARDANDO';";
+    int ok = 0;
+
+    if (medico_id <= 0 || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, medico_id);
+        sqlite3_bind_int(stmt, 2, id);
+        ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
+        sqlite3_finalize(stmt);
+    }
+    db_fechar(db);
+    return ok ? 1 : 0;
+}
+
 int checkin_repo_rechamar(int id)
 {
     sqlite3 *db = NULL;
@@ -227,6 +251,7 @@ int checkin_repo_rechamar(int id)
         "UPDATE checkins SET rechamadas = rechamadas + 1 "
         "WHERE id = ? AND status = 'EM_ATENDIMENTO';";
     int ok = 0;
+    int rechamadas = 0;
 
     if (db_abrir(&db) == 0)
     {
@@ -238,8 +263,156 @@ int checkin_repo_rechamar(int id)
         ok = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(db) > 0;
         sqlite3_finalize(stmt);
     }
+
+    if (!ok)
+    {
+        db_fechar(db);
+        return 0;
+    }
+
+    /* Atingiu o limite de rechamadas? Marca FALTOU automaticamente. */
+    if (sqlite3_prepare_v2(db, "SELECT rechamadas FROM checkins WHERE id = ?;",
+                           -1, &stmt, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, id);
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            rechamadas = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    if (rechamadas >= CHECKIN_MAX_RECHAMADAS)
+    {
+        sqlite3_stmt *up = NULL;
+        if (sqlite3_prepare_v2(db,
+                "UPDATE checkins SET status = 'FALTOU' "
+                "WHERE id = ? AND status = 'EM_ATENDIMENTO';",
+                -1, &up, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int(up, 1, id);
+            sqlite3_step(up);
+            sqlite3_finalize(up);
+        }
+        db_fechar(db);
+        return 2; /* limite atingido: paciente marcado FALTOU */
+    }
+
     db_fechar(db);
-    return ok ? 1 : 0;
+    return 1;
+}
+
+/* Lista filtrada da fila com os campos uteis ao medico. 'where' e o predicado
+ * (sem a palavra WHERE) e 'medico_id' (>0) e ligado a um unico '?' quando o
+ * predicado o utiliza. */
+static int listar_fila_json(const char *where, int medico_id,
+                            char *buffer, int tamanho)
+{
+    sqlite3 *db = NULL;
+    sqlite3_stmt *stmt = NULL;
+    char sql[900];
+    int usado = 0;
+    int primeiro = 1;
+
+    if (buffer == NULL || tamanho <= 0 || db_abrir(&db) == 0)
+    {
+        return 0;
+    }
+
+    snprintf(sql, sizeof(sql),
+        "SELECT c.id, c.paciente_id, p.nome, c.senha, c.destino, c.status, "
+        "c.medico_id, "
+        "COALESCE((SELECT t.pontuacao FROM triagens t "
+        "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
+        "  ORDER BY t.id DESC LIMIT 1), 0) AS prioridade, "
+        "COALESCE((SELECT t.classificacao FROM triagens t "
+        "  WHERE t.paciente_id = c.paciente_id AND t.ativo = 1 AND t.vigente = 1 "
+        "  ORDER BY t.id DESC LIMIT 1), '') AS classificacao, "
+        "CAST((julianday('now') - julianday(c.criado_em)) * 1440 AS INTEGER) AS espera_min "
+        "FROM checkins c LEFT JOIN pacientes p ON p.id = c.paciente_id "
+        "WHERE %s ORDER BY prioridade DESC, c.id ASC;", where);
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
+    {
+        db_fechar(db);
+        return 0;
+    }
+    if (medico_id > 0)
+    {
+        sqlite3_bind_int(stmt, 1, medico_id);
+    }
+
+    buffer[0] = '\0';
+    if (repo_json_anexar(buffer, tamanho, &usado, "[") == 0)
+    {
+        sqlite3_finalize(stmt);
+        db_fechar(db);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        char nomeJson[256];
+        char senhaJson[24];
+        char destinoJson[24];
+        char statusJson[32];
+        char classifJson[32];
+        char objeto[900];
+        int cid = sqlite3_column_int(stmt, 0);
+        int pacienteId = sqlite3_column_int(stmt, 1);
+        int medicoId = sqlite3_column_int(stmt, 6);
+        int prioridade = sqlite3_column_int(stmt, 7);
+        int esperaMin = sqlite3_column_int(stmt, 9);
+        int escrito;
+
+        if (repo_json_escapar(nomeJson, sizeof(nomeJson), (const char *)sqlite3_column_text(stmt, 2)) == 0 ||
+            repo_json_escapar(senhaJson, sizeof(senhaJson), (const char *)sqlite3_column_text(stmt, 3)) == 0 ||
+            repo_json_escapar(destinoJson, sizeof(destinoJson), (const char *)sqlite3_column_text(stmt, 4)) == 0 ||
+            repo_json_escapar(statusJson, sizeof(statusJson), (const char *)sqlite3_column_text(stmt, 5)) == 0 ||
+            repo_json_escapar(classifJson, sizeof(classifJson), (const char *)sqlite3_column_text(stmt, 8)) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+
+        escrito = snprintf(objeto, sizeof(objeto),
+            "%s{\"id\":%d,\"pacienteId\":%d,\"pacienteNome\":%s,\"senha\":%s,"
+            "\"destino\":%s,\"status\":%s,\"medicoId\":%d,\"prioridade\":%d,"
+            "\"classificacao\":%s,\"esperaMinutos\":%d}",
+            primeiro ? "" : ",",
+            cid, pacienteId, nomeJson, senhaJson, destinoJson, statusJson,
+            medicoId, prioridade, classifJson, esperaMin);
+
+        if (escrito < 0 || escrito >= (int)sizeof(objeto) ||
+            repo_json_anexar(buffer, tamanho, &usado, objeto) == 0)
+        {
+            sqlite3_finalize(stmt);
+            db_fechar(db);
+            return 0;
+        }
+        primeiro = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    db_fechar(db);
+    return repo_json_anexar(buffer, tamanho, &usado, "]");
+}
+
+int checkin_repo_fila_consulta_json(char *buffer, int tamanho)
+{
+    return listar_fila_json(
+        "c.status = 'AGUARDANDO' AND c.destino = 'CONSULTA'", 0, buffer, tamanho);
+}
+
+int checkin_repo_atendimentos_medico_json(int medico_id, char *buffer, int tamanho)
+{
+    if (medico_id <= 0)
+    {
+        return 0;
+    }
+    return listar_fila_json(
+        "c.status = 'EM_ATENDIMENTO' AND c.medico_id = ?", medico_id, buffer, tamanho);
 }
 
 int checkin_repo_faltar(int id)

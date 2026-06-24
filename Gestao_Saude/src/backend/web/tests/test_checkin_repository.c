@@ -99,6 +99,24 @@ int main(void)
     assert(strstr(json, "\"classificacao\":\"Vermelho\"") != NULL);
     assert(strstr(json, "\"estouroSla\":true") != NULL);
 
+    /* Limite de rechamadas: a 3a rechamada marca FALTOU automaticamente. */
+    assert(checkin_repo_criar(2, "CONSULTA", senha, sizeof(senha)) == 1); /* id 5 */
+    assert(checkin_repo_chamar(5) == 1);   /* AGUARDANDO -> EM_ATENDIMENTO */
+    assert(checkin_repo_rechamar(5) == 1); /* 1a */
+    assert(checkin_repo_rechamar(5) == 1); /* 2a */
+    assert(checkin_repo_rechamar(5) == 2); /* 3a -> limite: FALTOU */
+    assert(checkin_repo_rechamar(5) == 0); /* nao esta mais EM_ATENDIMENTO */
+
+    /* Medico assume o proximo: sai da fila e entra em "meus atendimentos". */
+    assert(checkin_repo_criar(2, "CONSULTA", senha, sizeof(senha)) == 1); /* id 6 */
+    assert(checkin_repo_assumir(6, 0) == 0); /* medico invalido */
+    assert(checkin_repo_assumir(6, 7) == 1); /* medico 7 assume */
+    assert(checkin_repo_assumir(6, 7) == 0); /* nao esta mais AGUARDANDO */
+    assert(checkin_repo_atendimentos_medico_json(7, json, sizeof(json)) == 1);
+    assert(strstr(json, senha) != NULL); /* o assumido aparece para o medico */
+    assert(checkin_repo_fila_consulta_json(json, sizeof(json)) == 1);
+    assert(strstr(json, senha) == NULL); /* e saiu da fila de consulta */
+
     printf("test_checkin_repository: OK\n");
     return 0;
 }

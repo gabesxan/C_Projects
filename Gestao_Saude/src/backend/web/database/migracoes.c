@@ -17,7 +17,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
-#define LATEST_VERSION 16
+#define LATEST_VERSION 17
 
 typedef struct
 {
@@ -275,6 +275,20 @@ static const Migracao MIGRACOES[] = {
      "CREATE INDEX IF NOT EXISTS idx_consentimentos_paciente ON consentimentos(paciente_id);"
      "CREATE INDEX IF NOT EXISTS idx_consentimentos_status ON consentimentos(status);"
      "CREATE INDEX IF NOT EXISTS idx_consentimentos_finalidade ON consentimentos(finalidade);"},
+    {17, "fila por medico (assumir) e notificacoes in-app por papel",
+     "ALTER TABLE checkins ADD COLUMN medico_id INTEGER NOT NULL DEFAULT 0;"
+     "CREATE TABLE IF NOT EXISTS notificacoes ("
+     "  id INTEGER PRIMARY KEY,"
+     "  usuario_id INTEGER NOT NULL,"
+     "  papel TEXT NOT NULL DEFAULT '',"
+     "  titulo TEXT NOT NULL,"
+     "  mensagem TEXT NOT NULL DEFAULT '',"
+     "  tipo TEXT NOT NULL DEFAULT 'INFO',"
+     "  entidade TEXT NOT NULL DEFAULT '',"
+     "  entidade_id INTEGER NOT NULL DEFAULT 0,"
+     "  lida INTEGER NOT NULL DEFAULT 0,"
+     "  criado_em TEXT NOT NULL DEFAULT (datetime('now')));"
+     "CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON notificacoes(usuario_id, lida);"},
 };
 
 /* Le a versao atual do schema (PRAGMA user_version). */

@@ -177,3 +177,42 @@ export function revogarConsentimento(id, motivo) {
 export function listarMeuRelatorioAcessos() {
   return apiGet('/me/relatorio-acessos')
 }
+
+// --- Fila do medico: assumir o proximo e ver quem atender -------------------
+
+// Fila de consulta que o medico pode assumir (proximos a atender).
+export function listarFilaConsulta() {
+  return apiGet('/me/fila')
+}
+
+// O medico assume um check-in da fila (vincula o atendimento a ele).
+export function assumirCheckin(id) {
+  return apiSend('POST', `/checkins/${id}/assumir`)
+}
+
+// Pacientes que o medico ja assumiu e deve atender agora.
+export function listarMeusAtendimentos() {
+  return apiGet('/me/atendimentos')
+}
+
+// --- Notificacoes in-app (todos os papeis) ----------------------------------
+
+// Lista as notificacoes do usuario autenticado (mais recentes primeiro).
+export function listarNotificacoes() {
+  return apiGet('/me/notificacoes')
+}
+
+// Conta as notificacoes nao lidas: { naoLidas }.
+export function contarNotificacoes() {
+  return apiGet('/me/notificacoes/contar')
+}
+
+// Marca uma notificacao como lida.
+export function marcarNotificacaoLida(id) {
+  return apiSend('POST', `/me/notificacoes/${id}/lida`)
+}
+
+// Marca todas as notificacoes do usuario como lidas.
+export function marcarTodasNotificacoesLidas() {
+  return apiSend('POST', '/me/notificacoes/lidas')
+}

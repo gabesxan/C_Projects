@@ -119,6 +119,10 @@ export default function Recepcao() {
   const [fila, setFila] = useState(null)
   const [agendamentos, setAgendamentos] = useState(null)
   const [erro, setErro] = useState('')
+  const [aviso, setAviso] = useState('')
+  // Check-in com uma acao em andamento: trava os botoes da linha (evita
+  // disparar a mesma chamada duas vezes em cliques rapidos).
+  const [enviandoId, setEnviandoId] = useState(0)
 
   const podeCheckin = user.papel === 'ADMIN' || user.papel === 'CADASTRO'
   const podeVerAgendamentos = ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'].includes(user.papel)
@@ -134,11 +138,20 @@ export default function Recepcao() {
   useEffect(() => { queueMicrotask(carregar) }, [carregar])
 
   async function acao(id, qual) {
+    if (enviandoId) return // ja ha uma acao em andamento (anti duplo-clique)
+    setEnviandoId(id)
+    setErro('')
+    setAviso('')
     try {
-      await apiSend('POST', `/checkins/${id}/${qual}`)
+      const r = await apiSend('POST', `/checkins/${id}/${qual}`)
+      if (qual === 'rechamar' && r && r.status === 'faltou') {
+        setAviso('Limite de rechamadas atingido: paciente marcado como FALTOU.')
+      }
       carregar()
     } catch (e) {
       setErro(e.message)
+    } finally {
+      setEnviandoId(0)
     }
   }
 
@@ -178,6 +191,7 @@ export default function Recepcao() {
       {podeCheckin && <CheckinForm onFeito={carregar} />}
 
       {erro && <Alert>{erro}</Alert>}
+      {aviso && <Alert tone="amber">{aviso}</Alert>}
       {!erro && fila === null && <Spinner />}
       {!erro && Array.isArray(fila) && fila.length === 0 && (
         <EmptyState title="Fila vazia" description="Sem pacientes aguardando no momento." />
@@ -221,22 +235,22 @@ export default function Recepcao() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       {c.status === 'AGUARDANDO' && (
-                        <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'chamar')}>Chamar</Button>
+                        <Button variant="secondary" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => acao(c.id, 'chamar')}>Chamar</Button>
                       )}
                       {c.status === 'EM_ATENDIMENTO' && (
                         <>
-                          <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'rechamar')}>Rechamar</Button>
-                          <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'faltar')}>Faltou</Button>
+                          <Button variant="secondary" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => acao(c.id, 'rechamar')}>Rechamar</Button>
+                          <Button variant="secondary" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => acao(c.id, 'faltar')}>Faltou</Button>
                         </>
                       )}
                       {c.status === 'FALTOU' && (
-                        <Button variant="secondary" className="px-3 py-1" onClick={() => acao(c.id, 'retornar')}>Retornar à fila</Button>
+                        <Button variant="secondary" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => acao(c.id, 'retornar')}>Retornar à fila</Button>
                       )}
                       {(c.status === 'AGUARDANDO' || c.status === 'EM_ATENDIMENTO') && (
-                        <Button variant="danger" className="px-3 py-1" onClick={() => acao(c.id, 'encerrar')}>Encerrar</Button>
+                        <Button variant="danger" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => acao(c.id, 'encerrar')}>Encerrar</Button>
                       )}
                       {podeCheckin && (c.status === 'AGUARDANDO' || c.status === 'EM_ATENDIMENTO') && (
-                        <Button variant="danger" className="px-3 py-1" onClick={() => cancelar(c)}>Cancelar</Button>
+                        <Button variant="danger" className="px-3 py-1" disabled={enviandoId === c.id} onClick={() => cancelar(c)}>Cancelar</Button>
                       )}
                     </div>
                   </td>

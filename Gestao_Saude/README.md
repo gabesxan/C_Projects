@@ -11,8 +11,8 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 ![OpenSSL](https://img.shields.io/badge/Hash-PBKDF2--HMAC--SHA256-721412?logo=openssl&logoColor=white)
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Testes C](https://img.shields.io/badge/testes%20C-28%2F28-brightgreen)
-![Testes Frontend](https://img.shields.io/badge/testes%20frontend-34%2F34-brightgreen)
+![Testes C](https://img.shields.io/badge/testes%20C-29%2F29-brightgreen)
+![Testes Frontend](https://img.shields.io/badge/testes%20frontend-39%2F39-brightgreen)
 ![Warnings](https://img.shields.io/badge/warnings-0-brightgreen)
 ![Licença](https://img.shields.io/badge/uso-acadêmico-blue)
 
@@ -71,7 +71,7 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 - 👥 **Login por papéis** criado pelo administrador: `ADMIN`, `CADASTRO`, `MEDICO`, `ENFERMAGEM`, `PACIENTE`.
 - 🔑 **Sessão por token** (Bearer): credenciais só no corpo do login, bloqueio por tentativas e troca de senha (obrigatória no 1º acesso).
 - 🌐 **API REST** em C puro com sockets POSIX (sem framework), **servidor concorrente** (pool de threads) e escritas via **corpo JSON**.
-- ✅ **28 suítes de teste C** automatizadas com `assert.h`, **34 testes frontend** (7 arquivos) com Vitest, além de smoke HTTP, integração e smoke TLS.
+- ✅ **29 suítes de teste C** automatizadas com `assert.h`, **39 testes frontend** (8 arquivos) com Vitest, além de smoke HTTP, integração e smoke TLS.
 - ♻️ **Banco reconstruível e versionado**: o schema é a fonte da verdade, o `.db` é descartável e **migrações** atualizam bancos antigos sem perder dados.
 
 ---
@@ -328,7 +328,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/me
 | `make cert` | Gera um certificado TLS autoassinado de desenvolvimento em `certs/` |
 | `make run-tls` | Sobe o servidor em **HTTPS** na porta 8443 (gera o cert se preciso) |
 | `make frontend` | Builda o frontend (Vite) e publica em `public/` para o servidor servir |
-| `make test` | Compila e roda as 28 suítes de teste C |
+| `make test` | Compila e roda as 29 suítes de teste C |
 | `make test_<nome>` | Roda uma suíte específica (ex.: `make test_triagem_service`) |
 | `make api-smoke-test` | Executa `tests/api_smoke_test.sh` (liveness, auth e escopo por papel via `curl`) |
 | `make api-integration-test` | Executa `tests/api_integration_test.sh` (fluxos ponta a ponta encadeados) |
@@ -355,7 +355,7 @@ O servidor entrega `public/index.html` e os assets para qualquer rota que **não
 cd src/frontend
 npm install
 npm run dev      # Vite com proxy /api para localhost:8080
-npm test         # 34 testes (7 arquivos) com Vitest
+npm test         # 39 testes (8 arquivos) com Vitest
 npm run lint     # ESLint
 npm run build    # gera dist/
 ```
@@ -371,7 +371,7 @@ cd src/backend/web
 make test
 ```
 
-São **28 suítes C** com `assert.h`. Elas usam bancos de teste dentro de `build/`, recriados a partir do schema conforme a necessidade de cada módulo, sem depender do banco oficial.
+São **29 suítes C** com `assert.h`. Elas usam bancos de teste dentro de `build/`, recriados a partir do schema conforme a necessidade de cada módulo, sem depender do banco oficial.
 
 | Camada | Suítes |
 |---|---|
@@ -1060,7 +1060,7 @@ Próximos passos (fora do escopo atual):
 - O backend web demonstra, em C básico, conceitos de **arquitetura em camadas, acesso a dados, regras de negócio, API HTTP e autenticação** — sem frameworks.
 - A primeira versão era um app de **terminal** (CLI, dados em memória); a triagem já alimentava o agendamento por especialidade, região e disponibilidade — a semente da triagem inteligente que a V2 expandiu para a web. Esse protótipo foi descontinuado e seu histórico está preservado no git.
 - Artefatos gerados (binários, `*.db`, `*.o`) ficam **fora** do versionamento; o **schema** é a fonte da verdade e o banco é sempre reconstruível a partir dele — com **migrações versionadas** que atualizam bancos existentes sem perder dados.
-- Todo o código C compila com `-Wall -Wextra -pedantic` **sem warnings**. O projeto possui 28 suítes C, 34 testes frontend (7 arquivos), smoke HTTP, integração ponta a ponta e smoke TLS.
+- Todo o código C compila com `-Wall -Wextra -pedantic` **sem warnings**. O projeto possui 29 suítes C, 39 testes frontend (8 arquivos), smoke HTTP, integração ponta a ponta e smoke TLS.
 
 ### 🔑 Credenciais de exemplo (apos `make seed`)
 

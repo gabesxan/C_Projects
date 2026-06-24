@@ -37,6 +37,7 @@ const NAV = [
   // Atendimento (recepcao, triagem e cadastros).
   { to: '/recepcao', label: 'Recepção', icon: 'reception', roles: ['ADMIN', 'CADASTRO', 'MEDICO', 'ENFERMAGEM'], section: 'Atendimento' },
   { to: '/triagem', label: 'Triagem', icon: 'triage', roles: ['ADMIN', 'MEDICO', 'ENFERMAGEM'], section: 'Atendimento' },
+  { to: '/atendimento', label: 'Atendimento', icon: 'doctor', roles: ['ADMIN', 'MEDICO'], section: 'Atendimento' },
   // Cadastro (registro) de pacientes/medicos: so quem cadastra. Os papeis
   // clinicos localizam o paciente pela Recepcao/Triagem e abrem a ficha.
   { to: '/r/pacientes', label: 'Pacientes', icon: 'patients', roles: ['ADMIN', 'CADASTRO'], section: 'Atendimento' },

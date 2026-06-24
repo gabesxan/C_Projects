@@ -656,6 +656,30 @@ request_and_assert "/pacientes/1/relatorio-acessos" "403" "/pacientes/1/relatori
 # O proprio acesso ao relatorio fica auditado (visivel na trilha geral).
 request_and_assert "/auditoria" "200" "/auditoria registra RELATORIO_ACESSOS (ADMIN)" "${ADMIN_TOKEN}" contains '"acao":"RELATORIO_ACESSOS"'
 
+# Fila do medico, assumir o proximo e notificacoes in-app.
+echo "--- Fila do medico, assumir e notificacoes ---"
+# Recepcao (ADMIN) gera senha de CONSULTA: entra na fila do medico e notifica.
+request_json_and_assert "POST" "/checkins" '{"paciente_id":1,"destino":"CONSULTA"}' \
+    "201" "/checkins POST consulta (ADMIN)" "${ADMIN_TOKEN}" contains '"senha"'
+SENHA_FILA="$(grep -o '"senha":"[^"]*"' "${RESP_FILE}" | head -1 | sed 's/.*:"//;s/"//')"
+# Medico ve a fila de consulta e extrai o id do check-in da sua senha.
+request_and_assert "/me/fila" "200" "/me/fila (MEDICO)" "${MED_TOKEN}" contains "\"senha\":\"${SENHA_FILA}\""
+CK_FILA="$(grep -o "\"id\":[0-9]*,\"pacienteId\":[0-9]*,\"pacienteNome\":\"[^\"]*\",\"senha\":\"${SENHA_FILA}\"" "${RESP_FILE}" | grep -o '"id":[0-9]*' | grep -o '[0-9]*')"
+[[ -n "${CK_FILA}" ]] || fail "nao extraiu id do check-in da fila"
+# Medico recebe a notificacao de novo paciente na fila.
+request_and_assert "/me/notificacoes/contar" "200" "/me/notificacoes/contar (MEDICO)" "${MED_TOKEN}" contains '"naoLidas"'
+request_and_assert "/me/notificacoes" "200" "/me/notificacoes (MEDICO)" "${MED_TOKEN}" contains "Novo paciente na fila"
+# Medico assume o paciente: sai da fila e entra em "meus atendimentos".
+request_json_and_assert "POST" "/checkins/${CK_FILA}/assumir" '{}' \
+    "200" "/checkins/{id}/assumir (MEDICO)" "${MED_TOKEN}" contains '"status":"assumido"'
+request_and_assert "/me/atendimentos" "200" "/me/atendimentos (MEDICO)" "${MED_TOKEN}" contains "\"senha\":\"${SENHA_FILA}\""
+# Marcar todas as notificacoes como lidas zera o contador.
+request_json_and_assert "POST" "/me/notificacoes/lidas" '{}' \
+    "200" "/me/notificacoes/lidas (MEDICO)" "${MED_TOKEN}" contains '"status":"ok"'
+request_and_assert "/me/notificacoes/contar" "200" "/me/notificacoes/contar zerado (MEDICO)" "${MED_TOKEN}" contains '"naoLidas":0'
+# PACIENTE nao acessa a fila clinica do medico (escopo).
+request_and_assert "/me/fila" "200" "/me/fila vazio para nao-medico (PACIENTE)" "${PAC_TOKEN}"
+
 # Rate-limit por IP no POST /sessao: apos LOGIN_IP_MAX_FALHAS (10) falhas do
 # mesmo IP, novas tentativas sao barradas com 429 (independe do login alvo).
 # DEVE ser o ultimo teste: deixa o IP 127.0.0.1 bloqueado pela janela.

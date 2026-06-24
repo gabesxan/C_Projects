@@ -32,6 +32,7 @@ SESSAO_SRC = repositories/sessao_repository.c
 AUDIT_SRC = repositories/auditoria_repository.c
 ENF_SRC = repositories/enfermagem_repository.c
 CHECKIN_SRC = repositories/checkin_repository.c
+NOTIF_SRC = repositories/notificacao_repository.c
 FIN_SRC = repositories/financeiro_repository.c
 LOTE_SRC = repositories/lote_repository.c
 ANALITO_SRC = repositories/analito_repository.c
@@ -95,6 +96,7 @@ TEST_ESTOQUE = tests/test_estoque_repository.c $(ESTOQUE_SRC) $(MEDICAMENTO_SRC)
 TEST_VACINA = tests/test_vacina_repository.c $(VACINA_SRC) $(ESTOQUE_SRC) $(MEDICAMENTO_SRC) $(PAC_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_ANEXO = tests/test_anexo_repository.c $(ANEXO_SRC) $(JSON_SRC) $(DB_SRC)
 TEST_CONSENT = tests/test_consentimento_repository.c $(CONSENT_SRC) $(JSON_SRC) $(DB_SRC)
+TEST_NOTIF = tests/test_notificacao_repository.c $(NOTIF_SRC) $(USUARIO_SRC) $(SENHA_SRC) $(JSON_SRC) $(DB_SRC)
 
 # Alvo padrao: compila a camada de banco e o servidor HTTP.
 all: $(BUILD)/database.o api
@@ -109,7 +111,7 @@ $(BUILD)/database.o: $(DB_SRC) | $(BUILD)
 # Compila o servidor HTTP (health, cadastros, triagem inteligente e usuarios).
 API_DEPS = $(API_SRC) $(PAC_SRC) $(MED_SRC) $(ALA_SRC) $(LEITO_SRC) \
 	$(TRIAGEM_SRC) $(AGEND_SRC) $(PRONT_SRC) $(EXAME_SRC) $(INTERN_SRC) \
-	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
+	$(USUARIO_SRC) $(SESSAO_SRC) $(AUDIT_SRC) $(ENF_SRC) $(CHECKIN_SRC) $(NOTIF_SRC) $(FIN_SRC) $(LOTE_SRC) $(SENHA_SRC) \
 	$(CRED_SRC) $(REGIAO_SRC) $(PRESC_SRC) $(ANALITO_SRC) $(SOLIC_SRC) $(MEDICAMENTO_SRC) \
 	$(ESTOQUE_SRC) $(VACINA_SRC) $(ANEXO_SRC) $(CONSENT_SRC) $(FARMACIA_SVC_SRC) $(ANEXO_SVC_SRC) \
 	$(CONSENT_SVC_SRC) $(LGPD_SVC_SRC) $(TRIAGEM_SVC_SRC) $(RELAT_SVC_SRC) $(JSON_SRC) $(DB_SRC) $(MIG_SRC)
@@ -187,7 +189,7 @@ test: test_paciente_repository test_medico_repository test_ala_repository \
 	test_sessao_repository test_migracoes test_lote_repository \
 	test_analito_repository test_solicitacao_repository test_medicamento_repository \
 	test_estoque_repository test_vacina_repository test_anexo_repository \
-	test_consentimento_repository
+	test_consentimento_repository test_notificacao_repository
 
 test_paciente_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_PAC) -o $(BUILD)/test_paciente_repository $(LDLIBS)
@@ -301,6 +303,10 @@ test_consentimento_repository: | $(BUILD)
 	$(CC) $(CFLAGS) $(TEST_CONSENT) -o $(BUILD)/test_consentimento_repository $(LDLIBS)
 	./$(BUILD)/test_consentimento_repository
 
+test_notificacao_repository: | $(BUILD)
+	$(CC) $(CFLAGS) $(TEST_NOTIF) -o $(BUILD)/test_notificacao_repository $(LDLIBS) $(CRYPTO_LIBS)
+	./$(BUILD)/test_notificacao_repository
+
 clean:
 	rm -rf $(BUILD)
 
@@ -314,4 +320,4 @@ clean:
 	test_sessao_repository test_migracoes test_lote_repository \
 	test_analito_repository test_solicitacao_repository test_medicamento_repository \
 	test_estoque_repository test_vacina_repository test_anexo_repository \
-	test_consentimento_repository
+	test_consentimento_repository test_notificacao_repository

@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BadgeDollarSign,
   Bed,
+  Bell,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
@@ -36,6 +37,7 @@ import {
 
 export const ICONS = {
   dashboard: LayoutDashboard,
+  bell: Bell,
   health: HeartPulse,
   reception: ClipboardCheck,
   patient: User,

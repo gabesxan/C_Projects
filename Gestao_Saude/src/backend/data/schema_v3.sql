@@ -437,6 +437,8 @@ CREATE TABLE checkins (
     rechamadas INTEGER NOT NULL DEFAULT 0,
     -- motivo: justificativa do cancelamento (vazio nos demais estados).
     motivo TEXT NOT NULL DEFAULT '',
+    -- medico_id: medico que assumiu o atendimento (0 = ninguem ainda).
+    medico_id INTEGER NOT NULL DEFAULT 0,
     criado_em TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
 );
@@ -646,6 +648,26 @@ CREATE INDEX idx_consentimentos_paciente ON consentimentos(paciente_id);
 CREATE INDEX idx_consentimentos_status ON consentimentos(status);
 CREATE INDEX idx_consentimentos_finalidade ON consentimentos(finalidade);
 
+-- Notificacoes in-app: uma linha por destinatario (fan-out por papel ou usuario
+-- especifico). O estado de leitura (lida) e por linha, entao cada usuario tem o
+-- seu. 'papel' guarda o publico-alvo quando a notificacao foi por papel.
+CREATE TABLE notificacoes (
+    id INTEGER PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    papel TEXT NOT NULL DEFAULT '',
+    titulo TEXT NOT NULL,
+    mensagem TEXT NOT NULL DEFAULT '',
+    -- tipo: rotulo visual/semantico (INFO, FILA, TRIAGEM, ATENDIMENTO, ...).
+    tipo TEXT NOT NULL DEFAULT 'INFO',
+    -- entidade/entidade_id: vinculo opcional com o objeto de origem.
+    entidade TEXT NOT NULL DEFAULT '',
+    entidade_id INTEGER NOT NULL DEFAULT 0,
+    lida INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_notificacoes_usuario ON notificacoes(usuario_id, lida);
+
 -- Versao do schema. Mantenha em sincronia com LATEST_VERSION em migracoes.c:
 -- um banco recem-criado ja nasce na ultima versao (as migracoes nao re-rodam).
-PRAGMA user_version = 16;
+PRAGMA user_version = 17;
