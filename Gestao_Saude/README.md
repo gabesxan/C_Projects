@@ -24,6 +24,9 @@ Projeto acadêmico em **C** que evoluiu de um sistema de terminal em memória pa
 
 - [Visão geral](#-visão-geral)
 - [Destaques](#-destaques)
+- [Público-alvo e posicionamento (MSN)](#-público-alvo-e-posicionamento-msn)
+- [Planejamento em 5W2H](#-planejamento-em-5w2h)
+- [Personas de software](#-personas-de-software)
 - [Fluxograma do projeto](#-fluxograma-do-projeto)
 - [Arquitetura](#-arquitetura)
   - [Ciclo de vida de uma requisição](#ciclo-de-vida-de-uma-requisição)
@@ -81,6 +84,94 @@ O grande diferencial é a **triagem inteligente**: ela deixou de ser apenas uma 
 O SIGEH-DF nasceu como uma aplicação de **terminal** (CLI em C, dados em memória) e evoluiu para o **backend web em camadas** ([`src/backend/web/`](src/backend/web/)) que é o foco atual. A versão de terminal cumpriu seu papel como protótipo e foi descontinuada — seu histórico permanece preservado no repositório git, mas o código não faz mais parte da árvore do projeto.
 
 A persistência ficou desde o início em **SQLite**, com o schema versionado em [`src/backend/data/schema_v3.sql`](src/backend/data/schema_v3.sql) como fonte única da verdade.
+
+---
+
+## 🎯 Público-alvo e posicionamento (MSN)
+
+Antes de escrever código, é preciso saber **para quem** se constrói. Usamos o
+funil **MSN — Massa › Segmento › Nicho** para enquadrar o produto, porque cada
+camada tem uma **cultura** própria e exige uma linguagem e usabilidade
+diferentes. Quanto mais ao fundo do funil, mais específico o vocabulário, mais
+alto o valor percebido e menor a tolerância a fricção.
+
+```text
+          ┌───────────────────────────────────────────────┐
+  MASSA   │ "qualquer pessoa" — apps generalistas          │  ← não somos isso
+          │ (mensageiros, buscadores). Cultura ampla.      │
+          ├───────────────────────────────────────────────┤
+SEGMENTO  │ Software de GESTÃO EM SAÚDE (clínicas,         │  ← mercado em que atuamos
+          │ hospitais, laboratórios). Cultura clínica.    │
+          ├───────────────────────────────────────────────┤
+  NICHO   │ ⭐ Gestão hospitalar PÚBLICA do DF (SUS):       │  ← POSICIONAMENTO do SIGEH-DF
+          │ triagem Manchester, fila por risco, LGPD,     │
+          │ papéis do servidor público. Cultura SUS/DF.   │
+          └───────────────────────────────────────────────┘
+```
+
+**Veredito do estudo:** o SIGEH-DF é um **produto de Nicho** dentro do
+**Segmento** "gestão em saúde". Ele **não** tenta servir à massa — assume um
+recorte específico (rede pública do DF) e otimiza tudo para a cultura desse
+público.
+
+| Camada | Quem é | Cultura / experiência | O SIGEH-DF se encaixa? |
+|---|---|---|---|
+| **Massa** | População geral | Heterogênea, casual, baixa tolerância a complexidade | ❌ Amplo demais |
+| **Segmento** | Profissionais de saúde em geral | Vocabulário clínico, prontuário, CID, exames | 🟡 É o mercado, mas genérico |
+| **Nicho** | Equipes da **rede pública (SUS/DF)** | Plantão 24/7, alto volume, recursos limitados, regulação (Manchester, LGPD), letramento digital variado | ✅ **É aqui que entregamos valor** |
+
+> [!NOTE]
+> **Por que o valor nasce da cultura.** Para a equipe do SUS, "valor" não é ter
+> mais funções — é **menos cliques, fila clara por risco e zero ambiguidade**
+> em plantão cheio. Por isso o sistema prioriza por **Protocolo de Manchester**,
+> separa **papéis** rigidamente e fala **PT-BR sem jargão técnico** na interface.
+
+---
+
+## 🧩 Planejamento em 5W2H
+
+O **5W2H** torna o escopo explícito e verificável — cada pergunta amarra uma
+decisão de produto à realidade do público de nicho.
+
+| # | Pergunta | Resposta |
+|---|---|---|
+| **What** · O quê | O que é? | Sistema integrado de gestão hospitalar: cadastro → recepção/fila → triagem inteligente → atendimento → exames → internação → farmácia → vacinação → financeiro → LGPD → notificações. |
+| **Why** · Por quê | Por que existe? | Organizar o fluxo de atendimento da rede pública, **priorizar risco** (reduzir espera de casos graves), dar **transparência** ao paciente (LGPD) e **visão gerencial** (indicadores/auditoria). |
+| **Who** · Quem | Para quem? | `ADMIN` (gestão), `CADASTRO` (recepção), `MÉDICO`, `ENFERMAGEM` e `PACIENTE` — cada papel com sua tela e permissões. |
+| **Where** · Onde | Onde roda/usa? | Unidades da rede pública do DF; **web** (qualquer navegador), backend em **C + SQLite** que roda em hardware modesto, on-premise ou nuvem. |
+| **When** · Quando | Quando é usado? | **Em tempo real**, durante o atendimento — do check-in à alta —, em plantões **24/7**. |
+| **How** · Como | Como funciona? | Arquitetura **em camadas** (C puro + sockets POSIX + SQLite / React+Vite+Tailwind), **sessão por token**, **autorização por papel** e **triagem inteligente** como motor de decisão. |
+| **How much** · Quanto | Quanto custa? | Stack **100% open-source** (C, SQLite, OpenSSL, React) — **sem licenças**, baixo custo de infraestrutura; projeto **acadêmico**, reconstruível e versionado. |
+
+---
+
+## 🎭 Personas de software
+
+Personas dão **rosto** ao público de nicho: em vez de "o usuário", pensamos em
+pessoas concretas, com objetivos e dores. Isso guia a usabilidade — cada tela
+existe para resolver a dor de alguém.
+
+> [!TIP]
+> **A personalidade do próprio sistema (personificação).** Se o SIGEH-DF fosse
+> uma pessoa, seria a **recepcionista-chefe veterana** do hospital: objetiva,
+> calma no caos, fala português claro, **nunca deixa um caso grave esperar** e
+> guarda registro de tudo (auditoria) sem ser burocrática. Esse é o tom de voz
+> que a interface busca: direto, confiável e sem jargão.
+
+| Persona | Quem é | Objetivo | Dor que o sistema resolve |
+|---|---|---|---|
+| 👩‍⚕️ **Dra. Helena** (Médica, 42) | Clínica em plantão lotado | Ver **quem atender agora** e o histórico, e prescrever rápido | Tela **Atendimento** ("assumir o próximo"), histórico clínico e prescrição com poucos cliques |
+| 🧑‍💼 **Marcos** (Recepção/Cadastro, 28) | Alto volume na entrada | Achar o paciente e **gerar a senha** em segundos | Busca rápida, fila por prioridade e botões travados contra duplo-clique |
+| 👩‍⚕️ **Enf. Lúcia** (Enfermagem, 35) | Triagem e medicação | **Classificar risco** (Manchester) e cuidar da fila/estoque | Triagem guiada, alertas de SLA e **notificações** de novos casos |
+| 👴 **Sr. João** (Paciente, 60) | Baixo letramento digital | Ver consultas, exames, vacinas e **seus dados** | Portal **Minha Saúde** simples + **carteira de privacidade** (LGPD) |
+| 🧑‍💻 **Ana** (Admin/Gestor) | Coordenação da unidade | Acompanhar indicadores e **quem fez o quê** | Relatórios, gestão de usuários e **trilha de auditoria** |
+
+> [!IMPORTANT]
+> **Usabilidade orientada à persona.** O letramento digital varia muito dentro
+> do nicho: o que serve à Dra. Helena (densidade de informação) **não** serve ao
+> Sr. João (simplicidade extrema). Por isso o portal do paciente é deliberadamente
+> mais enxuto que as telas clínicas — **a mesma régua de valor, interfaces
+> diferentes**.
 
 ---
 
